@@ -1,0 +1,39 @@
+import type { Lang } from './types'
+
+/** Testi fissi del disegno esportato (cartiglio, legenda, tabelle). */
+export const EXPORT_TEXT = {
+  title: { it: 'TITOLO', en: 'TITLE' },
+  drawingNo: { it: 'N. DISEGNO', en: 'DRAWING No.' },
+  company: { it: 'AZIENDA / PROGETTO', en: 'COMPANY / PROJECT' },
+  revision: { it: 'REV.', en: 'REV.' },
+  date: { it: 'DATA', en: 'DATE' },
+  drawnBy: { it: 'DISEGNATO', en: 'DRAWN BY' },
+  checkedBy: { it: 'VERIFICATO', en: 'CHECKED BY' },
+  scale: { it: 'SCALA', en: 'SCALE' },
+  noScale: { it: 'N.S.', en: 'NTS' },
+  sheet: { it: 'FOGLIO', en: 'SHEET' },
+  legend: { it: 'LEGENDA', en: 'LEGEND' },
+  symbols: { it: 'SIMBOLI', en: 'SYMBOLS' },
+  fluids: { it: 'LINEE / FLUIDI', en: 'LINES / FLUIDS' },
+  tagPrefix: { it: 'Tag', en: 'Tag' },
+  revisions: { it: 'REVISIONI', en: 'REVISIONS' },
+  description: { it: 'DESCRIZIONE', en: 'DESCRIPTION' },
+  author: { it: 'AUTORE', en: 'AUTHOR' },
+  bom: { it: 'Distinta componenti', en: 'Bill of materials' },
+  tag: { it: 'TAG', en: 'TAG' },
+  item: { it: 'TIPO', en: 'TYPE' },
+  size: { it: 'DIAMETRO', en: 'SIZE' },
+  pmax: { it: 'P MAX', en: 'MAX P' },
+  notes: { it: 'NOTE', en: 'NOTES' },
+  toSheet: { it: 'Foglio', en: 'Sheet' },
+  moreItems: { it: 'altre voci nella distinta', en: 'more items in the BOM' },
+  empty: { it: 'Nessun componente', en: 'No components' },
+  stateTable: { it: 'Stati delle valvole per fase', en: 'Valve states by phase' },
+  closedLbl: { it: 'chiusa', en: 'closed' },
+  openLbl: { it: 'aperta', en: 'open' },
+  unsetLbl: { it: 'non specificato', en: 'unspecified' },
+  phase: { it: 'FASE', en: 'PHASE' },
+} as const satisfies Record<string, Record<Lang, string>>
+
+export type ExportKey = keyof typeof EXPORT_TEXT
+export const t = (key: ExportKey, lang: Lang): string => EXPORT_TEXT[key][lang]

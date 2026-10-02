@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="228" fill="#10305f"/>
+  <rect x="24" y="24" width="976" height="976" rx="206" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="8"/>
+  <!-- tubazione -->
+  <path d="M120 560 H904" stroke="#5aa2ff" stroke-width="64" stroke-linecap="round"/>
+  <!-- valvola a sfera con maniglia -->
+  <path d="M512 560 V300" stroke="#ffffff" stroke-width="44" stroke-linecap="round"/>
+  <path d="M392 300 H632" stroke="#ffffff" stroke-width="44" stroke-linecap="round"/>
+  <path d="M312 408 V712 L512 560 Z M712 408 V712 L512 560 Z" fill="#ffffff" stroke="#ffffff" stroke-width="30" stroke-linejoin="round"/>
+  <circle cx="512" cy="560" r="46" fill="#10305f" stroke="#5aa2ff" stroke-width="22"/>
+</svg>

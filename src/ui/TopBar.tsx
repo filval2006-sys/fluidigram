@@ -1,0 +1,102 @@
+import { useState } from 'react'
+import type { LucideIcon } from 'lucide-react'
+import { Download, FilePlus2, FolderOpen, Monitor, Moon, Plus, Redo2, Save, Settings, Sun, Undo2, X } from 'lucide-react'
+import { openTextFile, saveTextFile } from '../platform/files'
+import { isDirty, tabName, useActiveTab, useStore } from '../state/store'
+import { parseDocument } from '../core'
+
+export type Notify = (msg: string, kind?: 'ok' | 'err') => void
+
+const slug = (s: string) => s.trim().replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '') || 'progetto'
+
+/** Salva la scheda attiva. Restituisce true solo se il file è stato scritto (false se annullato o in errore). */
+export async function saveActive(notify: Notify, forceDialog = false): Promise<boolean> {
+  const st = useStore.getState()
+  const tab = st.tabs.find((t) => t.id === st.activeId)!
+  const name = `${slug(tab.doc.meta.drawingNo || tab.doc.meta.title.it)}.fluidigram`
+  try {
+    const path = await saveTextFile(JSON.stringify(tab.doc, null, 2), name, 'fluidigram', 'Progetto Fluidigram', forceDialog ? undefined : tab.filePath)
+    if (!path) return false
+    st.markSaved(path)
+    notify('Progetto salvato')
+    return true
+  } catch (e) {
+    notify(`Salvataggio non riuscito: ${String(e)}`, 'err')
+    return false
+  }
+}
+
+export async function openProject(notify: Notify): Promise<void> {
+  try {
+    const f = await openTextFile(['fluidigram', 'json'])
+    if (!f) return
+    useStore.getState().openDocument(parseDocument(JSON.parse(f.text)), f.path)
+  } catch (e) { notify(`File non valido: ${e instanceof Error ? e.message : String(e)}`, 'err') }
+}
+
+export function TabBar({ onClose }: { onClose: (id: string) => void }) {
+  const tabs = useStore((s) => s.tabs)
+  const activeId = useStore((s) => s.activeId)
+  const setActive = useStore((s) => s.setActive)
+  const newProject = useStore((s) => s.newProject)
+  const edit = useStore((s) => s.edit)
+  const [renaming, setRenaming] = useState<string | null>(null)
+
+  return (
+    <div className="tabbar" role="tablist">
+      {tabs.map((t) => (
+        <div key={t.id} role="tab" aria-selected={t.id === activeId} className={'tab' + (t.id === activeId ? ' on' : '')}
+          onClick={() => setActive(t.id)} onDoubleClick={() => { setActive(t.id); setRenaming(t.id) }} title="Doppio clic per rinominare">
+          {renaming === t.id ? (
+            <input autoFocus defaultValue={t.doc.meta.title.it} onFocus={(e) => e.target.select()} onClick={(e) => e.stopPropagation()}
+              onBlur={(e) => { const v = e.target.value.trim(); if (v) edit((d) => { d.meta.title.it = v }); setRenaming(null) }}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setRenaming(null) }} />
+          ) : (
+            <span className="tab-name">{tabName(t)}</span>
+          )}
+          {isDirty(t) && <i className="dirty" aria-label="Modifiche non salvate" />}
+          <button className="icon-btn" aria-label={`Chiudi ${tabName(t)}`} onClick={(e) => { e.stopPropagation(); onClose(t.id) }}><X size={13} /></button>
+        </div>
+      ))}
+      <button className="icon-btn add" aria-label="Nuovo progetto" title="Nuovo progetto (⌘T)" onClick={newProject}><Plus size={16} /></button>
+    </div>
+  )
+}
+
+const THEMES = [
+  { id: 'system', label: 'Tema: automatico', Icon: Monitor },
+  { id: 'light', label: 'Tema: chiaro', Icon: Sun },
+  { id: 'dark', label: 'Tema: scuro', Icon: Moon },
+] as const
+
+/** Pulsante aggiunto da un modulo opzionale attivo. */
+export interface ExtraTool { id: string; label: string; title: string; Icon: LucideIcon; onClick: () => void }
+
+export function Toolbar({ notify, onExport, onSettings, tools }: { notify: Notify; onExport: () => void; onSettings: () => void; tools: ExtraTool[] }) {
+  const tab = useActiveTab()
+  const theme = useStore((s) => s.theme)
+  const setTheme = useStore((s) => s.setTheme)
+  const undo = useStore((s) => s.undo)
+  const redo = useStore((s) => s.redo)
+  const next = THEMES[(THEMES.findIndex((t) => t.id === theme) + 1) % THEMES.length]
+  const Cur = THEMES.find((t) => t.id === theme)!.Icon
+
+  return (
+    <div className="toolbar">
+      <div className="group">
+        <button onClick={() => useStore.getState().newProject()}><FilePlus2 size={15} />Nuovo</button>
+        <button onClick={() => openProject(notify)}><FolderOpen size={15} />Apri</button>
+        <button onClick={() => saveActive(notify)} title="Salva (⌘S)"><Save size={15} />Salva</button>
+      </div>
+      <div className="group">
+        <button className="icon-btn" aria-label="Annulla" title="Annulla (⌘Z)" disabled={!tab.past.length} onClick={undo}><Undo2 size={16} /></button>
+        <button className="icon-btn" aria-label="Ripeti" title="Ripeti (⇧⌘Z)" disabled={!tab.future.length} onClick={redo}><Redo2 size={16} /></button>
+      </div>
+      <div className="spacer" />
+      {tools.map(({ id, label, title, Icon, onClick }) => <button key={id} onClick={onClick} title={title}><Icon size={15} />{label}</button>)}
+      <button className="icon-btn theme-btn" aria-label={THEMES.find((t) => t.id === theme)!.label} title={`${THEMES.find((t) => t.id === theme)!.label} (clic per cambiare)`} onClick={() => setTheme(next.id)}><Cur size={17} /></button>
+      <button className="icon-btn theme-btn" aria-label="Impostazioni" title="Impostazioni" onClick={onSettings}><Settings size={17} /></button>
+      <button className="primary" onClick={onExport}><Download size={15} />Esporta…</button>
+    </div>
+  )
+}

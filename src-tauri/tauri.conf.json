@@ -1,0 +1,78 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Fluidigram",
+  "version": "0.1.0",
+  "identifier": "it.fluidigram.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Fluidigram",
+        "width": 1440,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false,
+        "minWidth": 1000,
+        "minHeight": 640,
+        "dragDropEnabled": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app",
+      "dmg",
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "Fluidigram",
+    "copyright": "© 2026 Fluidigram",
+    "category": "GraphicsAndDesign",
+    "shortDescription": "Schemi fluidici (P&ID) per il razzomodellismo",
+    "longDescription": "Fluidigram è un'app per disegnare schemi fluidici in stile P&ID: valvole, serbatoi, strumenti e collegamenti, con controlli sullo schema ed esportazione professionale in PDF, SVG e PNG (cartiglio, legenda, distinta, in italiano e inglese). Funziona offline.",
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": "-"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Italian",
+          "English"
+        ],
+        "displayLanguageSelector": false
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": [
+          "fluidigram"
+        ],
+        "name": "Progetto Fluidigram",
+        "description": "Schema fluidico Fluidigram",
+        "role": "Editor",
+        "mimeType": "application/json"
+      }
+    ]
+  }
+}
