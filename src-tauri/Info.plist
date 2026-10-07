@@ -36,8 +36,6 @@
       <dict>
         <key>public.filename-extension</key>
         <array><string>fluidigram</string></array>
-        <key>public.mime-type</key>
-        <string>application/json</string>
       </dict>
     </dict>
   </array>

@@ -92,7 +92,6 @@
         "name": "Progetto Fluidigram",
         "description": "Schema fluidico Fluidigram",
         "role": "Editor",
-        "mimeType": "application/json",
         "exportedType": {
           "identifier": "it.fluidigram.project",
           "conformsTo": [
