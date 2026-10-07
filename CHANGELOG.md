@@ -5,7 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-## [0.4.1] - 2026-10-07
+## [0.4.0] - 2026-10-07
 
 ### Added
 - **Two work steps, Design and Operation.** A steps bar switches between drawing the diagram (with the bill of materials) and describing its operating phases; each step has its own Export.
@@ -49,8 +49,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - First version: editor, symbol library, automatic routing, checks, valve states per phase, PDF/SVG/PNG export, IT/EN drawings.
 
-[Unreleased]: https://github.com/filval2006-sys/fluidigram/compare/v0.4.1...HEAD
-[0.4.1]: https://github.com/filval2006-sys/fluidigram/compare/v0.3.0...v0.4.1
+[Unreleased]: https://github.com/filval2006-sys/fluidigram/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/filval2006-sys/fluidigram/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/filval2006-sys/fluidigram/releases/tag/v0.2.0

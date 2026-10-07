@@ -15,10 +15,10 @@ After installation, `.fluidigram` files open with a double click.
 2. Then:
 
 ```bash
-npm run version:set 0.4.1                      # same version in package.json, tauri.conf.json, Cargo.toml and Cargo.lock
-git commit -am "Release 0.4.1"
-git tag v0.4.1
-git push && git push origin v0.4.1
+npm run version:set 0.4.0                      # same version in package.json, tauri.conf.json, Cargo.toml and Cargo.lock
+git commit -am "Release 0.4.0"
+git tag v0.4.0
+git push && git push origin v0.4.0
 ```
 
 GitHub Actions builds macOS (universal) and Windows (about 10–15 minutes) after running all checks. Then open **Releases**:
