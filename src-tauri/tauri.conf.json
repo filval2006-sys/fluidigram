@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Fluidigram",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "identifier": "it.fluidigram.app",
   "build": {
     "frontendDist": "../dist",
@@ -41,6 +41,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": {
+      "icons/fluidigram-file.ico": "fluidigram-file.ico"
+    },
     "publisher": "Filippo Valentini",
     "copyright": "© 2026 Filippo Valentini",
     "category": "GraphicsAndDesign",
@@ -81,7 +84,8 @@
         "displayLanguageSelector": false,
         "headerImage": "windows/header.bmp",
         "sidebarImage": "windows/sidebar.bmp",
-        "startMenuFolder": "Fluidigram"
+        "startMenuFolder": "Fluidigram",
+        "installerHooks": "windows/hooks.nsh"
       }
     },
     "fileAssociations": [

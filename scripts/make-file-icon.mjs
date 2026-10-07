@@ -1,4 +1,4 @@
-// Genera l'icona dei file .fluidigram per macOS (src-tauri/icons/fluidigram-file.icns). Serve macOS (iconutil); il risultato è nel repository.
+// Genera l'icona dei file .fluidigram: macOS (src-tauri/icons/fluidigram-file.icns, serve iconutil) e Windows (fluidigram-file.ico). Il risultato è nel repository.
 // Uso: npm run file-icon
 import { Resvg } from '@resvg/resvg-js'
 import { execFileSync } from 'node:child_process'
@@ -37,5 +37,21 @@ for (const [name, px] of [
 }
 const out = new URL('../src-tauri/icons/fluidigram-file.icns', import.meta.url).pathname
 execFileSync('iconutil', ['-c', 'icns', dir, '-o', out])
+
+// Windows: .ico con PNG incorporati (16–256 px)
+const ico = [16, 24, 32, 48, 64, 128, 256].map((px) => ({ px, png: new Resvg(svg, { fitTo: { mode: 'width', value: px }, font: { loadSystemFonts: true } }).render().asPng() }))
+const head = Buffer.alloc(6 + 16 * ico.length)
+head.writeUInt16LE(1, 2); head.writeUInt16LE(ico.length, 4)
+let offset = head.length
+ico.forEach(({ px, png }, i) => {
+  const e = 6 + 16 * i
+  head[e] = px === 256 ? 0 : px; head[e + 1] = px === 256 ? 0 : px
+  head.writeUInt16LE(1, e + 4); head.writeUInt16LE(32, e + 6)
+  head.writeUInt32LE(png.length, e + 8); head.writeUInt32LE(offset, e + 12)
+  offset += png.length
+})
+const outIco = new URL('../src-tauri/icons/fluidigram-file.ico', import.meta.url).pathname
+writeFileSync(outIco, Buffer.concat([head, ...ico.map((i) => i.png)]))
+console.log('scritto', outIco)
 rmSync(dir.replace('/fluidigram-file.iconset', ''), { recursive: true })
 console.log('scritto', out)
