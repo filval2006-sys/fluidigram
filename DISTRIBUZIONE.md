@@ -4,7 +4,7 @@ Gli utenti ricevono **un solo file** e non devono installare nient'altro: l'app 
 
 | Sistema | File da scaricare | Dimensione | Note |
 |---|---|---|---|
-| macOS 11+ (Apple Silicon e Intel) | `Fluidigram_x.y.z_universal.dmg` | pochi MB (4,2 MB per la sola versione Apple Silicon) | si apre e si trascina in Applicazioni |
+| macOS 11+ (Apple Silicon e Intel) | `Fluidigram_x.y.z_macOS.pkg` | pochi MB | installer guidato (per tutti, solo per te o su un altro disco) |
 | Windows 10/11 (64 bit) | `Fluidigram_x.y.z_x64-setup.exe` | pochi MB | installazione per l'utente, senza permessi di amministratore |
 
 Dopo l'installazione i file `.fluidigram` si aprono con un doppio clic.
@@ -52,7 +52,7 @@ L'app non è ancora firmata da Apple né da Microsoft (la firma ufficiale costa:
 ## Costruire in locale (solo macOS, per la propria architettura)
 
 ```bash
-npx tauri build          # src-tauri/target/release/bundle/dmg/Fluidigram_0.1.0_aarch64.dmg
+npx tauri build          # src-tauri/target/release/bundle/macos/Fluidigram.app
 ```
 
 `Aggiorna Fluidigram.command` fa lo stesso e installa l'app in `~/Applications`.

@@ -15,7 +15,7 @@ Get the latest installer from the **[Releases page](../../releases/latest)**:
 
 | System | File |
 |---|---|
-| macOS 11+ (Apple Silicon and Intel) | `Fluidigram_x.y.z_macOS.pkg` — guided installer (choose for everyone, only you, or another disk). Or `Fluidigram_x.y.z_universal.dmg` — drag Fluidigram to Applications |
+| macOS 11+ (Apple Silicon and Intel) | `Fluidigram_x.y.z_macOS.pkg` — guided installer (choose for everyone, only you, or another disk) |
 | Windows 10/11 (64-bit) | `Fluidigram_x.y.z_x64-setup.exe` — guided installer: for you or for everyone, install folder, Start menu folder, desktop shortcut |
 
 The app is not code-signed or notarized by Apple/Microsoft yet (that costs money), so the first time your system warns you. It is safe to continue:

@@ -70,7 +70,7 @@ jobs:
           releaseName: 'Fluidigram ${{ github.ref_name }}'
           releaseBody: |
             ## Download
-            **macOS** (Apple Silicon and Intel) — download the `.pkg` for a guided installer (you can install for everyone, only for you, or on another disk), or the `.dmg` and drag Fluidigram to Applications.
+            **macOS** (Apple Silicon and Intel) — download the `.pkg`, a guided installer (you can install for everyone, only for you, or on another disk).
             **Windows 10/11** — download the `-setup.exe` and follow the wizard: install for you or for everyone, choose the folder, Start menu folder and desktop shortcut.
 
             ### First launch
@@ -81,7 +81,7 @@ jobs:
             Works fully offline. The interface is in Italian; exported drawings can be in Italian or English.
 
             ## Installazione
-            **macOS** — scarica il `.pkg` (installer guidato: per tutti, solo per te o su un altro disco) oppure il `.dmg` e trascina Fluidigram in Applicazioni. La prima volta: Impostazioni di Sistema → Privacy e sicurezza → **Apri comunque** (oppure `xattr -cr /Applications/Fluidigram.app` da Terminale).
+            **macOS** — scarica il `.pkg` (installer guidato: per tutti, solo per te o su un altro disco). La prima volta: Impostazioni di Sistema → Privacy e sicurezza → **Apri comunque** (oppure `xattr -cr /Applications/Fluidigram.app` da Terminale).
             **Windows** — scarica il `-setup.exe` e segui la procedura guidata (per te o per tutti, cartella, menu Start, collegamento sul desktop). Se compare «Windows ha protetto il PC»: *Ulteriori informazioni* → *Esegui comunque*.
 
             Created by Filippo Valentini.
@@ -118,6 +118,5 @@ jobs:
           name: fluidigram-${{ runner.os }}
           if-no-files-found: error
           path: |
-            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
             pkg-out/*.pkg
             src-tauri/target/release/bundle/nsis/*.exe
