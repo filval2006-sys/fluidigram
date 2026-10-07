@@ -1,11 +1,12 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { parseDocument } from './core'
 import { listenMenu } from './platform/menu'
-import { listenForSystemFiles } from './platform/openFiles'
+import { isNativeApp, listenForSystemFiles, readProjectText } from './platform/openFiles'
 import { isDirty, tabName, useStore } from './state/store'
 import { APP_CREDIT, APP_NAME, APP_VERSION } from './appInfo'
 import { AboutDialog } from './ui/AboutDialog'
 import { BomView } from './ui/BomView'
+import { HomeView } from './ui/HomeView'
 import { Canvas } from './ui/Canvas'
 import { justRan, runEditCommand } from './ui/commands'
 import { flushFocusedField } from './ui/flush'
@@ -28,6 +29,9 @@ export default function App() {
   const enabledModules = useStore((s) => s.modules)
   const stageView = useStore((s) => s.stageView)
   const theme = useStore((s) => s.theme)
+  const home = useStore((s) => s.home)
+  // nell'app nativa si aspetta di sapere se l'app è stata aperta con un file, per non mostrare la pagina iniziale per un attimo
+  const [ready, setReady] = useState(!isNativeApp())
 
   useEffect(() => {
     const root = document.documentElement
@@ -61,18 +65,35 @@ export default function App() {
       if ('error' in f) return notify(`Impossibile aprire il file: ${f.error}`, 'err')
       try { useStore.getState().openDocument(parseDocument(JSON.parse(f.text)), f.path) }
       catch (e) { notify(`File non valido: ${e instanceof Error ? e.message : String(e)}`, 'err') }
-    }).then((fn) => { if (cancelled) fn(); else off = fn })
-    return () => { cancelled = true; off() }
+    }).then((fn) => { if (cancelled) fn(); else off = fn }).finally(() => setReady(true))
+    const safety = setTimeout(() => setReady(true), 2000)
+    return () => { cancelled = true; off(); clearTimeout(safety) }
+  }, [notify])
+
+  // riapre un file dall'elenco dei recenti
+  const openRecent = useCallback(async (path: string) => {
+    try {
+      const doc = parseDocument(JSON.parse(await readProjectText(path)))
+      useStore.getState().openDocument(doc, path)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      // file spostato o cancellato: si toglie dall'elenco
+      if (/No such file|non esiste|not found|os error 2|cannot find/i.test(msg)) { useStore.getState().removeRecent(path); notify('Il file non c\'è più: l\'ho tolto dai recenti', 'err') }
+      else notify(`Impossibile aprire il file: ${msg}`, 'err')
+    }
   }, [notify])
 
   // comandi dell'app (File, Impostazioni…): li esegue chi li riceve per primo, menu o scorciatoia
   const runCommand = useCallback((id: string): boolean => {
-    const app = ['new', 'open', 'save', 'save-as', 'export', 'close-tab', 'settings', 'shortcuts', 'view-schema', 'view-bom', 'about']
+    const app = ['new', 'open', 'save', 'save-as', 'export', 'close-tab', 'settings', 'shortcuts', 'view-schema', 'view-bom', 'about', 'home']
     if (!app.includes(id)) return runEditCommand(id)
     flushFocusedField() // il testo che si sta scrivendo entra nel progetto prima di salvare, esportare o cambiare schermata
     if (justRan(id, 250)) return true
     const st = useStore.getState()
+    // nella pagina iniziale non c'è niente da salvare, esportare o chiudere
+    if (st.home && ['save', 'save-as', 'export', 'close-tab', 'view-schema', 'view-bom'].includes(id)) return true
     switch (id) {
+      case 'home': st.setHome(true); break
       case 'new': st.newProject(); break
       case 'open': void openProject(notify); break
       case 'save': void saveActive(notify); break
@@ -102,7 +123,7 @@ export default function App() {
       if (!(e.metaKey || e.ctrlKey)) return
       const k = e.key.toLowerCase()
       const id = k === 's' ? (e.shiftKey ? 'save-as' : 'save') : k === 'o' ? 'open' : k === 't' || (k === 'n' && !e.shiftKey) ? 'new'
-        : k === 'e' && e.shiftKey ? 'export' : k === 'w' ? 'close-tab' : k === ',' ? 'settings' : k === '1' ? 'view-schema' : k === '2' ? 'view-bom' : ''
+        : k === 'e' && e.shiftKey ? 'export' : k === 'w' ? 'close-tab' : k === ',' ? 'settings' : k === 'h' && e.shiftKey ? 'home' : k === '1' ? 'view-schema' : k === '2' ? 'view-bom' : ''
       if (!id) return
       e.preventDefault()
       runCommand(id)
@@ -113,20 +134,28 @@ export default function App() {
 
   const closing = useStore((s) => s.tabs.find((t) => t.id === confirmClose))
 
+  if (!ready) return <div className="app" />
+
   return (
     <div className="app">
       <header className="titlebar">
         <div className="brand">Fluidigram</div>
-        <TabBar onClose={requestClose} />
+        {!home && <TabBar onClose={requestClose} />}
       </header>
-      <Toolbar notify={notify} onExport={() => { flushFocusedField(); setExporting(true) }} onSettings={() => setSettingsOpen(true)} tools={tools} />
-      <div className={'body' + (stageView === 'bom' ? ' no-lib' : '')}>
-        {stageView !== 'bom' && <Library />}
-        <main className="stage">
-          {stageView === 'bom' ? <BomView /> : <Canvas />}
-        </main>
-        <Inspector />
-      </div>
+      {home ? (
+        <HomeView onOpen={() => void openProject(notify)} onOpenRecent={(p) => void openRecent(p)} onSettings={() => setSettingsOpen(true)} />
+      ) : (
+        <>
+          <Toolbar notify={notify} onExport={() => { flushFocusedField(); setExporting(true) }} onSettings={() => setSettingsOpen(true)} tools={tools} />
+          <div className={'body' + (stageView === 'bom' ? ' no-lib' : '')}>
+            {stageView !== 'bom' && <Library />}
+            <main className="stage">
+              {stageView === 'bom' ? <BomView /> : <Canvas />}
+            </main>
+            <Inspector />
+          </div>
+        </>
+      )}
 
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
       {settingsOpen && <SettingsDialog modules={MODULES.map(({ id, name, description }) => ({ id, name, description }))} onClose={() => setSettingsOpen(false)} />}
@@ -154,10 +183,10 @@ export default function App() {
         </div>
       )}
 
-      <footer className="statusbar">
+      {!home && <footer className="statusbar">
         <button className="link" onClick={() => setAboutOpen(true)} title="About">{APP_NAME} v{APP_VERSION}</button>
         <span>{APP_CREDIT}</span>
-      </footer>
+      </footer>}
 
       <div className="toasts">{toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.msg}</div>)}</div>
     </div>

@@ -97,6 +97,7 @@ fn write_checked(path: &str, data: &[u8]) -> Result<(), String> {
 /// Voci personalizzate del menu: (id, testo, scorciatoia). Le scorciatoie con tasto semplice (R, M, Canc) restano all'interfaccia,
 /// perché un menu le intercetterebbe anche mentre si scrive in un campo di testo.
 const COMMANDS: &[(&str, &str, Option<&str>)] = &[
+    ("home", "Pagina iniziale", Some("CmdOrCtrl+Shift+H")),
     ("new", "Nuovo progetto", Some("CmdOrCtrl+N")),
     ("open", "Apri…", Some("CmdOrCtrl+O")),
     ("save", "Salva", Some("CmdOrCtrl+S")),
@@ -139,6 +140,7 @@ fn build_menu<R: Runtime, M: Manager<R>>(app: &M) -> tauri::Result<Menu<R>> {
         "File",
         true,
         &[
+            &cmd(app, "home")?,
             &cmd(app, "new")?,
             &cmd(app, "open")?,
             &PredefinedMenuItem::separator(app)?,

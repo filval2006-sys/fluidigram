@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { Download, FilePlus2, FolderOpen, Monitor, Moon, Plus, Redo2, Save, Settings, Sun, Table2, Undo2, Workflow, X } from 'lucide-react'
+import { Download, FilePlus2, House, FolderOpen, Monitor, Moon, Plus, Redo2, Save, Settings, Sun, Table2, Undo2, Workflow, X } from 'lucide-react'
 import { openTextFile, saveTextFile } from '../platform/files'
 import { flushFocusedField } from './flush'
 import { isDirty, tabName, useActiveTab, useStore } from '../state/store'
@@ -88,6 +88,7 @@ export function Toolbar({ notify, onExport, onSettings, tools }: { notify: Notif
   return (
     <div className="toolbar">
       <div className="group">
+        <button className="icon-btn" aria-label="Pagina iniziale" title="Pagina iniziale (⇧⌘H)" onClick={() => { flushFocusedField(); useStore.getState().setHome(true) }}><House size={16} /></button>
         <button onClick={() => useStore.getState().newProject()}><FilePlus2 size={15} />Nuovo</button>
         <button onClick={() => openProject(notify)}><FolderOpen size={15} />Apri</button>
         <button onClick={() => saveActive(notify)} title="Salva (⌘S)"><Save size={15} />Salva</button>

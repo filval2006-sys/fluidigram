@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { produce } from 'immer'
+import { MAX_RECENTS, isPristineTab, mergeRecoverable, pushRecent, worthRecovering, type RecentFile, type Recoverable } from './session'
 import {
   DEFAULT_PIPE_SIZE, checkIntegrity, copyItems, pruneBom, createEmptyDocument, deleteItems, newId, pasteItems, readDocument,
   type Clip, type FluidDocument, type FluidId,
@@ -46,6 +47,16 @@ interface Store {
   requestView: (kind: 'in' | 'out' | 'fit') => void
   clipboard: Clip | null
   pasteCount: number
+  /** pagina iniziale visibile (all'avvio, o dal pulsante «Home») */
+  home: boolean
+  setHome: (h: boolean) => void
+  recents: RecentFile[]
+  removeRecent: (path: string) => void
+  clearRecents: () => void
+  /** lavoro rimasto non salvato dall'ultima sessione */
+  recoverable: Recoverable[]
+  recover: (id: string) => void
+  discardRecoverable: (id?: string) => void
 
   setTheme: (t: Theme) => void
   setModule: (id: string, on: boolean) => void
@@ -110,43 +121,88 @@ function loadTheme(): Theme {
   } catch { return 'system' }
 }
 
-function loadWorkspace(): { tabs: Tab[]; activeId: string } | null {
+const RECENTS_KEY = 'fluidigram.recents'
+const RECOVERY_KEY = 'fluidigram.recovery'
+
+function loadRecents(): RecentFile[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    const data = JSON.parse(raw) as { tabs: { id: string; doc: unknown; filePath?: string; dirty?: boolean }[]; activeId: string }
-    // una scheda illeggibile (es. dopo un aggiornamento) non deve far perdere le altre
-    const tabs: Tab[] = []
-    for (const t of data.tabs) {
-      try {
-        const doc = readDocument(t.doc)
-        // simboli o collegamenti che non esistono più farebbero fallire il disegno: la scheda si mette da parte invece di bloccare l'app
-        const broken = checkIntegrity(doc).filter((i) => !i.message.startsWith('tag duplicato'))
-        if (broken.length) throw new Error(broken.map((i) => i.message).join('; '))
-        const tab: Tab = { ...makeTab(doc, t.filePath), id: t.id }
-        // modifiche non salvate al momento della chiusura: restano segnalate (savedDoc è un oggetto diverso da doc)
-        if (t.dirty) tab.savedDoc = readDocument(t.doc)
-        tabs.push(tab)
-      } catch {
-        // scheda saltata, ma non buttata: resta in una chiave a parte da cui si può recuperare
-        try {
-          const kept = JSON.parse(localStorage.getItem(REJECTED_KEY) ?? '[]') as unknown[]
-          localStorage.setItem(REJECTED_KEY, JSON.stringify([...kept, t.doc].slice(-5)))
-        } catch { /* storage non disponibile */ }
-      }
-    }
-    if (!tabs.length) return null
-    return { tabs, activeId: tabs.some((t) => t.id === data.activeId) ? data.activeId : tabs[0].id }
-  } catch {
-    return null
-  }
+    const v = JSON.parse(localStorage.getItem(RECENTS_KEY) ?? '[]') as RecentFile[]
+    return v.filter((r) => typeof r?.path === 'string' && typeof r?.name === 'string').slice(0, MAX_RECENTS)
+  } catch { return [] }
+}
+const saveRecents = (list: RecentFile[]) => { try { localStorage.setItem(RECENTS_KEY, JSON.stringify(list)) } catch { /* storage non disponibile */ } }
+
+/** Legge e controlla un documento salvato; lancia se è illeggibile o fa riferimento a simboli/collegamenti che non esistono più. */
+function parseSaved(raw: unknown): FluidDocument {
+  const doc = readDocument(raw)
+  const broken = checkIntegrity(doc).filter((i) => !i.message.startsWith('tag duplicato'))
+  if (broken.length) throw new Error(broken.map((i) => i.message).join('; '))
+  return doc
 }
 
-const restored = loadWorkspace()
+function loadRecoverable(): Recoverable[] {
+  try {
+    const out: Recoverable[] = []
+    for (const r of JSON.parse(localStorage.getItem(RECOVERY_KEY) ?? '[]') as Recoverable[]) {
+      try { out.push({ ...r, doc: parseSaved(r.doc) }) } catch { /* voce illeggibile: si salta */ }
+    }
+    return out
+  } catch { return [] }
+}
+const saveRecoverable = (list: Recoverable[]) => { try { localStorage.setItem(RECOVERY_KEY, JSON.stringify(list)) } catch { /* storage non disponibile */ } }
+
+/**
+ * Le schede dell'ultima sessione non si riaprono più da sole. Quelle con lavoro non salvato (modifiche, o progetti nuovi con del
+ * contenuto) vengono messe da parte e offerte nella pagina iniziale; il resto è nei file o nei recenti.
+ */
+function takePreviousSession(): Recoverable[] {
+  let fresh: Recoverable[] = []
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const data = JSON.parse(raw) as { tabs: { id: string; doc: unknown; filePath?: string; dirty?: boolean }[] }
+      const now = Date.now()
+      for (const t of data.tabs ?? []) {
+        try {
+          const doc = parseSaved(t.doc)
+          if (worthRecovering(t, doc)) fresh.push({ id: t.id, filePath: t.filePath, doc, savedAt: now })
+        } catch {
+          // scheda illeggibile (es. dopo un aggiornamento): messa da parte, non buttata
+          try {
+            const kept = JSON.parse(localStorage.getItem(REJECTED_KEY) ?? '[]') as unknown[]
+            localStorage.setItem(REJECTED_KEY, JSON.stringify([...kept, t.doc].slice(-5)))
+          } catch { /* storage non disponibile */ }
+        }
+      }
+      localStorage.removeItem(STORAGE_KEY)
+    }
+  } catch { fresh = [] }
+  const merged = mergeRecoverable(loadRecoverable(), fresh)
+  saveRecoverable(merged)
+  return merged
+}
+
+const previousSession = takePreviousSession()
+
+/**
+ * Aggiunge una scheda. Aprire un file (o recuperare un lavoro) sostituisce la scheda attiva se è vuota e mai usata;
+ * «Nuovo» lo fa solo partendo dalla pagina iniziale con la sola scheda bianca di partenza, altrimenti ne aggiunge una.
+ */
+function withNewTab(s: Store, t: Tab, opening: boolean): Pick<Store, 'tabs' | 'activeId'> {
+  const active = s.tabs.find((x) => x.id === s.activeId)
+  const replaceActive = opening
+    ? !!active && isPristineTab(active)
+    : s.home && s.tabs.length === 1 && isPristineTab(s.tabs[0])
+  if (replaceActive && active) return { tabs: s.tabs.map((x) => (x.id === active.id ? t : x)), activeId: t.id }
+  return { tabs: [...s.tabs, t], activeId: t.id }
+}
 
 export const useStore = create<Store>((set, get) => ({
-  tabs: restored?.tabs ?? [first],
-  activeId: restored?.activeId ?? first.id,
+  tabs: [first],
+  activeId: first.id,
+  home: true,
+  recents: loadRecents(),
+  recoverable: previousSession,
   theme: loadTheme(),
   modules: loadModules(),
   draw: { fluid: 'oxidizer', size: DEFAULT_PIPE_SIZE },
@@ -206,28 +262,57 @@ export const useStore = create<Store>((set, get) => ({
   },
   focusOn: (ids) => set((s) => ({ focusRequest: { ids, n: (s.focusRequest?.n ?? 0) + 1 } })),
 
+  setHome: (home) => set({ home }),
+  removeRecent: (path) => set((s) => { const recents = s.recents.filter((r) => r.path !== path); saveRecents(recents); return { recents } }),
+  clearRecents: () => { saveRecents([]); set({ recents: [] }) },
+  recover: (id) =>
+    set((s) => {
+      const r = s.recoverable.find((x) => x.id === id)
+      if (!r) return s
+      const t = makeTab(r.doc, r.filePath)
+      // segnata come modificata: chiudendola l'app avvisa che c'è lavoro da salvare
+      t.savedDoc = readDocument(JSON.parse(JSON.stringify(r.doc)))
+      const recoverable = s.recoverable.filter((x) => x.id !== id)
+      saveRecoverable(recoverable)
+      return { ...withNewTab(s, t, true), recoverable, home: false, placing: null }
+    }),
+  discardRecoverable: (id) =>
+    set((s) => {
+      const recoverable = id ? s.recoverable.filter((x) => x.id !== id) : []
+      saveRecoverable(recoverable)
+      return { recoverable }
+    }),
+
   newProject: () => {
     const t = makeTab(createEmptyDocument())
-    set((s) => ({ tabs: [...s.tabs, t], activeId: t.id, placing: null }))
+    set((s) => ({ ...withNewTab(s, t, false), home: false, placing: null }))
   },
   openDocument: (doc, filePath) => {
     const existing = filePath ? get().tabs.find((t) => t.filePath === filePath) : undefined
-    if (existing) return set({ activeId: existing.id })
+    const recents = filePath ? pushRecent(get().recents, filePath) : get().recents
+    if (filePath) saveRecents(recents)
+    if (existing) return set({ activeId: existing.id, home: false, recents })
     const t = makeTab(doc, filePath)
-    set((s) => ({ tabs: [...s.tabs, t], activeId: t.id, placing: null }))
+    set((s) => ({ ...withNewTab(s, t, true), home: false, placing: null, recents }))
   },
   closeTab: (id) =>
     set((s) => {
       const rest = s.tabs.filter((t) => t.id !== id)
       if (!rest.length) {
+        // chiusa l'ultima scheda si torna alla pagina iniziale
         const t = makeTab(createEmptyDocument())
-        return { tabs: [t], activeId: t.id }
+        return { tabs: [t], activeId: t.id, home: true }
       }
       const idx = s.tabs.findIndex((t) => t.id === id)
       return { tabs: rest, activeId: s.activeId === id ? rest[Math.max(0, idx - 1)].id : s.activeId }
     }),
   setActive: (activeId) => set({ activeId, placing: null }),
-  markSaved: (filePath) => set((s) => patchActive(s, (t) => ({ ...t, savedDoc: t.doc, filePath: filePath ?? t.filePath }))),
+  markSaved: (filePath) =>
+    set((s) => {
+      const recents = filePath ? pushRecent(s.recents, filePath) : s.recents
+      if (filePath) saveRecents(recents)
+      return { ...patchActive(s, (t) => ({ ...t, savedDoc: t.doc, filePath: filePath ?? t.filePath })), recents }
+    }),
 
   edit: (fn) =>
     set((s) =>

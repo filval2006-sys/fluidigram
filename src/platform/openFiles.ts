@@ -22,6 +22,15 @@ export async function listenForSystemFiles(onFile: (f: SystemFile | { path: stri
     }
   }
   const unlisten = await listen<string[]>('open-files', (e) => void handle(e.payload))
-  void handle(await invoke<string[]>('take_pending_files'))
+  // i file con cui l'app è stata aperta si leggono prima di restituire il controllo: così la pagina iniziale non compare per un attimo
+  await handle(await invoke<string[]>('take_pending_files'))
   return unlisten
 }
+
+/** Legge il testo di un progetto a un percorso già noto (per i file recenti). Solo nell'app nativa. */
+export async function readProjectText(path: string): Promise<string> {
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke<string>('read_project_file', { path })
+}
+
+export const isNativeApp = (): boolean => inTauri()
