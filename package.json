@@ -3,7 +3,7 @@
   "private": true,
   "author": "Filippo Valentini",
   "description": "Fluid system (P&ID) diagrams for model rocketry",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
