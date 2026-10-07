@@ -41,7 +41,7 @@ Per provare senza pubblicare: **Actions → Release → Run workflow**; gli inst
 
 L'app non è ancora firmata da Apple né da Microsoft (la firma ufficiale costa: circa 99 $/anno per Apple e un certificato a pagamento per Windows). Funziona lo stesso, ma il sistema chiede una conferma:
 
-- **macOS**: dopo aver trascinato l'app in Applicazioni, *clic destro → Apri → Apri*. Se compare «danneggiata», da Terminale: `xattr -cr /Applications/Fluidigram.app`.
+- **macOS** («Apple non può verificare che sia priva di software dannoso»): apri l'app una volta e premi *Fine*, poi *Impostazioni di Sistema → Privacy e sicurezza → Apri comunque*. In alternativa, prima di aprirla, da Terminale: `xattr -cr /Applications/Fluidigram.app`. Il vecchio «clic destro → Apri» non basta più sulle versioni recenti di macOS.
 - **Windows**: «Windows ha protetto il PC» → *Ulteriori informazioni* → *Esegui comunque*.
 
 ## Firmare l'app (facoltativo, più avanti)

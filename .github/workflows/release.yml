@@ -70,13 +70,18 @@ jobs:
           releaseName: 'Fluidigram ${{ github.ref_name }}'
           releaseBody: |
             ## Download
-            **macOS** (Apple Silicon and Intel) — download the `.dmg`, open it and drag Fluidigram to Applications. The first time, right-click the app → *Open* (the app is not code-signed yet). If macOS says it is damaged, run `xattr -cr /Applications/Fluidigram.app` in Terminal.
-            **Windows 10/11** — download the `-setup.exe` and run it (no administrator rights needed). If "Windows protected your PC" appears, press *More info* → *Run anyway*.
+            **macOS** (Apple Silicon and Intel) — download the `.dmg`, open it and drag Fluidigram to Applications.
+            **Windows 10/11** — download the `-setup.exe` and run it (no administrator rights needed).
+
+            ### First launch
+            The app is not code-signed/notarized yet, so your system warns you the first time. This is expected, not a virus.
+            - **macOS** ("Apple could not verify Fluidigram is free of malware"): open the app once and press *Done*, then **System Settings → Privacy & Security → Open Anyway**. Alternatively, before opening it, run `xattr -cr /Applications/Fluidigram.app` in Terminal.
+            - **Windows** ("Windows protected your PC"): *More info* → *Run anyway*.
 
             Works fully offline. The interface is in Italian; exported drawings can be in Italian or English.
 
             ## Installazione
-            **macOS** — scarica il `.dmg`, aprilo e trascina Fluidigram in Applicazioni. La prima volta fai clic destro sull'app → *Apri* (non è ancora firmata da Apple).
+            **macOS** — scarica il `.dmg`, aprilo e trascina Fluidigram in Applicazioni. La prima volta: Impostazioni di Sistema → Privacy e sicurezza → **Apri comunque** (oppure `xattr -cr /Applications/Fluidigram.app` da Terminale).
             **Windows** — scarica il `-setup.exe` ed eseguilo. Se compare «Windows ha protetto il PC»: *Ulteriori informazioni* → *Esegui comunque*.
 
             Created by Filippo Valentini.
