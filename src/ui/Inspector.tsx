@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
-import { AlertOctagon, AlertTriangle, CheckCircle2, Copy, FlipHorizontal2, Info, Plus, RotateCw, Trash2 } from 'lucide-react'
+import { AlertOctagon, AlertTriangle, CheckCircle2, Copy, EyeOff, FlipHorizontal2, Info, Plus, RotateCcw, RotateCw, Trash2 } from 'lucide-react'
 import {
-  ACTUATORS, ALL_SYMBOLS, CATEGORY_NAMES, END_KINDS, FLUIDS, FLUID_IDS, componentPorts, deleteItems, freePorts, portEnds, renumberTags, replaceComponents, setPortEnd, manualRouteValid, filterPipeSizes, getSymbol, mirrorComponents, newId, rotateComponents, runChecks,
-  TONES, type Annotation, type CheckIssue, type Component, type Dir, type SymbolCategory, type Drawing, type EndKind, type FluidId, type Line, type ValveState,
+  ACTUATORS, ALL_SYMBOLS, CATEGORY_NAMES, END_KINDS, FLUIDS, FLUID_IDS, componentPorts, deleteItems, freePorts, portEnds, renumberTags, replaceComponents, setPortEnd, manualRouteValid, filterPipeSizes, getSymbol, mirrorComponents, newId, rotateComponents, checkReport, dismissIssue, restoreIssue, restoreAllIssues, setCheckHints,
+  TONES, type Annotation, type CheckIssue, type CheckReport, type Component, type Dir, type SymbolCategory, type Drawing, type EndKind, type FluidId, type Line, type ValveState,
 } from '../core'
 import { useActiveTab, useShownPhase, useStore, type InspectorTab } from '../state/store'
 import { Combobox } from './Combobox'
@@ -16,7 +16,8 @@ export function Inspector() {
   const tab = useActiveTab()
   const inspectorTab = useStore((s) => s.inspectorTab)
   const setInspectorTab = useStore((s) => s.setInspectorTab)
-  const issues = useMemo(() => runChecks(tab.doc), [tab.doc])
+  const report = useMemo(() => checkReport(tab.doc), [tab.doc])
+  const issues = report.issues
   const problems = issues.filter((i) => i.severity !== 'info').length
   const sheet = tab.doc.drawing
   const sel = tab.selection
@@ -39,7 +40,7 @@ export function Inspector() {
           </button>
         ))}
       </div>
-      {inspectorTab === 'checks' && <ChecksPanel issues={issues} />}
+      {inspectorTab === 'checks' && <ChecksPanel report={report} hints={tab.doc.checks.hints} />}
       {inspectorTab === 'phases' && <PhasesPanel />}
       {inspectorTab === 'props' && (
         <>
@@ -60,20 +61,21 @@ const SEV = {
   info: { Icon: Info, label: 'Suggerimenti' },
 } as const
 
-function ChecksPanel({ issues }: { issues: CheckIssue[] }) {
+function ChecksPanel({ report, hints }: { report: CheckReport; hints: boolean }) {
   const setSelection = useStore((s) => s.setSelection)
   const focusOn = useStore((s) => s.focusOn)
+  const edit = useStore((s) => s.edit)
+  const [showIgnored, setShowIgnored] = useState(false)
+  const { issues, dismissed, hiddenHints } = report
   const show = (i: CheckIssue) => { setSelection(i.targets); focusOn(i.targets) }
-  if (!issues.length) {
-    return (
-      <Section title="Controlli">
-        <p className="allgood"><CheckCircle2 size={18} /> Nessun problema rilevato.</p>
-        <p className="muted small">Si controllano porte aperte, fluidi collegati tra loro, volumi chiudibili senza protezione, pressioni e dati mancanti.</p>
-      </Section>
-    )
-  }
   return (
     <>
+      {!issues.length && (
+        <Section title="Controlli">
+          <p className="allgood"><CheckCircle2 size={18} /> Nessun problema rilevato.</p>
+          <p className="muted small">Si controllano collegamenti mancanti, porte lasciate libere, fluidi collegati tra loro, pressioni oltre il limite e dati mancanti.</p>
+        </Section>
+      )}
       {(['error', 'warning', 'info'] as const).map((sev) => {
         const list = issues.filter((i) => i.severity === sev)
         if (!list.length) return null
@@ -82,14 +84,38 @@ function ChecksPanel({ issues }: { issues: CheckIssue[] }) {
           <Section key={sev} title={`${label} (${list.length})`}>
             <ul className="issues">
               {list.map((i) => (
-                <li key={i.id}>
+                <li key={i.id} className="issue-row">
                   <button className={'issue ' + sev} onClick={() => show(i)}><Icon size={16} /><span>{i.message}</span></button>
+                  <button className="icon-btn" aria-label="Ignora questo avviso" title="Ignora: non lo mostrare più per questo punto" onClick={() => edit((d) => dismissIssue(d, i.id))}><EyeOff size={14} /></button>
                 </li>
               ))}
             </ul>
           </Section>
         )
       })}
+      <Section title="Suggerimenti facoltativi">
+        <label className="check-row">
+          <input type="checkbox" checked={hints} onChange={(e) => edit((d) => setCheckHints(d, e.target.checked))} />
+          <span>Mostra anche volumi chiudibili senza sfiato, diametri diversi e linee senza diametro</span>
+        </label>
+        {!hints && hiddenHints > 0 && <p className="muted small">{hiddenHints} {hiddenHints === 1 ? 'suggerimento nascosto' : 'suggerimenti nascosti'}.</p>}
+      </Section>
+      {dismissed.length > 0 && (
+        <Section title={`Ignorati (${dismissed.length})`}>
+          <button className="link" onClick={() => setShowIgnored(!showIgnored)}>{showIgnored ? 'Nascondi l\'elenco' : 'Mostra l\'elenco'}</button>
+          {showIgnored && (
+            <ul className="issues">
+              {dismissed.map((i) => (
+                <li key={i.id} className="issue-row">
+                  <button className="issue info" onClick={() => show(i)}><Info size={16} /><span>{i.message}</span></button>
+                  <button className="icon-btn" aria-label="Rimetti questo avviso" title="Torna a mostrarlo" onClick={() => edit((d) => restoreIssue(d, i.id))}><RotateCcw size={14} /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {showIgnored && <button className="link" onClick={() => edit((d) => restoreAllIssues(d))}>Rimetti tutti</button>}
+        </Section>
+      )}
       <p className="hint plain">I controlli sono un aiuto: non sostituiscono la verifica ingegneristica dell'impianto.</p>
     </>
   )

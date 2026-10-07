@@ -163,6 +163,13 @@ export const BomSchema = z.object({
 })
 export type BomConfig = z.infer<typeof BomSchema>
 
+/** Controlli dello schema: i suggerimenti (volumi chiudibili, diametri) sono spenti finché non li accendi; gli avvisi che ignori restano ignorati. */
+export const ChecksSchema = z.object({
+  hints: z.boolean().default(false),
+  dismissed: z.array(z.string()).default([]),
+})
+export type ChecksConfig = z.infer<typeof ChecksSchema>
+
 export const DocumentSchema = z.object({
   version: z.literal(2),
   meta: MetaSchema,
@@ -171,5 +178,6 @@ export const DocumentSchema = z.object({
   phases: z.array(PhaseSchema).default([]),
   export: ExportSettingsSchema.prefault({}),
   bom: BomSchema.prefault({}),
+  checks: ChecksSchema.prefault({}),
 })
 export type FluidDocument = z.infer<typeof DocumentSchema>

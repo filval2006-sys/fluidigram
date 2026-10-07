@@ -4,6 +4,7 @@ import type { FluidDocument } from './types'
 export const SAMPLE_DOCUMENT: FluidDocument = {
   version: 2,
   bom: { overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] },
+  checks: { hints: false, dismissed: [] },
   meta: {
     title: { it: 'Impianto di alimentazione ossidante', en: 'Oxidizer feed system' },
     subtitle: { it: 'Banco prova motore ibrido', en: 'Hybrid motor test stand' },

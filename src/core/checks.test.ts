@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { produce } from 'immer'
-import { runChecks } from './checks'
+import { checkReport, dismissIssue, restoreAllIssues, restoreIssue, runChecks, setCheckHints } from './checks'
 import { addComponent, connectPorts } from './edit'
 import { createEmptyDocument } from './documents'
+import { parseDocument } from './validate'
 import { SAMPLE_DOCUMENT } from './sample'
 import type { FluidDocument, FluidId } from './types'
 
@@ -22,7 +23,7 @@ function chain(items: { sym: string; props?: Record<string, string> }[], fluid: 
     })
   })
 }
-const codes = (d: FluidDocument) => runChecks(d).map((i) => i.code)
+const codes = (d: FluidDocument) => runChecks(d, { hints: true }).map((i) => i.code)
 
 describe('controlli ingegneristici', () => {
   it('il disegno di esempio non ha errori', () => {
@@ -31,7 +32,7 @@ describe('controlli ingegneristici', () => {
 
   it('segnala un volume di ossidante chiudibile tra due valvole senza protezione', () => {
     const doc = chain([{ sym: 'valve.ball' }, { sym: 'valve.ball' }])
-    const t = runChecks(doc).find((i) => i.code === 'trapped')
+    const t = runChecks(doc, { hints: true }).find((i) => i.code === 'trapped')
     expect(t).toBeDefined()
     expect(t!.message).toContain('ossidante')
     expect(t!.targets.length).toBeGreaterThanOrEqual(2)
@@ -102,7 +103,7 @@ describe('controlli ingegneristici', () => {
       d.drawing.lines[1].size = 'AN-6'
       d.drawing.lines.push({ id: 'lx', fluid: 'pressurant', from: { componentId: d.drawing.components[2].id, portId: 'b' }, to: { componentId: addComponent(d, 'valve.check', 300, 60).id, portId: 'in' } })
     })
-    const r = runChecks(doc)
+    const r = runChecks(doc, { hints: true })
     expect(r.some((i) => i.code === 'size-mismatch')).toBe(true)
     expect(r.some((i) => i.code === 'no-size')).toBe(true)
   })
@@ -111,5 +112,32 @@ describe('controlli ingegneristici', () => {
     const sev = runChecks(chain([{ sym: 'valve.ball' }, { sym: 'valve.ball' }])).map((i) => i.severity)
     const rank = { error: 0, warning: 1, info: 2 }
     expect([...sev].sort((a, b) => rank[a] - rank[b])).toEqual(sev)
+  })
+
+  it('i suggerimenti sono spenti finché non li accendi', () => {
+    const doc = chain([{ sym: 'valve.ball' }, { sym: 'valve.ball' }])
+    expect(runChecks(doc).map((i) => i.code)).not.toContain('trapped')
+    expect(checkReport(doc).hiddenHints).toBeGreaterThan(0)
+    const on = produce(doc, (d) => setCheckHints(d, true))
+    expect(runChecks(on).map((i) => i.code)).toContain('trapped')
+    expect(checkReport(on).hiddenHints).toBe(0)
+  })
+
+  it('un avviso ignorato sparisce e si può rimettere', () => {
+    const doc = produce(chain([{ sym: 'valve.ball' }]), (d) => { addComponent(d, 'valve.check', 400, 400) })
+    const before = runChecks(doc)
+    expect(before.length).toBeGreaterThan(0)
+    const id = before[0].id
+    const hidden = produce(doc, (d) => dismissIssue(d, id))
+    expect(runChecks(hidden).map((i) => i.id)).not.toContain(id)
+    expect(checkReport(hidden).dismissed.map((i) => i.id)).toContain(id)
+    expect(runChecks(produce(hidden, (d) => restoreIssue(d, id))).map((i) => i.id)).toContain(id)
+    expect(checkReport(produce(hidden, (d) => restoreAllIssues(d))).dismissed).toEqual([])
+  })
+
+  it('i file senza la sezione «checks» si aprono con i valori predefiniti', () => {
+    const raw = JSON.parse(JSON.stringify(SAMPLE_DOCUMENT))
+    delete raw.checks
+    expect(parseDocument(raw).checks).toEqual({ hints: false, dismissed: [] })
   })
 })

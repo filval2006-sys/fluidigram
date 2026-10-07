@@ -14,6 +14,7 @@ export function createEmptyDocument(): FluidDocument {
     phases: [],
     export: { format: 'A3', mode: 'auto', lang: 'it', color: true, legend: true, bom: true, states: true },
     bom: { overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] },
+    checks: { hints: false, dismissed: [] },
   }
 }
 

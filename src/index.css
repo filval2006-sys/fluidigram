@@ -404,3 +404,8 @@ kbd { font: inherit; font-size: 11.5px; padding: 1px 6px; border: 1px solid var(
 @keyframes view-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 .home, .body { animation: view-in .18s ease-out; }
 @media (prefers-reduced-motion: reduce) { .home, .body { animation: none; } }
+.issue-row { display: flex; gap: 4px; align-items: flex-start; }
+.issue-row .issue { flex: 1; min-width: 0; }
+.issue-row .icon-btn { flex: none; margin-top: 4px; }
+.check-row { display: flex; gap: 8px; align-items: flex-start; line-height: 1.4; margin: 2px 0 6px; }
+.check-row input { margin-top: 3px; flex: none; }

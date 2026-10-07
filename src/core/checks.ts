@@ -39,7 +39,30 @@ const num = (s: string | undefined): number | null => {
 
 const fluidCode = (f: FluidId) => FLUIDS[f].code
 
-export function runChecks(doc: FluidDocument): CheckIssue[] {
+/** Segnalazioni facoltative: utili a volte, ma non sono mancanze. Si vedono solo se le accendi. */
+export const HINT_CODES = new Set(['trapped', 'size-mismatch', 'no-size'])
+
+export interface CheckReport {
+  /** quello che si mostra: senza suggerimenti spenti e senza avvisi ignorati */
+  issues: CheckIssue[]
+  /** avvisi che hai scelto di ignorare */
+  dismissed: CheckIssue[]
+  /** quanti suggerimenti ci sarebbero, se li accendessi */
+  hiddenHints: number
+}
+
+export function checkReport(doc: FluidDocument, opts: { hints?: boolean } = {}): CheckReport {
+  const showHints = opts.hints ?? doc.checks.hints
+  const skip = new Set(doc.checks.dismissed)
+  const all = collectIssues(doc)
+  const hintsOff = all.filter((i) => HINT_CODES.has(i.code) && !showHints)
+  const shown = all.filter((i) => showHints || !HINT_CODES.has(i.code))
+  return { issues: shown.filter((i) => !skip.has(i.id)), dismissed: shown.filter((i) => skip.has(i.id)), hiddenHints: hintsOff.filter((i) => !skip.has(i.id)).length }
+}
+
+export const runChecks = (doc: FluidDocument, opts: { hints?: boolean } = {}): CheckIssue[] => checkReport(doc, opts).issues
+
+function collectIssues(doc: FluidDocument): CheckIssue[] {
   const d: Drawing = doc.drawing
   const issues: CheckIssue[] = []
   const add = (severity: Severity, code: string, message: string, targets: string[], idSuffix = '') =>
@@ -142,7 +165,7 @@ export function runChecks(doc: FluidDocument): CheckIssue[] {
     const hazardous = [...gr.fluids].filter((f) => f === 'oxidizer' || f === 'fuel')
     if (hazardous.length && gr.blockers.size >= 2 && !gr.protectedFlag && !gr.open) {
       const tags = [...gr.blockers].map(tagOf)
-      add('warning', 'trapped', `Volume di ${hazardous.map((f) => FLUIDS[f].name.it.split(' (')[0].toLowerCase()).join('/')} chiudibile tra ${tags.join(' e ')} senza valvola di sicurezza, disco di rottura o sfiato.`, [...gr.blockers, ...gr.lineIds])
+      add('info', 'trapped', `Volume di ${hazardous.map((f) => FLUIDS[f].name.it.split(' (')[0].toLowerCase()).join('/')} chiudibile tra ${tags.join(' e ')} senza valvola di sicurezza, disco di rottura o sfiato.`, [...gr.blockers, ...gr.lineIds])
     }
   }
 
@@ -183,3 +206,13 @@ export function runChecks(doc: FluidDocument): CheckIssue[] {
   const rank = { error: 0, warning: 1, info: 2 } as const
   return issues.sort((a, b) => rank[a.severity] - rank[b.severity])
 }
+
+// --- scelte dell'utente sui controlli (si applicano a una bozza immer del documento) ---------------
+export const setCheckHints = (doc: FluidDocument, on: boolean): void => { doc.checks.hints = on }
+export const dismissIssue = (doc: FluidDocument, id: string): void => {
+  if (!doc.checks.dismissed.includes(id)) doc.checks.dismissed.push(id)
+}
+export const restoreIssue = (doc: FluidDocument, id: string): void => {
+  doc.checks.dismissed = doc.checks.dismissed.filter((x) => x !== id)
+}
+export const restoreAllIssues = (doc: FluidDocument): void => { doc.checks.dismissed = [] }
