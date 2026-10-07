@@ -61,7 +61,8 @@ describe('documento delle fasi (PDF)', () => {
     expect(pages[0]).toContain('APERTA')
     expect(pages[0]).toContain('CHIUSA')
     expect(pages[1]).toContain('NON SPECIF.')
-    expect(pages[1]).toContain('4 non specificate')
+    expect(pages[1]).toContain('non specificate')
+    expect(pages[1]).toContain('>4<')
     expect(pages[2]).toContain('Stati delle valvole per fase'.toUpperCase())
   })
 
