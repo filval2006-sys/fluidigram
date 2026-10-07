@@ -1,4 +1,4 @@
-/** Fluidi liquidi di uso comune (valori a temperatura ambiente, salvo dove indicato). */
+/** Common liquid fluids (values at room temperature unless noted). */
 export interface Liquid { id: string; name: { it: string; en: string }; rho: number; mu: number }
 
 export const LIQUIDS: readonly Liquid[] = [
@@ -22,7 +22,7 @@ export interface PipeResult {
   dpTotal: number
 }
 
-/** Fattore di attrito di Darcy: 64/Re in laminare, Swamee–Jain in turbolento, interpolazione lineare nella transizione. */
+/** Darcy friction factor: 64/Re in laminar flow, Swamee–Jain in turbulent flow, linear interpolation in the transition. */
 export function frictionFactor(Re: number, relRoughness: number): number {
   const turb = (re: number) => 0.25 / Math.pow(Math.log10(relRoughness / 3.7 + 5.74 / Math.pow(re, 0.9)), 2)
   if (Re <= 2300) return 64 / Math.max(Re, 1e-9)
@@ -32,8 +32,8 @@ export function frictionFactor(Re: number, relRoughness: number): number {
 }
 
 /**
- * Perdita di carico in un tubo (Darcy–Weisbach), liquido incomprimibile.
- * mdot kg/s, D m (diametro interno), L m, rho kg/m³, mu Pa·s, roughness m (assoluta), Ktot somma dei coefficienti di perdita concentrata.
+ * Pressure drop in a pipe (Darcy–Weisbach), incompressible liquid.
+ * mdot kg/s, D m (inner diameter), L m, rho kg/m³, mu Pa·s, roughness m (absolute), Ktot sum of the minor loss coefficients.
  */
 export function pipeDrop(mdot: number, D: number, L: number, rho: number, mu: number, roughness: number, Ktot: number): PipeResult {
   const A = (Math.PI * D * D) / 4
@@ -53,22 +53,22 @@ export function pipeDrop(mdot: number, D: number, L: number, rho: number, mu: nu
 /** Kv (m³/h per √bar) = 0.865·Cv (Cv in US gpm per √psi). */
 const KV_PER_CV = 0.865
 
-/** Portata massica (kg/s) di un liquido attraverso una valvola con coefficiente Cv. */
+/** Mass flow (kg/s) of a liquid through a valve with flow coefficient Cv. */
 export function liquidFlowFromCv(Cv: number, dpPa: number, rho: number): number {
   const sg = rho / 1000
   const qM3h = KV_PER_CV * Cv * Math.sqrt(Math.max(0, dpPa / 1e5) / sg)
   return (qM3h / 3600) * rho
 }
 
-/** Caduta di pressione (Pa) per una portata massica data. */
+/** Pressure drop (Pa) for a given mass flow. */
 export function dropFromCv(Cv: number, mdot: number, rho: number): number {
   const sg = rho / 1000
   const qM3h = (mdot / rho) * 3600
   return 1e5 * sg * Math.pow(qM3h / (KV_PER_CV * Cv), 2)
 }
 
-/** Cv equivalente di un orifizio (area m², coefficiente di scarico Cd) per l'acqua. */
+/** Equivalent Cv of an orifice (area m², discharge coefficient Cd) for water. */
 export function cvOfOrifice(area: number, Cd: number): number {
-  const q = Cd * area * Math.sqrt((2 * 1e5) / 1000) // m³/s a 1 bar con acqua
+  const q = Cd * area * Math.sqrt((2 * 1e5) / 1000) // m³/s at 1 bar with water
   return (q * 3600) / KV_PER_CV
 }

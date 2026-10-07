@@ -1,4 +1,4 @@
-/** Dati mostrati nell'app (piè di pagina e finestra «Informazioni»). */
+/** App details shown in the footer and the About dialog. */
 export const APP_NAME = 'Fluidigram'
 export const APP_VERSION: string = __APP_VERSION__
 const APP_AUTHOR = 'Filippo Valentini'

@@ -1,4 +1,4 @@
-// Genera l'icona dei file .fluidigram: macOS (src-tauri/icons/fluidigram-file.icns, serve iconutil) e Windows (fluidigram-file.ico). Il risultato è nel repository.
+// Generates the .fluidigram document icon: macOS (src-tauri/icons/fluidigram-file.icns, needs iconutil) and Windows (fluidigram-file.ico). The result is committed to the repository.
 // Uso: npm run file-icon
 import { Resvg } from '@resvg/resvg-js'
 import { execFileSync } from 'node:child_process'
@@ -9,7 +9,7 @@ import { join } from 'node:path'
 const NAVY = '#10305f'
 const BLUE = '#5aa2ff'
 
-// foglio con l'angolo piegato, logo (tubo e valvola a sfera) al centro, fascia col nome in basso
+// sheet with a folded corner, logo (pipe and ball valve) in the middle, name band at the bottom
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
     <linearGradient id="page" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#eef3fb"/></linearGradient>
@@ -38,7 +38,7 @@ for (const [name, px] of [
 const out = new URL('../src-tauri/icons/fluidigram-file.icns', import.meta.url).pathname
 execFileSync('iconutil', ['-c', 'icns', dir, '-o', out])
 
-// Windows: .ico con PNG incorporati (16–256 px)
+// Windows: .ico with embedded PNGs (16–256 px)
 const ico = [16, 24, 32, 48, 64, 128, 256].map((px) => ({ px, png: new Resvg(svg, { fitTo: { mode: 'width', value: px }, font: { loadSystemFonts: true } }).render().asPng() }))
 const head = Buffer.alloc(6 + 16 * ico.length)
 head.writeUInt16LE(1, 2); head.writeUInt16LE(ico.length, 4)

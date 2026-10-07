@@ -5,7 +5,7 @@ import type { PageLayout } from './layout'
 import { lineEl, n, rectEl, textEl, wrapText } from './svg'
 
 export interface BomRow {
-  /** c:<id componente> o x:<id riga aggiunta>: identifica la riga anche se cambiano i tag */
+  /** c:<component id> or x:<added row id>: identifies the row even if tags change */
   key: string
   tag: string
   description: string
@@ -30,7 +30,7 @@ function typeLabel(c: Drawing['components'][number], lang: Lang): string {
 
 const other = (l: Lang): Lang => (l === 'it' ? 'en' : 'it')
 
-/** Riga generata dal disegno per un componente, senza modifiche manuali. */
+/** Row generated from the drawing for a component, without manual edits. */
 export function autoBomRow(c: Component, lang: Lang): BomRow {
   return {
     key: `c:${c.id}`,
@@ -46,7 +46,7 @@ export function autoBomRow(c: Component, lang: Lang): BomRow {
 const EMPTY_BOM: BomConfig = { overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] }
 const bySymbolTag = (a: { tag: string }, b: { tag: string }) => a.tag.localeCompare(b.tag, undefined, { numeric: true })
 
-/** Riga con le modifiche manuali applicate: un campo modificato (anche se svuotato) vince su quello generato. */
+/** Row with the manual edits applied: an edited field (even if emptied) wins over the generated one. */
 export function applyOverride(row: BomRow, bom: BomConfig, id: string, lang: Lang): BomRow {
   const o = bom.overrides[id]
   if (!o) return row
@@ -71,14 +71,14 @@ function extraBomRow(x: BomConfig['extra'][number], lang: Lang): BomRow {
 // ---- gruppi ----
 
 export const MISC_GROUP = 'misc'
-/** Ordine predefinito dei gruppi per tipo di componente. */
+/** Default group order by component type. */
 const DEFAULT_ORDER = ['cat:vessels', 'cat:valves', 'cat:instruments', 'cat:fittings', 'cat:engine', MISC_GROUP]
 
 export interface BomGroupInfo { id: string; name: string; custom: boolean }
 
 const MISC_NAME = { it: 'Altro', en: 'Other' }
 
-/** Tutti i gruppi disponibili (predefiniti e propri) nell'ordine scelto, con il nome nella lingua richiesta. */
+/** All available groups (default and custom) in the chosen order, with the name in the requested language. */
 export function bomGroups(bom: BomConfig, lang: Lang): BomGroupInfo[] {
   const base = (id: string): { it: string; en: string } =>
     id === MISC_GROUP ? MISC_NAME : CATEGORY_NAMES[id.slice(4) as keyof typeof CATEGORY_NAMES]
@@ -91,7 +91,7 @@ export function bomGroups(bom: BomConfig, lang: Lang): BomGroupInfo[] {
   ]
   const rank = new Map(bom.order.map((id, i) => [id, i]))
   const pos = new Map(all.map((g, i) => [g.id, i]))
-  // quelli elencati in `order` vengono prima, nell'ordine scelto; gli altri seguono come sono
+  // those listed in `order` come first, in the chosen order; the others follow as they are
   return [...all].sort((x, y) => {
     const rx = rank.get(x.id), ry = rank.get(y.id)
     if (rx !== undefined && ry !== undefined) return rx - ry
@@ -101,7 +101,7 @@ export function bomGroups(bom: BomConfig, lang: Lang): BomGroupInfo[] {
   })
 }
 
-/** Gruppo di un componente: quello scelto a mano (se esiste ancora) o quello del suo tipo. */
+/** Group of a component: the one chosen by hand (if it still exists) or that of its type. */
 function componentGroup(c: Component, bom: BomConfig): string {
   const chosen = bom.overrides[c.id]?.group
   if (chosen && (chosen === MISC_GROUP || chosen.startsWith('cat:') || bom.groups.some((g) => g.id === chosen))) return chosen
@@ -114,7 +114,7 @@ const extraGroup = (x: BomConfig['extra'][number], bom: BomConfig): string =>
 export interface BomEditorRow { row: BomRow; auto?: BomRow; hidden: boolean; extra: boolean; id: string; edited: boolean; group: string }
 export interface BomSection { group: BomGroupInfo; rows: BomEditorRow[] }
 
-/** Tutte le righe (anche le nascoste) con i valori generati e le modifiche, per l'editor. */
+/** All rows (including hidden ones) with generated values and edits, for the editor. */
 export function bomEditorRows(d: Drawing, lang: Lang, bom: BomConfig = EMPTY_BOM): BomEditorRow[] {
   const hidden = new Set(bom.hidden)
   const autos = d.components.filter((c) => getSymbol(c.symbol).legend).map((c) => ({ c, auto: autoBomRow(c, lang) })).sort((a, b) => bySymbolTag(a.auto, b.auto))
@@ -131,8 +131,8 @@ export function bomEditorRows(d: Drawing, lang: Lang, bom: BomConfig = EMPTY_BOM
 }
 
 /**
- * Righe dell'editor divise per gruppo, nell'ordine dei gruppi. I gruppi propri compaiono anche vuoti (per poterci aggiungere righe),
- * quelli predefiniti solo se hanno righe. Con la distinta non raggruppata c'è un'unica sezione.
+ * Editor rows split by group, in group order. Custom groups also appear empty (so rows can be added to them),
+ * default ones only if they have rows. With an ungrouped bill of materials there is a single section.
  */
 export function bomEditorSections(d: Drawing, lang: Lang, bom: BomConfig = EMPTY_BOM): BomSection[] {
   const rows = bomEditorRows(d, lang, bom)
@@ -142,7 +142,7 @@ export function bomEditorSections(d: Drawing, lang: Lang, bom: BomConfig = EMPTY
     .filter((sec) => sec.rows.length > 0 || sec.group.custom)
 }
 
-/** Voci della distinta come finiscono nel PDF: intestazioni di gruppo e righe. */
+/** Bill of materials entries as they end up in the PDF: group headers and rows. */
 export type BomItem = { kind: 'group'; name: string; count: number } | { kind: 'row'; row: BomRow }
 
 export function bomItems(d: Drawing, lang: Lang, bom: BomConfig = EMPTY_BOM): BomItem[] {
@@ -156,18 +156,18 @@ export function bomItems(d: Drawing, lang: Lang, bom: BomConfig = EMPTY_BOM): Bo
   return items
 }
 
-/** Righe della distinta nell'ordine in cui compaiono (gruppo per gruppo, se raggruppata; dentro i gruppi per tag, poi le righe a mano). */
+/** Bill of materials rows in the order they appear (group by group if grouped; within groups by tag, then hand-added rows). */
 export function bomRows(d: Drawing, lang: Lang, bom: BomConfig = EMPTY_BOM): BomRow[] {
   return bomItems(d, lang, bom).flatMap((i) => (i.kind === 'row' ? [i.row] : []))
 }
 
-/** Divide le voci in pagine da `perPage` righe di tabella, senza lasciare un'intestazione di gruppo sola in fondo alla pagina. */
+/** Splits entries into pages of `perPage` table rows, without leaving a lone group header at the bottom of a page. */
 export function paginateBom(items: BomItem[], perPage: number): BomItem[][] {
   const pages: BomItem[][] = []
   let cur: BomItem[] = []
   items.forEach((it, i) => {
     const next = items[i + 1]
-    // un'intestazione ha bisogno di almeno una riga sotto di sé nella stessa pagina
+    // a header needs at least one row below it on the same page
     const need = it.kind === 'group' && next ? 2 : 1
     if (cur.length + need > perPage) { pages.push(cur); cur = [] }
     cur.push(it)
@@ -180,7 +180,7 @@ export function bomRowsPerPage(layout: PageLayout): number {
   return Math.max(1, Math.floor((layout.drawing.h - HEAD_H - 4) / ROW_H))
 }
 
-/** Una pagina della distinta (righe già tagliate per la pagina). */
+/** A page of the bill of materials (rows already cut for the page). */
 export function renderBomPage(items: BomItem[], doc: FluidDocument, layout: PageLayout, lang: Lang): string {
   const area = { ...layout.drawing, w: layout.frame.w }
   const cols = [
@@ -216,7 +216,7 @@ export function renderBomPage(items: BomItem[], doc: FluidDocument, layout: Page
     s += lineEl(x0, y + ROW_H, x0 + tableW, y + ROW_H, 0.15, '#bbb')
     cols.forEach((c, j) => {
       const maxChars = Math.floor((c.w * tableW - 3) / 1.45)
-      // fino a due righe per cella: un testo lungo scritto a mano non va perso
+      // up to two lines per cell: a long hand-written text is not lost
       let parts = wrapText(r[c.key], maxChars)
       if (parts.length > 2) parts = [parts[0], parts[1].length >= maxChars ? parts[1].slice(0, maxChars - 1) + '…' : parts[1] + '…']
       const size = parts.length > 1 ? 2.2 : 2.6
@@ -233,7 +233,7 @@ export function renderBomPage(items: BomItem[], doc: FluidDocument, layout: Page
 
 export interface StateRow { tag: string; description: string; type: string; states: (ValveState | undefined)[] }
 
-/** Valvole con almeno uno stato assegnato, una colonna per fase. */
+/** Valves with at least one assigned state, one column per phase. */
 export function stateRows(d: Drawing, phases: Phase[], lang: Lang): StateRow[] {
   return d.components
     .filter((c) => c.states && phases.some((p) => c.states![p.id]))

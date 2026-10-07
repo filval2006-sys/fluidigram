@@ -6,7 +6,7 @@ const STUB = 5
 const sign = (v: number) => (v > 0 ? 1 : v < 0 ? -1 : 0)
 const isHoriz = (a: Point, b: Point) => a.y === b.y
 
-/** La prima e l'ultima tratta devono uscire/entrare nella direzione delle porte. */
+/** The first and last leg must leave/enter in the direction of the ports. */
 export function endsAreValid(pts: Point[], aDir: Dir, bDir: Dir): boolean {
   if (pts.length < 2) return false
   const dirOf = (p: Point, q: Point) => ({ x: sign(q.x - p.x), y: sign(q.y - p.y) })
@@ -18,11 +18,11 @@ export function endsAreValid(pts: Point[], aDir: Dir, bDir: Dir): boolean {
 }
 
 /**
- * Sposta la tratta `i` di `d` mm in direzione perpendicolare.
- * - tratta interna: si muove insieme ai suoi due vertici;
- * - tratta che tocca una porta: si lascia un tratto di 5 mm attaccato alla porta e il resto si sposta (con uno scalino);
- * - linea dritta: si crea un aggiramento tra i due tratti di uscita.
- * Restituisce null se la modifica non è possibile.
+ * Moves leg `i` by `d` mm in the perpendicular direction.
+ * - inner leg: moves together with its two vertices;
+ * - leg touching a port: a 5 mm stub stays attached to the port and the rest moves (with a step);
+ * - straight line: a detour is created between the two exit legs.
+ * Returns null if the edit is not possible.
  */
 export function moveSegment(pts: Point[], i: number, d: number, aDir: Dir, bDir: Dir): Point[] | null {
   const n = pts.length
@@ -55,7 +55,7 @@ export function moveSegment(pts: Point[], i: number, d: number, aDir: Dir, bDir:
   return endsAreValid(out, aDir, bDir) ? out : null
 }
 
-/** Punto della linea più vicino a `p`, agganciato alla griglia da 5 mm e a distanza dai vertici. */
+/** Point of the line nearest to `p`, snapped to the 5 mm grid and kept away from the vertices. */
 export function nearestOnRoute(pts: Point[], p: Point): { point: Point; segment: number; dist: number } | null {
   let best: { point: Point; segment: number; dist: number } | null = null
   for (let i = 0; i < pts.length - 1; i++) {
@@ -63,7 +63,7 @@ export function nearestOnRoute(pts: Point[], p: Point): { point: Point; segment:
     const horizontal = a.y === b.y
     const lo = horizontal ? Math.min(a.x, b.x) : Math.min(a.y, b.y)
     const hi = horizontal ? Math.max(a.x, b.x) : Math.max(a.y, b.y)
-    // il punto di derivazione resta ad almeno 5 mm dai vertici, sulla griglia
+    // the branch point stays at least 5 mm from the vertices, on the grid
     const first = Math.ceil((lo + STUB) / STUB) * STUB
     const last = Math.floor((hi - STUB) / STUB) * STUB
     if (first > last) continue

@@ -13,7 +13,7 @@ export function simplify(pts: Point[]): Point[] {
   }
   for (let i = out.length - 2; i > 0; i--) {
     const a = out[i - 1], b = out[i], c = out[i + 1]
-    // si elimina il punto intermedio solo se è davvero sul percorso (non un'inversione di marcia)
+    // the intermediate point is removed only if it is really on the path (not a U-turn)
     const straightX = a.x === b.x && b.x === c.x && (b.y - a.y) * (c.y - b.y) > 0
     const straightY = a.y === b.y && b.y === c.y && (b.x - a.x) * (c.x - b.x) > 0
     if (straightX || straightY) out.splice(i, 1)
@@ -23,9 +23,9 @@ export function simplify(pts: Point[]): Point[] {
 
 /**
  * Instradamento ortogonale (euristico, fase 0).
- * - porte allineate e rivolte l'una verso l'altra → segmento diretto;
- * - altrimenti uscita di `stub` mm dalla porta, poi L o Z.
- * Non evita ancora gli ostacoli: lo farà l'instradatore avanzato (fase 1).
+ * - ports aligned and facing each other → direct segment;
+ * - otherwise exit of `stub` mm from the port, then L or Z.
+ * It does not avoid obstacles yet: the advanced router will (phase 1).
  */
 export function routeLine(a: Endpoint, b: Endpoint, stub = 5): Point[] {
   const dx = b.p.x - a.p.x
@@ -41,12 +41,12 @@ export function routeLine(a: Endpoint, b: Endpoint, stub = 5): Point[] {
   const b1 = add(b.p, scale(DIR_VEC[b.dir], stub))
   let mid: Point[]
   if (isHorizontal(a.dir) === isHorizontal(b.dir)) {
-    // Z: due tratti paralleli collegati da uno perpendicolare a metà strada
+    // Z: two parallel legs joined by a perpendicular one halfway
     mid = isHorizontal(a.dir)
       ? [{ x: (a1.x + b1.x) / 2, y: a1.y }, { x: (a1.x + b1.x) / 2, y: b1.y }]
       : [{ x: a1.x, y: (a1.y + b1.y) / 2 }, { x: b1.x, y: (a1.y + b1.y) / 2 }]
   } else {
-    // L: un solo gomito
+    // L: a single elbow
     mid = isHorizontal(a.dir) ? [{ x: b1.x, y: a1.y }] : [{ x: a1.x, y: b1.y }]
   }
   return simplify([a.p, a1, ...mid, b1, b.p])

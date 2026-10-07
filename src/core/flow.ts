@@ -7,19 +7,19 @@ interface FlowGroup {
   fluids: Set<FluidId>
   lineIds: Set<string>
   componentIds: Set<string>
-  /** il gruppo tocca un serbatoio (una sorgente di fluido) */
+  /** the group touches a vessel (a fluid source) */
   fed: boolean
 }
 
 export interface FlowResult {
-  /** linee raggiunte da un serbatoio attraverso valvole non chiuse */
+  /** lines reached by a vessel through non-closed valves */
   live: Set<string>
   groups: FlowGroup[]
 }
 
 /**
- * Propagazione statica del fluido in una fase: le valvole chiuse (o non specificate se sono pirotecniche)
- * bloccano, quelle aperte o non specificate lasciano passare. I serbatoi separano i gruppi e fanno da sorgente.
+ * Static fluid propagation in a phase: closed valves (or unspecified ones if pyrotechnic)
+ * block, open or unspecified ones let it through. Vessels separate groups and act as sources.
  */
 export function traceFlow(doc: FluidDocument, phaseId: string): FlowResult {
   const d = doc.drawing
@@ -50,7 +50,7 @@ export function traceFlow(doc: FluidDocument, phaseId: string): FlowResult {
       gr.componentIds.add(c.id)
       if (def.category === 'vessels') gr.fed = true
     }
-    // ingresso da un altro impianto (es. attacco di riempimento): alimenta la linea come un serbatoio
+    // inlet from another system (e.g. filling connection): feeds the line like a vessel
     for (const e of portEnds(c)) if (e.kind === 'in') g(portKey(c.id, e.portId)).fed = true
   }
   for (const l of d.lines) {

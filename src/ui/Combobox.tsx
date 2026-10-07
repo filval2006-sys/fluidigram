@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { t } from '../i18n'
 
 interface ComboGroup { id: string; label: string; options: string[] }
 
 interface Props {
   value: string
   onCommit: (v: string) => void
-  /** gruppi disponibili per la stringa cercata (vuota → tutto) */
+  /** groups available for the searched string (empty → everything) */
   getGroups: (query: string) => ComboGroup[]
   placeholder?: string
-  /** accetta anche un valore scritto a mano che non è in elenco */
+  /** also accepts a hand-written value that is not in the list */
   allowCustom?: boolean
   ariaLabel?: string
 }
 
-/** Menu a tendina con scorrimento completo e ricerca digitando. */
+/** Dropdown menu with full scrolling and search by typing. */
 export function Combobox({ value, onCommit, getGroups, placeholder, allowCustom = true, ariaLabel }: Props) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState(value)
@@ -24,7 +25,7 @@ export function Combobox({ value, onCommit, getGroups, placeholder, allowCustom 
   const skipBlur = useRef(false)
   const pending = useRef({ typed, text, value, open, allowCustom, onCommit })
   pending.current = { typed, text, value, open, allowCustom, onCommit }
-  // se il campo sparisce mentre si sta scrivendo un valore (cambio di schermata), il valore scritto si conferma come all'uscita dal campo
+  // if the field disappears while a value is being typed (screen change), the typed value is confirmed as when leaving the field
   useEffect(() => () => {
     const p = pending.current
     if (!skipBlur.current && p.open && p.typed && p.allowCustom && p.text.trim() && p.text.trim() !== p.value) p.onCommit(p.text.trim())
@@ -32,7 +33,7 @@ export function Combobox({ value, onCommit, getGroups, placeholder, allowCustom 
 
   useEffect(() => { if (!open) { setText(value); setTyped(false) } }, [value, open])
 
-  // finché non si digita nulla mostra tutto l'elenco, anche se c'è già un valore
+  // until something is typed it shows the whole list, even if there is already a value
   const groups = useMemo(() => getGroups(typed ? text : ''), [getGroups, typed, text])
   const flat = useMemo(() => groups.flatMap((g) => g.options), [groups])
 
@@ -100,7 +101,7 @@ export function Combobox({ value, onCommit, getGroups, placeholder, allowCustom 
               })}
             </div>
           ))}
-          {!groups.length && !customOffered && <div className="combo-empty">Nessun risultato</div>}
+          {!groups.length && !customOffered && <div className="combo-empty">{t('No results')}</div>}
         </div>
       )}
     </div>

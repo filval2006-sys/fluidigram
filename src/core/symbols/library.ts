@@ -14,7 +14,7 @@ const through: Prim = { k: 'path', d: 'M0,5 H10' }
 const W = { id: 'a', x: 0, y: 5, dir: 'W' as const }
 const E = { id: 'b', x: 10, y: 5, dir: 'E' as const }
 
-/** Simbolo a due porte (W/E) su box 10×10. */
+/** Two-port symbol (W/E) on a 10×10 box. */
 function inline(
   id: string, it: string, en: string, tagPrefix: string, prims: Prim[],
   extra: Partial<SymbolDef> = {}, category: SymbolCategory = 'valves',
@@ -22,21 +22,21 @@ function inline(
   return { id, name: { it, en }, category, w: 10, h: 10, tagPrefix, legend: true, ports: [W, E], prims, ...extra }
 }
 
-/** Pittogramma interno degli strumenti (box 10×10, cerchio di raggio 5 al centro). */
+/** Inner pictogram of the instruments (10×10 box, circle of radius 5 at the center). */
 const dial = (letter: string): Prim[] => [
   { k: 'path', d: 'M2,7.4 A3.8,3.8 0 1 1 8,7.4' },
   { k: 'path', d: 'M5,5.4 L6.9,3.1' },
   { k: 'circle', cx: 5, cy: 5.4, r: 0.55, fill: 'ink' },
   { k: 'text', x: 5, y: 7.9, s: letter, size: 1.9 },
 ]
-/** Sigla dello strumento scritta nel simbolo (resta uguale in libreria, legenda e disegno). */
+/** Instrument code written in the symbol (the same in library, legend and drawing). */
 const code = (letters: string, size = 3.4): Prim[] => [{ k: 'text', x: 5, y: 5, s: letters, size }]
 
 const GLYPHS: Record<string, Prim[]> = {
-  // solo gli strumenti analogici hanno il disegno: quadrante con lancetta
+  // only analog instruments have the drawing: dial with needle
   'instr.pi': dial('P'),
   'instr.ti': dial('T'),
-  // gli altri portano la sigla
+  // the others carry the code
   'instr.pt': code('PT'),
   'instr.pdt': [...code('PDT', 2.8), { k: 'text', x: 2.2, y: 8, s: '+', size: 2 }, { k: 'text', x: 7.8, y: 8, s: '–', size: 2 }],
   'instr.tt': code('TC'),
@@ -52,7 +52,7 @@ const PORTS_ALL: PortDef[] = [
 ]
 
 const choice = (id: string, it: string, en = it) => ({ id, label: { it, en } })
-/** Segnale di uscita e fondo scala: servono nella distinta per ordinare il sensore giusto. */
+/** Output signal and full scale: needed in the bill of materials to order the right sensor. */
 const SIGNAL_OPTIONS: OptionDef[] = [
   { key: 'signal', label: { it: 'Segnale di uscita', en: 'Output signal' }, default: 'na', choices: [
     choice('na', 'Non specificato', 'Not specified'), choice('0-5V', '0–5 V'), choice('0.5-4.5V', '0,5–4,5 V (ratiometrico)', '0.5–4.5 V (ratiometric)'),
@@ -64,20 +64,20 @@ const SIGNAL_OPTIONS: OptionDef[] = [
   ] },
 ]
 
-/** Strumento: cerchio con un pittogramma che lo rende riconoscibile; il tag sta fuori. Collegabile da ogni lato. */
+/** Instrument: circle with a pictogram that makes it recognizable; the tag sits outside. Connectable from every side. */
 function bubble(id: string, it: string, en: string, tagPrefix: string, keywords: string[] = [], extra: Partial<SymbolDef> = {}): SymbolDef {
   return {
     id, name: { it, en }, category: 'instruments', w: 10, h: 10, tagPrefix, legend: true, keywords,
-    // 'process' (sotto) mantiene il nome dei file esistenti
+    // 'process' (below) keeps the name of existing files
     ports: PORTS_ALL,
     prims: [{ k: 'circle', cx: 5, cy: 5, r: 5, fill: 'paper' }, ...(GLYPHS[id] ?? [])],
-    // il disegno è simmetrico: ruotandolo il pittogramma non deve girare, e le scritte restano dritte
+    // the drawing is symmetric: when rotated the pictogram must not turn, and the text stays upright
     fixedBody: true,
     ...extra,
   }
 }
 
-/** Servoazionamento: cerchio sopra il corpo valvola (l'elettrovalvola pura ha invece il riquadro). */
+/** Servo actuator: circle above the valve body (a pure solenoid valve has the box instead). */
 const actuatorCircle = (label: string): Prim[] => [
   { k: 'path', d: 'M5,5 V-0.6' },
   { k: 'circle', cx: 5, cy: -3.2, r: 2.6, fill: 'paper' },
@@ -92,7 +92,7 @@ const actuatorBox = (label: string): Prim[] => [
 
 export interface ActuatorDef { id: ActuatorId; name: L10n; prims: Prim[]; top: number }
 
-/** Azionamenti disegnati sopra il corpo valvola (la valvola è 10×10, il corpo arriva fino a y=2). */
+/** Actuators drawn above the valve body (the valve is 10×10, the body reaches y=2). */
 export const ACTUATORS: readonly ActuatorDef[] = [
   { id: 'none', name: { it: 'Nessuno', en: 'None' }, prims: [], top: 0 },
   { id: 'manual', name: { it: 'Manuale (maniglia)', en: 'Manual (handle)' }, prims: [{ k: 'path', d: 'M5,5 V0.5 M2.5,0.5 H7.5' }], top: 0 },
@@ -112,7 +112,7 @@ export interface ResolvedSymbol {
 
 const isActuatorId = (v: string | undefined): v is ActuatorId => !!v && ACT.has(v as ActuatorId)
 
-/** Simbolo + opzioni del componente (azionamento, stato a riposo) → disegno effettivo. */
+/** Symbol + component options (actuator, rest state) → actual drawing. */
 export function resolveSymbol(def: SymbolDef, props: Record<string, string> = {}): ResolvedSymbol {
   const base = def.extent ?? { x: 0, y: 0, w: def.w, h: def.h }
   if (def.variantPrims) return { prims: [...def.prims, ...def.variantPrims(props)], extent: base, avoidSides: def.avoidSides, actuator: null }
@@ -131,7 +131,7 @@ export function resolveSymbol(def: SymbolDef, props: Record<string, string> = {}
   }
 }
 
-/** Quick disconnect: metà femmina a sinistra, maschio a destra; con valvole di ritegno autosigillanti opzionali. */
+/** Quick disconnect: female half on the left, male on the right; with optional self-sealing check valves. */
 function qdPrims(p: Record<string, string>): Prim[] {
   const g = p.state === 'disconnected' ? 1.5 : 0
   const seal = p.seal ?? 'both'
@@ -146,7 +146,7 @@ function qdPrims(p: Record<string, string>): Prim[] {
   return out
 }
 
-/** Etichette delle opzioni diverse dal valore predefinito, es. "scollegato, senza valvole". */
+/** Labels of options other than the default value, e.g. "disconnected, no valves". */
 export function optionSuffix(def: SymbolDef, props: Record<string, string>, lang: 'it' | 'en'): string {
   const parts: string[] = []
   for (const o of def.options ?? []) {
@@ -158,7 +158,7 @@ export function optionSuffix(def: SymbolDef, props: Record<string, string>, lang
   return parts.join(', ')
 }
 
-/** Contorni dei recipienti: angoli r=5 con tratti piatti, così gli attacchi (griglia 5 mm) cadono esattamente sul bordo. */
+/** Vessel outlines: r=5 corners with flat segments, so connections (5 mm grid) fall exactly on the edge. */
 const ROUND_V = 'M0,5 A5,5 0 0 1 5,0 H15 A5,5 0 0 1 20,5 V35 A5,5 0 0 1 15,40 H5 A5,5 0 0 1 0,35 Z'
 const ROUND_H = 'M0,5 A5,5 0 0 1 5,0 H35 A5,5 0 0 1 40,5 V15 A5,5 0 0 1 35,20 H5 A5,5 0 0 1 0,15 Z'
 
@@ -219,7 +219,7 @@ const SYMBOLS: SymbolDef[] = [
   {
     id: 'vessel.tank', name: { it: 'Serbatoio / bombola', en: 'Tank / cylinder' }, category: 'vessels', w: 20, h: 40, tagPrefix: 'TK', legend: true,
     keywords: ['ossidante', 'bombola', 'vessel', 'bottle'],
-    // tre attacchi per lato, sopra e sotto: più sensori o tubi sullo stesso serbatoio
+    // three connections per side, top and bottom: several sensors or pipes on the same tank
     ports: [
       { id: 'top', x: 10, y: 0, dir: 'N' }, { id: 'bottom', x: 10, y: 40, dir: 'S' },
       { id: 'left', x: 0, y: 20, dir: 'W' }, { id: 'right', x: 20, y: 20, dir: 'E' },
@@ -313,7 +313,7 @@ const SYMBOLS: SymbolDef[] = [
   {
     id: 'fitting.junction', name: { it: 'Giunzione a T / croce', en: 'T / cross junction' }, category: 'fittings', w: 10, h: 10, tagPrefix: 'J', legend: false,
     keywords: ['raccordo', 'tee', 'cross'],
-    // tutte le porte coincidono col centro: le linee si incontrano lì
+    // all ports coincide with the center: lines meet there
     ports: [
       { id: 'n', x: 5, y: 5, dir: 'N' }, { id: 'e', x: 5, y: 5, dir: 'E' },
       { id: 's', x: 5, y: 5, dir: 'S' }, { id: 'w', x: 5, y: 5, dir: 'W' },
@@ -337,7 +337,7 @@ const SYMBOLS: SymbolDef[] = [
   {
     id: 'engine.chamber', name: { it: 'Camera di combustione e ugello', en: 'Combustion chamber & nozzle' }, category: 'engine', w: 40, h: 20, tagPrefix: 'CC', legend: true,
     keywords: ['motore', 'ugello', 'nozzle', 'chamber'],
-    // prese per i sensori (pressione, temperatura…) sulla parte cilindrica e sul fondello; l'iniettore va su 'in'
+    // taps for sensors (pressure, temperature…) on the cylindrical part and the end cap; the injector goes on 'in'
     ports: [
       { id: 'in', x: 0, y: 10, dir: 'W' },
       { id: 'top-left', x: 5, y: 0, dir: 'N' }, { id: 'top', x: 10, y: 0, dir: 'N' }, { id: 'top-right', x: 15, y: 0, dir: 'N' },
@@ -360,7 +360,7 @@ export function getSymbol(id: string): SymbolDef {
 
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
-/** Ricerca per nome (IT/EN), sigla del tag, categoria e sinonimi; ogni parola cercata deve comparire. */
+/** Search by name (IT/EN), tag code, category and synonyms; every searched word must appear. */
 export function searchSymbols(query: string): SymbolDef[] {
   const words = norm(query).split(/\s+/).filter(Boolean)
   if (!words.length) return [...SYMBOLS]

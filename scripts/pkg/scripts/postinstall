@@ -1,5 +1,5 @@
 #!/bin/sh
-# Toglie il marchio «scaricato da internet» dall'app appena installata, così non compare un secondo avviso all'apertura.
+# Removes the "downloaded from the internet" mark from the freshly installed app, so a second warning does not appear on opening.
 for app in /Applications/Fluidigram.app "$HOME/Applications/Fluidigram.app" "$2/Fluidigram.app"; do
   [ -d "$app" ] && xattr -cr "$app" 2>/dev/null
 done

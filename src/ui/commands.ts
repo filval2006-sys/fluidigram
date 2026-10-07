@@ -9,8 +9,8 @@ export function isTyping(t: EventTarget | null): boolean {
 const lastRun = new Map<string, number>()
 
 /**
- * Un comando può arrivare due volte (voce di menu e scorciatoia, oppure tastiera ed evento di copia del sistema):
- * se è già stato eseguito un attimo fa si ignora. 25 ms sono meno del ritardo tra due ripetizioni automatiche di un tasto.
+ * A command can arrive twice (menu entry and shortcut, or keyboard and the system's copy event):
+ * if it already ran a moment ago it is ignored. 25 ms is less than the delay between two automatic key repeats.
  */
 export function justRan(id: string, ms = 25): boolean {
   const now = performance.now()
@@ -19,7 +19,7 @@ export function justRan(id: string, ms = 25): boolean {
   return prev !== undefined && now - prev < ms
 }
 
-/** Comandi di modifica e visualizzazione, uguali da menu e da tastiera. Restituisce true se l'id è un suo comando. */
+/** Edit and view commands, the same from the menu and the keyboard. Returns true if the id is one of its commands. */
 export function runEditCommand(id: string): boolean {
   const st = useStore.getState()
   const typing = isTyping(document.activeElement)
@@ -27,12 +27,12 @@ export function runEditCommand(id: string): boolean {
   if (!ids.includes(id)) return false
 
   if (id.startsWith('theme-')) { st.setTheme(id.slice(6) as 'system' | 'light' | 'dark'); return true }
-  if (document.querySelector('.modal-bg') && !typing) return true // con una finestra aperta la tela non si tocca
-  // nella schermata della distinta i comandi sul disegno non si applicano (Annulla/Ripeti sì: valgono anche per la distinta)
+  if (document.querySelector('.modal-bg') && !typing) return true // with a dialog open the canvas is not touched
+  // on the bill of materials screen commands on the drawing do not apply (Undo/Redo do: they also work for the bill of materials)
   if (st.home && !typing && !['undo', 'redo'].includes(id)) return true
   if ((st.stageView === 'bom' || st.step === 'operation') && !typing && !['undo', 'redo'].includes(id)) return true
 
-  // dentro un campo di testo undo/redo/seleziona tutto riguardano il testo, il resto non si applica
+  // inside a text field undo/redo/select all concern the text, the rest does not apply
   if (typing) {
     const el = document.activeElement as HTMLInputElement
     if (id === 'undo' || id === 'redo') document.execCommand(id)

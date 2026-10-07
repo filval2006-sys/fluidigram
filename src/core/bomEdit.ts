@@ -7,7 +7,7 @@ import type { BomOverride, FluidDocument, Lang } from './types'
 export type BomField = 'description' | 'type' | 'note' | 'size' | 'pmax' | 'tag'
 const TEXT_FIELDS = new Set<BomField>(['description', 'type', 'note'])
 
-/** Modifica una cella della distinta (funzioni che mutano: da usare dentro store.edit). */
+/** Edits a bill of materials cell (mutating functions: use inside store.edit). */
 export function setBomCell(doc: FluidDocument, id: string, extra: boolean, field: BomField, lang: Lang, value: string): void {
   const bom = doc.bom
   if (extra) {
@@ -25,7 +25,7 @@ export function setBomCell(doc: FluidDocument, id: string, extra: boolean, field
     const key = field as 'description' | 'type' | 'note'
     const same = value === auto[key]
     const cur = { ...(o[key] ?? {}) }
-    // lo stesso valore del generato non è una modifica: si toglie, e la riga torna a seguire il disegno
+    // the same value as the generated one is not an edit: it is removed, and the row follows the drawing again
     if (same) delete cur[lang]
     else cur[lang] = value
     if (Object.keys(cur).length) o[key] = cur
@@ -38,7 +38,7 @@ export function setBomCell(doc: FluidDocument, id: string, extra: boolean, field
   else delete bom.overrides[id]
 }
 
-/** Toglie tutte le modifiche manuali di una riga: torna ai valori del disegno. */
+/** Removes all manual edits of a row: it returns to the drawing's values. */
 export function resetBomRow(doc: FluidDocument, id: string): void {
   delete doc.bom.overrides[id]
 }
@@ -60,12 +60,12 @@ export function removeBomExtra(doc: FluidDocument, id: string): void {
   doc.bom.extra = doc.bom.extra.filter((x) => x.id !== id)
 }
 
-/** Ripristina la distinta automatica: via modifiche, nascosti e righe aggiunte. */
+/** Restores the automatic bill of materials: removes edits, hidden and added rows. */
 export function resetBom(doc: FluidDocument): void {
   doc.bom = { overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] }
 }
 
-/** Dimentica le modifiche dei componenti che non esistono più. */
+/** Forgets the edits of components that no longer exist. */
 export function pruneBom(doc: FluidDocument): void {
   const alive = new Set(doc.drawing.components.map((c) => c.id))
   for (const id of Object.keys(doc.bom.overrides)) if (!alive.has(id)) delete doc.bom.overrides[id]
@@ -78,7 +78,7 @@ export function setBomGrouped(doc: FluidDocument, grouped: boolean): void {
   doc.bom.grouped = grouped
 }
 
-/** Rinomina un gruppo (predefinito o proprio) nella lingua indicata; un nome vuoto torna a quello predefinito. */
+/** Renames a group (default or custom) in the given language; an empty name returns to the default one. */
 export function renameBomGroup(doc: FluidDocument, id: string, lang: Lang, name: string): void {
   const custom = doc.bom.groups.find((g) => g.id === id)
   if (custom) { custom.name[lang] = name; return }
@@ -96,7 +96,7 @@ export function addBomGroup(doc: FluidDocument): string {
   return id
 }
 
-/** Elimina un gruppo proprio: le sue righe tornano al gruppo del loro tipo (o «Altro» se aggiunte a mano). */
+/** Deletes a custom group: its rows return to their type's group (or "Other" if added by hand). */
 export function removeBomGroup(doc: FluidDocument, id: string): void {
   if (!doc.bom.groups.some((g) => g.id === id)) return
   doc.bom.groups = doc.bom.groups.filter((g) => g.id !== id)
@@ -111,7 +111,7 @@ export function removeBomGroup(doc: FluidDocument, id: string): void {
 }
 
 /**
- * Sposta un gruppo su (-1) o giù (+1) rispetto ai gruppi che si vedono (quelli vuoti non contano), e salva l'ordine.
+ * Moves a group up (-1) or down (+1) among the visible groups (empty ones do not count), and saves the order.
  */
 export function moveBomGroup(doc: FluidDocument, id: string, delta: -1 | 1): void {
   const visible = bomEditorSections(doc.drawing, 'it', doc.bom).map((s) => s.group.id).filter(Boolean)
@@ -124,7 +124,7 @@ export function moveBomGroup(doc: FluidDocument, id: string, delta: -1 | 1): voi
   doc.bom.order = ids
 }
 
-/** Mette una riga in un gruppo; il gruppo del tipo di componente non richiede di salvare nulla. */
+/** Puts a row in a group; the group of the component type does not require saving anything. */
 export function setBomRowGroup(doc: FluidDocument, id: string, extra: boolean, group: string): void {
   if (extra) {
     const x = doc.bom.extra.find((e) => e.id === id)

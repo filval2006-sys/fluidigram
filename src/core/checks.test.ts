@@ -7,7 +7,7 @@ import { parseDocument } from './validate'
 import { SAMPLE_DOCUMENT } from './sample'
 import type { FluidDocument, FluidId } from './types'
 
-/** Costruisce un impianto da una lista di (simbolo, tag) collegati in catena porta E/uscita → porta W/ingresso. */
+/** Builds a plant from a list of (symbol, tag) connected in a chain: E/output port → W/input port. */
 function chain(items: { sym: string; props?: Record<string, string> }[], fluid: FluidId = 'oxidizer', ports?: { out: string; in: string }[]) {
   return produce(createEmptyDocument(), (d) => {
     let prev: { id: string } | undefined
@@ -25,20 +25,21 @@ function chain(items: { sym: string; props?: Record<string, string> }[], fluid: 
 }
 const codes = (d: FluidDocument) => runChecks(d, { hints: true }).map((i) => i.code)
 
-describe('controlli ingegneristici', () => {
-  it('il disegno di esempio non ha errori', () => {
+describe('engineering checks', () => {
+  it('the sample drawing has no errors', () => {
     expect(runChecks(SAMPLE_DOCUMENT).filter((i) => i.severity === 'error')).toEqual([])
   })
 
-  it('segnala un volume di ossidante chiudibile tra due valvole senza protezione', () => {
+  it('reports an oxidizer volume that can be closed off between two unprotected valves', () => {
     const doc = chain([{ sym: 'valve.ball' }, { sym: 'valve.ball' }])
     const t = runChecks(doc, { hints: true }).find((i) => i.code === 'trapped')
     expect(t).toBeDefined()
-    expect(t!.message).toContain('ossidante')
+    expect(t!.message.it).toContain('ossidante')
+    expect(t!.message.en).toContain('oxidizer')
     expect(t!.targets.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('una valvola di sicurezza sullo stesso volume elimina l\'avviso', () => {
+  it('a relief valve on the same volume removes the warning', () => {
     const doc = produce(chain([{ sym: 'valve.ball' }, { sym: 'fitting.junction' }, { sym: 'valve.ball' }], 'oxidizer', [
       { out: 'b', in: 'w' }, { out: 'e', in: 'a' },
     ]), (d) => {
@@ -49,15 +50,15 @@ describe('controlli ingegneristici', () => {
     expect(codes(doc)).not.toContain('trapped')
   })
 
-  it('un disco di rottura o uno sfiato proteggono il volume', () => {
+  it('a burst disc or a vent protects the volume', () => {
     expect(codes(chain([{ sym: 'valve.ball' }, { sym: 'fitting.burst' }, { sym: 'valve.ball' }]))).not.toContain('trapped')
   })
 
-  it('un gas pressurizzante tra due valvole non è segnalato come volume intrappolato', () => {
+  it('a pressurant gas between two valves is not reported as a trapped volume', () => {
     expect(codes(chain([{ sym: 'valve.ball' }, { sym: 'valve.ball' }], 'pressurant'))).not.toContain('trapped')
   })
 
-  it('segnala fluidi diversi collegati dalla stessa valvola', () => {
+  it('reports different fluids connected by the same valve', () => {
     const doc = produce(chain([{ sym: 'valve.ball' }, { sym: 'valve.ball' }], 'oxidizer'), (d) => {
       d.drawing.lines[0].fluid = 'oxidizer'
       const extra = addComponent(d, 'vessel.tank', 40, 140)
@@ -65,17 +66,17 @@ describe('controlli ingegneristici', () => {
     })
     const i = runChecks(doc).find((x) => x.code === 'fluid-mix')
     expect(i?.severity).toBe('error')
-    expect(i?.message).toMatch(/OX, FU|FU, OX/)
+    expect(i?.message.it).toMatch(/OX, FU|FU, OX/)
   })
 
-  it('porte non collegate e componenti isolati', () => {
+  it('unconnected ports and isolated components', () => {
     const doc = produce(chain([{ sym: 'valve.ball' }, { sym: 'valve.ball' }]), (d) => { addComponent(d, 'valve.check', 200, 60) })
     const r = runChecks(doc)
-    expect(r.filter((i) => i.code === 'open-port').length).toBe(2) // un lato libero per ciascuna valvola
+    expect(r.filter((i) => i.code === 'open-port').length).toBe(2) // one free side for each valve
     expect(r.some((i) => i.code === 'isolated')).toBe(true)
   })
 
-  it('l\'uscita della valvola di sicurezza può restare aperta', () => {
+  it('the relief valve outlet may stay open', () => {
     const doc = produce(createEmptyDocument(), (d) => {
       const t = addComponent(d, 'vessel.tank', 60, 80)
       const p = addComponent(d, 'valve.relief', 120, 40)
@@ -84,7 +85,7 @@ describe('controlli ingegneristici', () => {
     expect(codes(doc)).not.toContain('open-port')
   })
 
-  it('pressione di linea oltre il limite del componente', () => {
+  it('line pressure above the component limit', () => {
     const doc = produce(chain([{ sym: 'valve.ball', props: { mawp: '50' } }, { sym: 'valve.ball', props: { mawp: '200' } }], 'pressurant'), (d) => {
       d.drawing.lines[0].pressure = '120'
     })
@@ -93,12 +94,12 @@ describe('controlli ingegneristici', () => {
     expect(r[0].severity).toBe('error')
   })
 
-  it('stato a riposo mancante su elettrovalvole e valvole pneumatiche', () => {
+  it('missing rest state on solenoid and pneumatic valves', () => {
     const doc = chain([{ sym: 'valve.solenoid2' }, { sym: 'valve.ball', props: { actuator: 'pneumatic' } }, { sym: 'valve.ball', props: { actuator: 'pneumatic', normal: 'NC' } }], 'pressurant')
     expect(runChecks(doc).filter((i) => i.code === 'no-normal-state')).toHaveLength(2)
   })
 
-  it('diametri diversi senza riduzione e linee senza diametro', () => {
+  it('different sizes without a reducer and lines without a size', () => {
     const doc = produce(chain([{ sym: 'valve.ball' }, { sym: 'valve.ball' }, { sym: 'valve.ball' }], 'pressurant'), (d) => {
       d.drawing.lines[1].size = 'AN-6'
       d.drawing.lines.push({ id: 'lx', fluid: 'pressurant', from: { componentId: d.drawing.components[2].id, portId: 'b' }, to: { componentId: addComponent(d, 'valve.check', 300, 60).id, portId: 'in' } })
@@ -108,13 +109,13 @@ describe('controlli ingegneristici', () => {
     expect(r.some((i) => i.code === 'no-size')).toBe(true)
   })
 
-  it('ordina errori, avvisi, informazioni', () => {
+  it('orders errors, warnings, information', () => {
     const sev = runChecks(chain([{ sym: 'valve.ball' }, { sym: 'valve.ball' }])).map((i) => i.severity)
     const rank = { error: 0, warning: 1, info: 2 }
     expect([...sev].sort((a, b) => rank[a] - rank[b])).toEqual(sev)
   })
 
-  it('i suggerimenti sono spenti finché non li accendi', () => {
+  it('suggestions are off until you turn them on', () => {
     const doc = chain([{ sym: 'valve.ball' }, { sym: 'valve.ball' }])
     expect(runChecks(doc).map((i) => i.code)).not.toContain('trapped')
     expect(checkReport(doc).hiddenHints).toBeGreaterThan(0)
@@ -123,7 +124,7 @@ describe('controlli ingegneristici', () => {
     expect(checkReport(on).hiddenHints).toBe(0)
   })
 
-  it('un avviso ignorato sparisce e si può rimettere', () => {
+  it('an ignored warning disappears and can be restored', () => {
     const doc = produce(chain([{ sym: 'valve.ball' }]), (d) => { addComponent(d, 'valve.check', 400, 400) })
     const before = runChecks(doc)
     expect(before.length).toBeGreaterThan(0)
@@ -135,7 +136,7 @@ describe('controlli ingegneristici', () => {
     expect(checkReport(produce(hidden, (d) => restoreAllIssues(d))).dismissed).toEqual([])
   })
 
-  it('i file senza la sezione «checks» si aprono con i valori predefiniti', () => {
+  it('files without the "checks" section open with the default values', () => {
     const raw = JSON.parse(JSON.stringify(SAMPLE_DOCUMENT))
     delete raw.checks
     expect(parseDocument(raw).checks).toEqual({ hints: false, dismissed: [] })

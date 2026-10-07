@@ -1,4 +1,4 @@
-// Genera scripts/icon.png (1024×1024) da scripts/icon.svg; poi `npx tauri icon scripts/icon.png` crea tutte le icone.
+// Generates scripts/icon.png (1024×1024) from scripts/icon.svg; then `npx tauri icon scripts/icon.png` creates all the icons.
 import { Resvg } from '@resvg/resvg-js'
 import { readFileSync, writeFileSync } from 'node:fs'
 

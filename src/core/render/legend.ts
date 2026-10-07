@@ -9,7 +9,7 @@ import { INK, lineEl, n, rectEl, symbolThumbnail, textEl, wrapText } from './svg
 interface LegendSymbol { def: SymbolDef; props: Record<string, string>; name: { it: string; en: string } }
 export interface LegendItems { symbols: LegendSymbol[]; fluids: FluidId[] }
 
-/** Simboli (con legenda attiva, uno per variante di azionamento) e fluidi effettivamente usati, in ordine stabile. */
+/** Symbols (with legend on, one per actuator variant) and fluids actually used, in stable order. */
 export function usedIn(components: Component[], lines: Line[]): LegendItems {
   const byKey = new Map<string, LegendSymbol>()
   for (const c of components) {
@@ -43,7 +43,7 @@ function rowHeights(items: LegendItems): number[] {
   return items.symbols.map((s) => Math.max(SYMBOL_ROW_MIN, symbolThumbnail(s.def, 0, 0, 14, 14, 1, s.props).height + 3))
 }
 
-/** Altezza che servirebbe per mostrare tutto in scala 1. */
+/** Height that would be needed to show everything at scale 1. */
 function neededHeight(items: LegendItems): number {
   const sym = items.symbols.length ? SECTION + rowHeights(items).reduce((a, b) => a + b, 0) + 2 : 0
   const flu = items.fluids.length ? SECTION + items.fluids.length * FLUID_ROW : 0
@@ -53,7 +53,7 @@ function neededHeight(items: LegendItems): number {
 export function renderLegend(items: LegendItems, layout: PageLayout, lang: Lang, color: boolean): string {
   if (!layout.legend) return ''
   const { x, y, w, h } = layout.legend
-  // se non entra tutto si comprimono le righe (fino al 70%), poi si tagliano le voci in eccesso
+  // if everything does not fit, the rows are compressed (down to 70%), then the excess entries are cut
   const k = Math.max(0.7, Math.min(1, h / neededHeight(items)))
   let s = rectEl(x, y, w, h, 0.5)
   s += `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${HEAD}" fill="${INK}"/>`

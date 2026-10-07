@@ -1,4 +1,4 @@
-// Genera la grafica degli installer: barra laterale e testata del wizard di Windows (BMP a 24 bit) e sfondo della finestra del .dmg.
+// Generates the installer artwork: sidebar and header of the Windows wizard (24-bit BMP) and the background of the .dmg window.
 // Uso: npm run installer-art
 import { Resvg } from '@resvg/resvg-js'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -6,7 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 const NAVY = '#10305f'
 const BLUE = '#5aa2ff'
 
-/** Logo: tubo con valvola a sfera (lo stesso dell'icona), disegnato in un quadrato di lato 100. */
+/** Logo: pipe with ball valve (same as the icon), drawn in a square of side 100. */
 const logo = (fg, accent, bg) => `
   <path d="M8 55 H92" stroke="${accent}" stroke-width="6" stroke-linecap="round"/>
   <path d="M50 55 V29 M38 29 H62" stroke="${fg}" stroke-width="4.4" stroke-linecap="round"/>
@@ -15,7 +15,7 @@ const logo = (fg, accent, bg) => `
 
 const render = (svg, w) => new Resvg(svg, { fitTo: { mode: 'width', value: w }, font: { loadSystemFonts: true } }).render()
 
-/** BMP non compresso a 24 bit (quello che chiede NSIS), righe dal basso, colori su sfondo opaco. */
+/** Uncompressed 24-bit BMP (what NSIS expects), rows bottom-up, colors on an opaque background. */
 function bmp24({ width, height, pixels }) {
   const row = Math.ceil((width * 3) / 4) * 4
   const buf = Buffer.alloc(54 + row * height)
@@ -42,7 +42,7 @@ const out = (path) => new URL('../' + path, import.meta.url)
 mkdirSync(out('src-tauri/windows/'), { recursive: true })
 mkdirSync(out('src-tauri/dmg/'), { recursive: true })
 
-// --- barra laterale del wizard (164×314), pagine di benvenuto e di fine ---
+// --- wizard sidebar (164×314), welcome and finish pages ---
 const sidebar = `<svg xmlns="http://www.w3.org/2000/svg" width="164" height="314" viewBox="0 0 164 314">
   <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b4a8f"/><stop offset="1" stop-color="${NAVY}"/></linearGradient></defs>
   <rect width="164" height="314" fill="url(#g)"/>
@@ -55,7 +55,7 @@ const sidebar = `<svg xmlns="http://www.w3.org/2000/svg" width="164" height="314
 let r = render(sidebar, 164)
 writeFileSync(out('src-tauri/windows/sidebar.bmp'), bmp24({ width: r.width, height: r.height, pixels: r.pixels }))
 
-// --- testata delle altre pagine (150×57) ---
+// --- header of the other pages (150×57) ---
 const header = `<svg xmlns="http://www.w3.org/2000/svg" width="150" height="57" viewBox="0 0 150 57">
   <rect width="150" height="57" fill="#ffffff"/>
   <rect x="94" y="8" width="42" height="42" rx="10" fill="${NAVY}"/>
@@ -64,7 +64,7 @@ const header = `<svg xmlns="http://www.w3.org/2000/svg" width="150" height="57" 
 r = render(header, 150)
 writeFileSync(out('src-tauri/windows/header.bmp'), bmp24({ width: r.width, height: r.height, pixels: r.pixels }))
 
-// --- sfondo della finestra del .dmg (660×400): chiaro, perché Finder scrive le etichette in nero ---
+// --- .dmg window background (660×400): light, because Finder writes the labels in black ---
 const dmg = `<svg xmlns="http://www.w3.org/2000/svg" width="660" height="400" viewBox="0 0 660 400">
   <defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7faff"/><stop offset="1" stop-color="#e3edfb"/></linearGradient></defs>
   <rect width="660" height="400" fill="url(#b)"/>

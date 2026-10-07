@@ -10,9 +10,9 @@ import { readDocument } from './documents'
 import { addComponent, connectPorts } from './edit'
 import { produce } from 'immer'
 
-describe('libreria simboli', () => {
+describe('symbol library', () => {
   for (const def of SYMBOL_LIBRARY.values()) {
-    it(`${def.id}: box e porte sono su griglia`, () => {
+    it(`${def.id}: box and ports are on the grid`, () => {
       expect(def.w % 10).toBe(0)
       expect(def.h % 10).toBe(0)
       for (const p of def.ports) {
@@ -23,29 +23,29 @@ describe('libreria simboli', () => {
   }
 })
 
-describe('geometria', () => {
+describe('geometry', () => {
   const size = { w: 10, h: 10 }
-  it('porta E ruotata di 90° guarda a S e cade sotto il centro', () => {
+  it('an E port rotated by 90° faces S and falls below the center', () => {
     const pl = { x: 100, y: 100, rotation: 90 as const, mirror: false }
     expect(localToWorld(size, pl, { x: 10, y: 5 })).toEqual({ x: 100, y: 105 })
     expect(dirToWorld('E', pl)).toBe('S')
   })
-  it('lo specchio inverte E/W', () => {
+  it('the mirror swaps E/W', () => {
     const pl = { x: 100, y: 100, rotation: 0 as const, mirror: true }
     expect(localToWorld(size, pl, { x: 10, y: 5 })).toEqual({ x: 95, y: 100 })
     expect(dirToWorld('E', pl)).toBe('W')
   })
 })
 
-describe('routing ortogonale', () => {
-  it('porte allineate → segmento diretto', () => {
+describe('orthogonal routing', () => {
+  it('aligned ports → direct segment', () => {
     expect(routeLine({ p: { x: 0, y: 0 }, dir: 'E' }, { p: { x: 20, y: 0 }, dir: 'W' })).toEqual([{ x: 0, y: 0 }, { x: 20, y: 0 }])
   })
-  it('E → N produce un gomito a L', () => {
+  it('E → N produces an L elbow', () => {
     const r = routeLine({ p: { x: 0, y: 0 }, dir: 'E' }, { p: { x: 30, y: 30 }, dir: 'N' })
     expect(r).toEqual([{ x: 0, y: 0 }, { x: 30, y: 0 }, { x: 30, y: 30 }])
   })
-  it('tutti i segmenti sono ortogonali', () => {
+  it('all segments are orthogonal', () => {
     const r = routeLine({ p: { x: 0, y: 0 }, dir: 'E' }, { p: { x: 40, y: 25 }, dir: 'W' })
     for (let i = 1; i < r.length; i++) expect(r[i].x === r[i - 1].x || r[i].y === r[i - 1].y).toBe(true)
   })
@@ -53,33 +53,33 @@ describe('routing ortogonale', () => {
 
 const D = SAMPLE_DOCUMENT.drawing
 
-describe('documento di esempio', () => {
-  it('è valido e integro', () => {
+describe('sample document', () => {
+  it('is valid and intact', () => {
     expect(checkIntegrity(SAMPLE_DOCUMENT)).toEqual([])
     expect(() => parseDocument(JSON.parse(JSON.stringify(SAMPLE_DOCUMENT)))).not.toThrow()
   })
-  it('tutte le linee hanno un percorso ortogonale', () => {
+  it('all lines have an orthogonal path', () => {
     for (const l of D.lines) {
       const r = lineRoute(D, l)
       expect(r.length).toBeGreaterThanOrEqual(2)
       for (let i = 1; i < r.length; i++) expect(r[i].x === r[i - 1].x || r[i].y === r[i - 1].y).toBe(true)
     }
   })
-  it('le porte collegate coincidono con gli estremi dei percorsi', () => {
+  it('connected ports coincide with the path ends', () => {
     const port = (c: string, p: string) => componentPorts(D.components.find((x) => x.id === c)!).find((x) => x.id === p)!.p
     const l7 = lineRoute(D, D.lines.find((l) => l.id === 'l7')!)
     expect(l7[0]).toEqual(port('c7', 'bottom'))
     expect(l7[l7.length - 1]).toEqual(port('c8', 'a'))
   })
-  it('rileva riferimenti rotti', () => {
+  it('detects broken references', () => {
     const bad = structuredClone(SAMPLE_DOCUMENT)
     bad.drawing.lines[0].to = { componentId: 'zzz', portId: 'a' }
     expect(checkIntegrity(bad).length).toBe(1)
   })
 })
 
-describe('migrazione dai file v1', () => {
-  it('unisce i fogli in un solo disegno impilandoli', () => {
+describe('migration from v1 files', () => {
+  it('merges the sheets into a single drawing by stacking them', () => {
     const v1 = {
       version: 1, meta: SAMPLE_DOCUMENT.meta, revisions: [],
       sheets: [
@@ -96,8 +96,8 @@ describe('migrazione dai file v1', () => {
   })
 })
 
-describe('impaginazione in esportazione', () => {
-  it('il disegno di esempio sta in un foglio A3 a 1:1, più la distinta', () => {
+describe('layout on export', () => {
+  it('the sample drawing fits an A3 sheet at 1:1, plus the bill of materials', () => {
     const plan = planExport(SAMPLE_DOCUMENT)
     expect(plan.tiles).toHaveLength(1)
     expect(plan.scale).toBe(1)
@@ -105,14 +105,14 @@ describe('impaginazione in esportazione', () => {
     expect(plan.totalPages).toBe(2)
     expect(describePlan(plan, 'it')).toBe('1 foglio A3 · scala 1:1 · + distinta')
   })
-  it('un disegno poco più grande viene ridotto (modalità auto)', () => {
-    const doc = produce(SAMPLE_DOCUMENT, (d) => { addComponent(d, 'valve.ball', 450, 120) }) // ~ 460 mm di larghezza
+  it('a slightly larger drawing is shrunk (auto mode)', () => {
+    const doc = produce(SAMPLE_DOCUMENT, (d) => { addComponent(d, 'valve.ball', 450, 120) }) // ~ 460 mm wide
     const plan = planExport(doc)
     expect(plan.tiles).toHaveLength(1)
     expect(plan.scale).toBeLessThan(1)
     expect(plan.scale).toBeGreaterThanOrEqual(0.6)
   })
-  it('un disegno molto grande viene diviso in più fogli senza tagliare i simboli', () => {
+  it('a very large drawing is split over several sheets without cutting symbols', () => {
     const doc = produce(SAMPLE_DOCUMENT, (d) => {
       let prev: string | undefined
       for (let i = 0; i < 5; i++) {
@@ -125,13 +125,13 @@ describe('impaginazione in esportazione', () => {
     expect(plan.tiles.length).toBeGreaterThan(1)
     expect(plan.scale).toBe(1)
     const tag = (c: { x: number }) => plan.xCuts.some((cut) => Math.abs(cut - c.x) < 5.1)
-    expect(doc.drawing.components.some(tag)).toBe(false) // nessun taglio passa dentro un simbolo
+    expect(doc.drawing.components.some(tag)).toBe(false) // no cut passes through a symbol
     const svgs = renderAllPages(doc, plan)
     expect(svgs).toHaveLength(plan.totalPages)
-    expect(svgs.some((s) => s.includes('Foglio 2'))).toBe(true) // frecce di continuazione
+    expect(svgs.some((s) => s.includes('Foglio 2'))).toBe(true) // continuation arrows
     for (const s of svgs) { expect(s).not.toContain('NaN'); expect(s).not.toContain('undefined') }
   })
-  it('modalità "un foglio" riduce sempre; "più fogli" non riduce mai', () => {
+  it('"one sheet" mode always shrinks; "more sheets" never shrinks', () => {
     const big = produce(SAMPLE_DOCUMENT, (d) => { addComponent(d, 'valve.ball', 1000, 100) })
     expect(planExport(big, { ...big.export, mode: 'fit' }).tiles).toHaveLength(1)
     expect(planExport(big, { ...big.export, mode: 'fit' }).scale).toBeLessThan(0.6)
@@ -139,15 +139,15 @@ describe('impaginazione in esportazione', () => {
     expect(split.scale).toBe(1)
     expect(split.tiles.length).toBeGreaterThan(1)
   })
-  it('chooseCuts rispetta la capienza e preferisce zone libere', () => {
+  it('chooseCuts respects capacity and prefers free areas', () => {
     const cuts = chooseCuts(0, 100, 40, (c) => c > 35 && c < 45, () => 0)
     for (let i = 1; i < cuts.length; i++) expect(cuts[i] - cuts[i - 1]).toBeLessThanOrEqual(40)
     expect(cuts.every((c) => !(c > 35 && c < 45))).toBe(true)
     expect(cuts[0]).toBe(0)
     expect(cuts.at(-1)).toBe(100)
   })
-  it('scala testuale', () => { expect(scaleText(1)).toBe('1:1'); expect(scaleText(0.5)).toBe('1:2'); expect(scaleText(0.8)).toBe('1:1.25') })
-  it('un progetto vuoto produce comunque un foglio valido', () => {
+  it('scale text', () => { expect(scaleText(1)).toBe('1:1'); expect(scaleText(0.5)).toBe('1:2'); expect(scaleText(0.8)).toBe('1:1.25') })
+  it('an empty project still produces a valid sheet', () => {
     const empty = { ...SAMPLE_DOCUMENT, drawing: { components: [], lines: [], annotations: [] } }
     const plan = planExport(empty)
     expect(plan.totalPages).toBe(1)
@@ -155,11 +155,11 @@ describe('impaginazione in esportazione', () => {
   })
 })
 
-describe('export bilingue', () => {
+describe('bilingual export', () => {
   const doc = SAMPLE_DOCUMENT
   const it_ = renderPageSvg(doc, planExport(doc, { ...doc.export, lang: 'it' }), 1)
   const en = renderPageSvg(doc, planExport(doc, { ...doc.export, lang: 'en' }), 1)
-  it('cartiglio e legenda nella lingua scelta', () => {
+  it('title block and legend in the chosen language', () => {
     expect(it_).toContain('LEGENDA')
     expect(it_).toContain('Valvola a sfera')
     expect(it_).toContain('Impianto di alimentazione ossidante')
@@ -168,12 +168,12 @@ describe('export bilingue', () => {
     expect(en).toContain('Oxidizer feed system')
     expect(en).not.toContain('LEGENDA')
   })
-  it('la legenda contiene solo ciò che è usato', () => {
+  it('the legend contains only what is used', () => {
     expect(it_).not.toContain('Combustibile')
     expect(it_).toContain('Ossidante')
     expect(it_).not.toContain('Giunzione')
   })
-  it('la distinta usa le descrizioni nella lingua scelta', () => {
+  it('the bill of materials uses the descriptions in the chosen language', () => {
     const withDesc = produce(doc, (d) => { d.drawing.components[1].description = { it: 'Intercettazione pressurizzante', en: 'Pressurant shutoff' } })
     const bomEn = renderPageSvg(withDesc, planExport(withDesc, { ...withDesc.export, lang: 'en' }), 2)
     const bomIt = renderPageSvg(withDesc, planExport(withDesc, { ...withDesc.export, lang: 'it' }), 2)
@@ -182,7 +182,7 @@ describe('export bilingue', () => {
     expect(bomIt).toContain('DISTINTA COMPONENTI')
     expect(bomIt).toContain('Intercettazione pressurizzante')
   })
-  it('SVG ben formato, senza legenda se disattivata', () => {
+  it('well-formed SVG, without legend if turned off', () => {
     expect(it_.startsWith('<svg')).toBe(true)
     expect(it_.endsWith('</svg>')).toBe(true)
     expect(it_).not.toContain('NaN')
@@ -191,7 +191,7 @@ describe('export bilingue', () => {
   })
 })
 
-describe('stati delle valvole per fase', () => {
+describe('valve states per phase', () => {
   const withStates = produce(SAMPLE_DOCUMENT, (d) => {
     d.phases = [
       { id: 'p1', name: { it: 'Riempimento', en: 'Filling' } },
@@ -200,7 +200,7 @@ describe('stati delle valvole per fase', () => {
     d.drawing.components[1].states = { p1: 'open', p2: 'closed' }
     d.drawing.components[4].states = { p2: 'open' }
   })
-  it('aggiunge un foglio con la tabella degli stati', () => {
+  it('adds a sheet with the states table', () => {
     const plan = planExport(withStates)
     expect(plan.statesPages).toBe(1)
     expect(plan.totalPages).toBe(plan.tiles.length + plan.bomPages + 1)
@@ -212,11 +212,11 @@ describe('stati delle valvole per fase', () => {
     expect(svg).toContain('○')
     expect(svg).toContain('BV-1')
   })
-  it('senza fasi o con la tabella spenta non c\'è il foglio', () => {
+  it('without phases or with the table off there is no sheet', () => {
     expect(planExport(SAMPLE_DOCUMENT).statesPages).toBe(0)
     expect(planExport(withStates, { ...withStates.export, states: false }).statesPages).toBe(0)
   })
-  it('una valvola chiusa si disegna con il corpo pieno', async () => {
+  it('a closed valve is drawn with a filled body', async () => {
     const { renderComponent } = await import('./render/sheet')
     const c = SAMPLE_DOCUMENT.drawing.components[1]
     expect(renderComponent(c)).toContain('fill="#fff"')

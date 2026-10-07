@@ -7,8 +7,8 @@ import { drawingBounds, planExport, renderPageSvg } from './render/export'
 import { checkIntegrity } from './validate'
 import { SAMPLE_DOCUMENT } from './sample'
 
-describe('annotazioni', () => {
-  it('testo e riquadro con valori predefiniti, agganciati alla griglia', () => {
+describe('annotations', () => {
+  it('text and box with default values, snapped to the grid', () => {
     const doc = produce(createEmptyDocument(), (d) => { addAnnotation(d, 'text', 12, 13); addAnnotation(d, 'box', 40, 40) })
     const [t, b] = doc.drawing.annotations
     expect([t.x, t.y]).toEqual([10, 15])
@@ -17,7 +17,7 @@ describe('annotazioni', () => {
     expect(b.w).toBeGreaterThan(0)
     expect(checkIntegrity(doc)).toEqual([])
   })
-  it('si eliminano, si copiano e si incollano con nuovi id', () => {
+  it('they can be deleted, copied and pasted with new ids', () => {
     const doc = produce(createEmptyDocument(), (d) => { addAnnotation(d, 'text', 10, 10); addAnnotation(d, 'box', 50, 50) })
     const ids = new Set(doc.drawing.annotations.map((a) => a.id))
     const out = produce(doc, (d) => {
@@ -32,12 +32,12 @@ describe('annotazioni', () => {
     const gone = produce(out, (d) => { deleteItems(d.drawing, ids) })
     expect(gone.drawing.annotations).toHaveLength(2)
   })
-  it('un file senza annotazioni (versioni precedenti) si legge con elenco vuoto', () => {
+  it('a file without annotations (earlier versions) reads with an empty list', () => {
     const raw = JSON.parse(JSON.stringify(SAMPLE_DOCUMENT))
     delete raw.drawing.annotations
     expect(readDocument(raw).drawing.annotations).toEqual([])
   })
-  it('testo multilinea: ingombro e disegno; lingua con ripiego', () => {
+  it('multiline text: extent and drawing; language fallback', () => {
     const doc = produce(createEmptyDocument(), (d) => {
       const a = addAnnotation(d, 'text', 0, 0)
       a.text = { it: 'Prima riga\nSeconda riga più lunga', en: '' }
@@ -47,16 +47,16 @@ describe('annotazioni', () => {
     const b = annotationBounds(a)
     expect(b.maxY - b.minY).toBeCloseTo(2 * 4 * 1.28, 5)
     expect(b.maxX - b.minX).toBeGreaterThan('Seconda riga più lunga'.length * 4 * 0.5)
-    expect(annotationText(a, 'en')).toBe(a.text.it) // senza traduzione si usa l'altra lingua
+    expect(annotationText(a, 'en')).toBe(a.text.it) // without a translation the other language is used
     expect(renderAnnotation(a, 'it').match(/<text/g)).toHaveLength(2)
   })
-  it('i caratteri speciali vengono protetti nell\'SVG', () => {
+  it('special characters are escaped in the SVG', () => {
     const doc = produce(createEmptyDocument(), (d) => { const a = addAnnotation(d, 'text', 0, 0); a.text = { it: '<b>&"x"', en: '' } })
     const svg = renderAnnotation(doc.drawing.annotations[0], 'it')
     expect(svg).not.toContain('<b>')
     expect(svg).toContain('&lt;b&gt;&amp;&quot;x&quot;')
   })
-  it('entrano nei limiti del disegno e nell\'esportazione, nella lingua scelta', () => {
+  it('they fit within the drawing bounds and in the export, in the chosen language', () => {
     const doc = produce(SAMPLE_DOCUMENT, (d) => {
       const box = addAnnotation(d, 'box', 20, 20)
       box.w = 200; box.h = 160; box.text = { it: 'Lato volo', en: 'Flight side' }
@@ -74,7 +74,7 @@ describe('annotazioni', () => {
     expect(en).toContain('Important note')
     expect(en).not.toContain('Lato volo')
   })
-  it('un progetto con sole annotazioni non è considerato vuoto', () => {
+  it('a project with only annotations is not considered empty', () => {
     const doc = produce(createEmptyDocument(), (d) => { addAnnotation(d, 'text', 20, 20) })
     const plan = planExport(doc)
     expect(renderPageSvg(doc, plan, 1)).not.toContain('Nessun componente')

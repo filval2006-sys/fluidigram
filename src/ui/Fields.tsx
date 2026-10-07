@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-/** Pausa di scrittura dopo la quale il testo viene salvato da solo. */
+/** Typing pause after which the text is saved by itself. */
 const AUTOSAVE_MS = 600
 
 /**
- * Campo di testo: la modifica si applica da sola dopo una breve pausa, quando si esce dal campo, a invio e se il campo
- * sparisce dallo schermo (cambio di schermata o di selezione). Esc annulla e torna al valore salvato.
+ * Text field: the edit applies by itself after a short pause, when leaving the field, on Enter and if the field
+ * disappears from the screen (screen or selection change). Esc cancels and returns to the saved value.
  */
 export function TextField({ value, onCommit, placeholder, multiline, ariaLabel }: {
   value: string
@@ -30,7 +30,7 @@ export function TextField({ value, onCommit, placeholder, multiline, ariaLabel }
     if (cancelled.current) { cancelled.current = false; clearTimeout(timer.current); return }
     commit()
   }
-  // se il campo sparisce con del testo non ancora confermato, lo si conferma (non scatta onBlur quando un elemento viene rimosso)
+  // if the field disappears with text not yet confirmed, it is confirmed (onBlur does not fire when an element is removed)
   useEffect(() => () => {
     clearTimeout(timer.current)
     if (!cancelled.current && latest.current.text !== latest.current.value) latest.current.onCommit(latest.current.text)
@@ -66,7 +66,7 @@ export function Section({ title, children, action }: { title: string; children: 
   )
 }
 
-/** Numero con unità: accetta la virgola decimale e tiene il testo mentre si scrive. */
+/** Number with unit: accepts the decimal comma and keeps the text while typing. */
 export function Num({ label, unit, value, onChange, hint, ariaLabel }: {
   label: string
   unit?: string

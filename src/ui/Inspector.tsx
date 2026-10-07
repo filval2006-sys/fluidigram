@@ -4,13 +4,14 @@ import {
   ACTUATORS, ALL_SYMBOLS, CATEGORY_NAMES, END_KINDS, FLUIDS, FLUID_IDS, componentPorts, deleteItems, freePorts, portEnds, renumberTags, replaceComponents, setPortEnd, manualRouteValid, filterPipeSizes, getSymbol, mirrorComponents, rotateComponents, checkReport,
   TONES, type Annotation, type Component, type Dir, type SymbolCategory, type Drawing, type EndKind, type FluidId, type Line,
 } from '../core'
+import { N_, t, tp, uiLanguage } from '../i18n'
 import { useActiveTab, useStore, type InspectorTab } from '../state/store'
 import { Combobox } from './Combobox'
 import { ChecksPanel } from './ChecksPanel'
 import { Field, Num, Section, TextField } from './Fields'
 
 const useSizeGroups = () => {
-  return useCallback((q: string) => filterPipeSizes(q).map((g) => ({ id: g.id, label: g.label.it, options: g.options })), [])
+  return useCallback((q: string) => filterPipeSizes(q).map((g) => ({ id: g.id, label: g.label[uiLanguage()], options: g.options })), [])
 }
 
 export function Inspector() {
@@ -27,16 +28,16 @@ export function Inspector() {
   const anns = sheet.annotations.filter((a) => sel.includes(a.id))
 
   const tabs: { id: InspectorTab; label: string; badge?: number }[] = [
-    { id: 'props', label: 'Proprietà' },
-    { id: 'checks', label: 'Controlli', badge: problems },
+    { id: 'props', label: t('Properties') },
+    { id: 'checks', label: t('Checks'), badge: problems },
   ]
 
   return (
     <aside className="inspector">
       <div className="itabs" role="tablist">
-        {tabs.map((t) => (
-          <button key={t.id} role="tab" aria-selected={inspectorTab === t.id} className={inspectorTab === t.id ? 'on' : ''} onClick={() => setInspectorTab(t.id)}>
-            {t.label}{!!t.badge && <i className="badge">{t.badge}</i>}
+        {tabs.map((tb) => (
+          <button key={tb.id} role="tab" aria-selected={inspectorTab === tb.id} className={inspectorTab === tb.id ? 'on' : ''} onClick={() => setInspectorTab(tb.id)}>
+            {tb.label}{!!tb.badge && <i className="badge">{tb.badge}</i>}
           </button>
         ))}
       </div>
@@ -54,7 +55,7 @@ export function Inspector() {
   )
 }
 
-const TONE_NAMES: Record<(typeof TONES)[number], string> = { neutral: 'Neutro (nero)', blue: 'Blu', amber: 'Ambra', green: 'Verde', red: 'Rosso' }
+const TONE_NAMES: Record<(typeof TONES)[number], string> = { neutral: N_('Neutral (black)'), blue: N_('Blue'), amber: N_('Amber'), green: N_('Green'), red: N_('Red') }
 
 function AnnotationPanel({ a }: { a: Annotation }) {
   const edit = useStore((s) => s.edit)
@@ -62,32 +63,32 @@ function AnnotationPanel({ a }: { a: Annotation }) {
   const patch = (fn: (x: Annotation) => void) => edit((d) => { const t = d.drawing.annotations.find((x) => x.id === a.id); if (t) fn(t) })
   const isBox = a.kind === 'box'
   return (
-    <Section title={isBox ? 'Riquadro di zona' : 'Testo libero'}>
-      <Field label={isBox ? 'Etichetta (IT)' : 'Testo (IT)'}><TextField multiline={!isBox} value={a.text.it} ariaLabel="Testo italiano" onCommit={(v) => patch((t) => { t.text.it = v })} /></Field>
-      <Field label={isBox ? 'Label (EN)' : 'Text (EN)'}><TextField multiline={!isBox} value={a.text.en} ariaLabel="Testo inglese" onCommit={(v) => patch((t) => { t.text.en = v })} /></Field>
+    <Section title={isBox ? t('Zone box') : t('Free text')}>
+      <Field label={isBox ? t('Label (IT)') : t('Text (IT)')}><TextField multiline={!isBox} value={a.text.it} ariaLabel={t('Italian text')} onCommit={(v) => patch((t) => { t.text.it = v })} /></Field>
+      <Field label={isBox ? t('Label (EN)') : t('Text (EN)')}><TextField multiline={!isBox} value={a.text.en} ariaLabel={t('English text')} onCommit={(v) => patch((t) => { t.text.en = v })} /></Field>
       <div className="two">
-        <Num label="Dimensione testo" unit="mm" value={a.size} onChange={(v) => patch((t) => { t.size = Math.min(20, Math.max(1.5, v)) })} />
-        <Field label="Colore">
+        <Num label={t('Text size')} unit="mm" value={a.size} onChange={(v) => patch((t) => { t.size = Math.min(20, Math.max(1.5, v)) })} />
+        <Field label={t('Color')}>
           <select value={a.tone} onChange={(e) => patch((t) => { t.tone = e.target.value as Annotation['tone'] })}>
-            {TONES.map((t) => <option key={t} value={t}>{TONE_NAMES[t]}</option>)}
+            {TONES.map((tone) => <option key={tone} value={tone}>{t(TONE_NAMES[tone])}</option>)}
           </select>
         </Field>
       </div>
       {isBox && (
         <div className="two">
-          <Num label="Larghezza" unit="mm" value={a.w} onChange={(v) => patch((t) => { t.w = Math.max(10, v) })} />
-          <Num label="Altezza" unit="mm" value={a.h} onChange={(v) => patch((t) => { t.h = Math.max(10, v) })} />
+          <Num label={t('Width')} unit="mm" value={a.w} onChange={(v) => patch((t) => { t.w = Math.max(10, v) })} />
+          <Num label={t('Height')} unit="mm" value={a.h} onChange={(v) => patch((t) => { t.h = Math.max(10, v) })} />
         </div>
       )}
       <div className="checks">
-        {!isBox && <label><input type="checkbox" checked={a.bold} onChange={(e) => patch((t) => { t.bold = e.target.checked })} />Grassetto</label>}
-        <label><input type="checkbox" checked={a.framed} onChange={(e) => patch((t) => { t.framed = e.target.checked })} />{isBox ? 'Sfondo colorato' : 'Cornice'}</label>
+        {!isBox && <label><input type="checkbox" checked={a.bold} onChange={(e) => patch((t) => { t.bold = e.target.checked })} />{t('Bold')}</label>}
+        <label><input type="checkbox" checked={a.framed} onChange={(e) => patch((t) => { t.framed = e.target.checked })} />{isBox ? t('Colored background') : t('Frame')}</label>
       </div>
       <div className="btn-row">
-        <button onClick={() => useStore.getState().duplicateSelection()} title="Duplica (⌘D)"><Copy size={14} />Duplica</button>
-        <button className="danger" onClick={() => { edit((d) => deleteItems(d.drawing, new Set([a.id]))); setSelection([]) }}><Trash2 size={14} />Elimina</button>
+        <button onClick={() => useStore.getState().duplicateSelection()} title={t('Duplicate (⌘D)')}><Copy size={14} />{t('Duplicate')}</button>
+        <button className="danger" onClick={() => { edit((d) => deleteItems(d.drawing, new Set([a.id]))); setSelection([]) }}><Trash2 size={14} />{t('Delete')}</button>
       </div>
-      {isBox && <p className="muted small">Trascina il quadratino in basso a destra per ridimensionare. Il riquadro si sposta afferrando il bordo o l'etichetta.</p>}
+      {isBox && <p className="muted small">{t('Drag the small square at the bottom right to resize. The box moves by grabbing its border or label.')}</p>}
     </Section>
   )
 }
@@ -98,12 +99,12 @@ function MultiPanel({ ids, count }: { ids: string[]; count: number }) {
   const set = new Set(ids)
   return (
     <>
-    <Section title={`${count} elementi selezionati`}>
+    <Section title={t('{n} items selected', { n: count })}>
       <div className="btn-row">
-        <button onClick={() => edit((d) => rotateComponents(d.drawing, set))}><RotateCw size={14} />Ruota</button>
-        <button onClick={() => edit((d) => mirrorComponents(d.drawing, set))}><FlipHorizontal2 size={14} />Specchia</button>
-        <button onClick={() => useStore.getState().duplicateSelection()} title="Duplica (⌘D)"><Copy size={14} />Duplica</button>
-        <button className="danger" onClick={() => { edit((d) => deleteItems(d.drawing, set)); setSelection([]) }}><Trash2 size={14} />Elimina</button>
+        <button onClick={() => edit((d) => rotateComponents(d.drawing, set))}><RotateCw size={14} />{t('Rotate')}</button>
+        <button onClick={() => edit((d) => mirrorComponents(d.drawing, set))}><FlipHorizontal2 size={14} />{t('Mirror')}</button>
+        <button onClick={() => useStore.getState().duplicateSelection()} title={t('Duplicate (⌘D)')}><Copy size={14} />{t('Duplicate')}</button>
+        <button className="danger" onClick={() => { edit((d) => deleteItems(d.drawing, set)); setSelection([]) }}><Trash2 size={14} />{t('Delete')}</button>
       </div>
     </Section>
     <ReplaceBox ids={ids} />
@@ -111,7 +112,7 @@ function MultiPanel({ ids, count }: { ids: string[]; count: number }) {
   )
 }
 
-/** Sostituzione rapida: un simbolo al posto di un altro mantenendo posizione e collegamenti, per uno o più pezzi. */
+/** Quick replace: one symbol in place of another keeping position and connections, for one or more parts. */
 function ReplaceBox({ ids }: { ids: string[] }) {
   const edit = useStore((s) => s.edit)
   const setSelection = useStore((s) => s.setSelection)
@@ -124,32 +125,32 @@ function ReplaceBox({ ids }: { ids: string[] }) {
   if (!picked.length) return null
 
   const apply = (symbolId: string) => {
-    let res = { replaced: [] as string[], skipped: [] as { tag: string; reason: string }[] }
+    let res = { replaced: [] as string[], skipped: [] as { tag: string; reason: { it: string; en: string } }[] }
     edit((d) => { res = replaceComponents(d, new Set(ids), symbolId) })
-    const name = getSymbol(symbolId).name.it
-    const ok = res.replaced.length ? `${res.replaced.length} ${res.replaced.length === 1 ? 'sostituito' : 'sostituiti'} con ${name}.` : ''
-    const no = res.skipped.length ? ` Non sostituiti: ${res.skipped.map((x) => `${x.tag} (${x.reason})`).join('; ')}.` : ''
-    setMsg((ok + no).trim() || 'Niente da sostituire: sono già di questo tipo.')
+    const name = getSymbol(symbolId).name[uiLanguage()]
+    const ok = res.replaced.length ? tp(res.replaced.length, '{n} part replaced with {name}.', '{n} parts replaced with {name}.', { name }) : ''
+    const no = res.skipped.length ? ' ' + t('Not replaced: {list}.', { list: res.skipped.map((x) => `${x.tag} (${x.reason[uiLanguage()]})`).join('; ') }) : ''
+    setMsg((ok + no).trim() || t('Nothing to replace: they are already of this type.'))
   }
 
   return (
-    <Section title="Sostituisci">
-      <Field label={picked.length > 1 ? `Sostituisci ${picked.length} componenti con…` : 'Sostituisci con…'}>
-        <select aria-label="Sostituisci con" value="" onChange={(e) => { if (e.target.value) apply(e.target.value) }}>
-          <option value="">Scegli il nuovo simbolo…</option>
+    <Section title={t('Replace')}>
+      <Field label={picked.length > 1 ? t('Replace {n} components with…', { n: picked.length }) : t('Replace with…')}>
+        <select aria-label={t('Replace with')} value="" onChange={(e) => { if (e.target.value) apply(e.target.value) }}>
+          <option value="">{t('Choose the new symbol…')}</option>
           {cats.map((cat) => (
-            <optgroup key={cat} label={CATEGORY_NAMES[cat].it}>
-              {ALL_SYMBOLS.filter((x) => x.category === cat && !(symbols.length === 1 && x.id === symbols[0])).map((x) => <option key={x.id} value={x.id}>{x.name.it}</option>)}
+            <optgroup key={cat} label={CATEGORY_NAMES[cat][uiLanguage()]}>
+              {ALL_SYMBOLS.filter((x) => x.category === cat && !(symbols.length === 1 && x.id === symbols[0])).map((x) => <option key={x.id} value={x.id}>{x.name[uiLanguage()]}</option>)}
             </optgroup>
           ))}
         </select>
       </Field>
       <div className="btn-row">
-        <button onClick={() => setSelection(doc.drawing.components.filter((c) => symbols.includes(c.symbol)).map((c) => c.id))} title="Seleziona nel disegno tutti i componenti dello stesso tipo, per sostituirli insieme">
-          Seleziona tutti dello stesso tipo
+        <button onClick={() => setSelection(doc.drawing.components.filter((c) => symbols.includes(c.symbol)).map((c) => c.id))} title={t('Selects in the drawing all components of the same type, to replace them together')}>
+          {t('Select all of the same type')}
         </button>
       </div>
-      <p className="muted small">Posizione, rotazione e collegamenti restano; diametro, pressione e note si conservano. Si può annullare con ⌘Z.</p>
+      <p className="muted small">{t('Position, rotation and connections stay; size, pressure and notes are kept. You can undo with ⌘Z.')}</p>
       {msg && <p className="muted small">{msg}</p>}
     </Section>
   )
@@ -159,7 +160,7 @@ function ComponentPanel({ c }: { c: Component }) {
   const edit = useStore((s) => s.edit)
   const setSelection = useStore((s) => s.setSelection)
   const doc = useActiveTab().doc
-  const lang = 'it' as const
+  const lang = uiLanguage()
   const def = getSymbol(c.symbol)
   const groups = useSizeGroups()
   const [tagError, setTagError] = useState('')
@@ -179,59 +180,59 @@ function ComponentPanel({ c }: { c: Component }) {
         <Field label="Tag">
           <TextField value={c.tag} ariaLabel="Tag" onCommit={(v) => {
             const clean = v.trim()
-            if (!clean) return setTagError('Il tag non può essere vuoto.')
-            if (doc.drawing.components.some((x) => x.id !== c.id && x.tag === clean)) return setTagError(`Il tag ${clean} esiste già.`)
+            if (!clean) return setTagError(t('The tag cannot be empty.'))
+            if (doc.drawing.components.some((x) => x.id !== c.id && x.tag === clean)) return setTagError(t('The tag {tag} already exists.', { tag: clean }))
             setTagError('')
             patch((t) => { t.tag = clean })
           }} />
         </Field>
         {tagError && <p className="error">{tagError}</p>}
-        <Field label="Descrizione (IT)"><TextField value={c.description?.it ?? ''} onCommit={(v) => setDesc('it', v)} placeholder="es. Intercettazione ossidante" /></Field>
-        <Field label="Description (EN)"><TextField value={c.description?.en ?? ''} onCommit={(v) => setDesc('en', v)} placeholder="e.g. Oxidizer shutoff" /></Field>
+        <Field label={t('Description (IT)')}><TextField value={c.description?.it ?? ''} onCommit={(v) => setDesc('it', v)} placeholder="es. Intercettazione ossidante" /></Field>
+        <Field label={t('Description (EN)')}><TextField value={c.description?.en ?? ''} onCommit={(v) => setDesc('en', v)} placeholder="e.g. Oxidizer shutoff" /></Field>
         <div className="btn-row">
-          <button onClick={() => edit((d) => rotateComponents(d.drawing, set))} title="Ruota (R)"><RotateCw size={14} />Ruota</button>
-          <button onClick={() => edit((d) => mirrorComponents(d.drawing, set))} title="Specchia (M)"><FlipHorizontal2 size={14} />Specchia</button>
-          <button onClick={() => useStore.getState().duplicateSelection()} title="Duplica (⌘D)"><Copy size={14} />Duplica</button>
-          <button className="danger" onClick={() => { edit((d) => deleteItems(d.drawing, set)); setSelection([]) }} title="Elimina (Canc)"><Trash2 size={14} />Elimina</button>
+          <button onClick={() => edit((d) => rotateComponents(d.drawing, set))} title={t('Rotate (R)')}><RotateCw size={14} />{t('Rotate')}</button>
+          <button onClick={() => edit((d) => mirrorComponents(d.drawing, set))} title={t('Mirror (M)')}><FlipHorizontal2 size={14} />{t('Mirror')}</button>
+          <button onClick={() => useStore.getState().duplicateSelection()} title={t('Duplicate (⌘D)')}><Copy size={14} />{t('Duplicate')}</button>
+          <button className="danger" onClick={() => { edit((d) => deleteItems(d.drawing, set)); setSelection([]) }} title={t('Delete (Del)')}><Trash2 size={14} />{t('Delete')}</button>
         </div>
       </Section>
-      <Section title="Dati tecnici">
-        <Field label="Diametro / attacco">
-          <Combobox ariaLabel="Diametro componente" value={c.props.size ?? ''} getGroups={groups} placeholder="Scegli o scrivi…" onCommit={(v) => setProp('size', v)} />
+      <Section title={t('Technical data')}>
+        <Field label={t('Size / connection')}>
+          <Combobox ariaLabel={t('Component size')} value={c.props.size ?? ''} getGroups={groups} placeholder={t('Choose or type…')} onCommit={(v) => setProp('size', v)} />
         </Field>
         {def.options?.map((o) => (
-          <Field key={o.key} label={o.label.it}>
+          <Field key={o.key} label={o.label[lang]}>
             <select value={c.props[o.key] ?? o.default} onChange={(e) => setProp(o.key, e.target.value === o.default ? '' : e.target.value)}>
-              {o.choices.map((ch) => <option key={ch.id} value={ch.id}>{ch.label.it}</option>)}
+              {o.choices.map((ch) => <option key={ch.id} value={ch.id}>{ch.label[lang]}</option>)}
             </select>
           </Field>
         ))}
         {def.actuatable && (
-          <Field label="Azionamento">
+          <Field label={t('Actuator')}>
             <select value={c.props.actuator ?? def.actuatable.defaultActuator} onChange={(e) => setProp('actuator', e.target.value === def.actuatable!.defaultActuator ? '' : e.target.value)}>
-              {ACTUATORS.map((a) => <option key={a.id} value={a.id}>{a.name.it}</option>)}
+              {ACTUATORS.map((a) => <option key={a.id} value={a.id}>{a.name[lang]}</option>)}
             </select>
           </Field>
         )}
         {(def.id === 'engine.injector' || def.id === 'fitting.orifice') && (
           <>
             <div className="two">
-              <Field label="N. fori"><TextField value={c.props.holes ?? ''} placeholder="es. 12" onCommit={(v) => setProp('holes', v)} /></Field>
-              <Field label="Ø foro (mm)"><TextField value={c.props.holeDia ?? ''} placeholder="es. 1,5" onCommit={(v) => setProp('holeDia', v)} /></Field>
+              <Field label={t('No. of holes')}><TextField value={c.props.holes ?? ''} placeholder={t('e.g. 12')} onCommit={(v) => setProp('holes', v)} /></Field>
+              <Field label={t('Hole Ø (mm)')}><TextField value={c.props.holeDia ?? ''} placeholder={t('e.g. 1.5')} onCommit={(v) => setProp('holeDia', v)} /></Field>
             </div>
           </>
         )}
-        <Field label="Pressione max (bar)"><TextField value={c.props.mawp ?? ''} onCommit={(v) => setProp('mawp', v)} placeholder="es. 100" /></Field>
+        <Field label={t('Max pressure (bar)')}><TextField value={c.props.mawp ?? ''} onCommit={(v) => setProp('mawp', v)} placeholder={t('e.g. 100')} /></Field>
         {(def.category === 'valves') && (
-          <Field label="Stato a riposo">
+          <Field label={t('Rest state')}>
             <select value={c.props.normal ?? ''} onChange={(e) => setProp('normal', e.target.value)}>
               <option value="">—</option>
-              <option value="NC">Normalmente chiusa (NC)</option>
-              <option value="NA">Normalmente aperta (NA)</option>
+              <option value="NC">{t('Normally closed (NC)')}</option>
+              <option value="NA">{t('Normally open (NO)')}</option>
             </select>
           </Field>
         )}
-        <Field label="Note"><TextField multiline value={c.props.note ?? ''} onCommit={(v) => setProp('note', v)} /></Field>
+        <Field label={t('Notes')}><TextField multiline value={c.props.note ?? ''} onCommit={(v) => setProp('note', v)} /></Field>
       </Section>
       <ReplaceBox ids={[c.id]} />
       <EndsSection c={c} />
@@ -239,36 +240,36 @@ function ComponentPanel({ c }: { c: Component }) {
   )
 }
 
-const SIDE_NAME: Record<Dir, string> = { N: 'alto', E: 'destra', S: 'basso', W: 'sinistra' }
+const SIDE_NAME: Record<Dir, string> = { N: N_('top'), E: N_('right'), S: N_('bottom'), W: N_('left') }
 
-/** Porte lasciate libere di proposito: sfiato in atmosfera, oppure collegamento che arriva da / va a un altro impianto. */
+/** Ports left free on purpose: vent to atmosphere, or a connection coming from / going to another system. */
 function EndsSection({ c }: { c: Component }) {
   const edit = useStore((s) => s.edit)
   const doc = useActiveTab().doc
   const ends = portEnds(c)
   const free = freePorts(doc.drawing, c).filter((p) => !ends.some((e) => e.portId === p.id))
-  const nameOf = (id: string) => { const p = componentPorts(c).find((x) => x.id === id); return p ? `${id} (${SIDE_NAME[p.dir]})` : id }
+  const nameOf = (id: string) => { const p = componentPorts(c).find((x) => x.id === id); return p ? `${id} (${t(SIDE_NAME[p.dir])})` : id }
   const patch = (fn: (t: Component) => void) => edit((d) => { const t = d.drawing.components.find((x) => x.id === c.id); if (t) fn(t) })
   if (!ends.length && !free.length) return null
   return (
-    <Section title="Estremità libere">
-      <p className="muted small">Se una porta resta senza tubo di proposito, indica dove va: il controllo non la segnala più e nel disegno compare il simbolo.</p>
+    <Section title={t('Free ends')}>
+      <p className="muted small">{t('If a port is left without a pipe on purpose, say where it goes: the check no longer reports it and the symbol appears in the drawing.')}</p>
       {ends.map((e) => (
         <div className="end-row" key={e.portId}>
           <div className="two">
-            <span className="muted small">Porta {nameOf(e.portId)}</span>
-            <button className="icon-btn" aria-label={`Togli estremità ${e.portId}`} onClick={() => patch((t) => setPortEnd(t, e.portId, ''))}><Trash2 size={13} /></button>
+            <span className="muted small">{t('Port {name}', { name: nameOf(e.portId) })}</span>
+            <button className="icon-btn" aria-label={t('Remove end {port}', { port: e.portId })} onClick={() => patch((t) => setPortEnd(t, e.portId, ''))}><Trash2 size={13} /></button>
           </div>
-          <select aria-label={`Estremità ${e.portId}`} value={e.kind} onChange={(ev) => patch((t) => setPortEnd(t, e.portId, ev.target.value as EndKind, e.label))}>
-            {END_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+          <select aria-label={t('End {port}', { port: e.portId })} value={e.kind} onChange={(ev) => patch((t) => setPortEnd(t, e.portId, ev.target.value as EndKind, e.label))}>
+            {END_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label[uiLanguage()]}</option>)}
           </select>
-          <TextField value={e.label} ariaLabel={`Testo estremità ${e.portId}`} placeholder={e.kind === 'vent' ? 'ATM' : 'es. N₂O da GSE'} onCommit={(v) => patch((t) => setPortEnd(t, e.portId, e.kind, v))} />
+          <TextField value={e.label} ariaLabel={t('End text {port}', { port: e.portId })} placeholder={e.kind === 'vent' ? 'ATM' : t('e.g. N₂O from GSE')} onCommit={(v) => patch((t) => setPortEnd(t, e.portId, e.kind, v))} />
         </div>
       ))}
       {!!free.length && (
-        <Field label="Dichiara una porta libera">
-          <select aria-label="Dichiara una porta libera" value="" onChange={(ev) => { const id = ev.target.value; if (id) patch((t) => setPortEnd(t, id, 'vent')) }}>
-            <option value="">Scegli la porta…</option>
+        <Field label={t('Declare a free port')}>
+          <select aria-label={t('Declare a free port')} value="" onChange={(ev) => { const id = ev.target.value; if (id) patch((t) => setPortEnd(t, id, 'vent')) }}>
+            <option value="">{t('Choose the port…')}</option>
             {free.map((p) => <option key={p.id} value={p.id}>{nameOf(p.id)}</option>)}
           </select>
         </Field>
@@ -280,15 +281,15 @@ function EndsSection({ c }: { c: Component }) {
 function LinePanel({ l, sheet }: { l: Line; sheet: Drawing }) {
   const edit = useStore((s) => s.edit)
   const setSelection = useStore((s) => s.setSelection)
-  const lang = 'it' as const
+  const lang = uiLanguage()
   const groups = useSizeGroups()
   const tagOf = (id: string) => sheet.components.find((c) => c.id === id)?.tag ?? '?'
   const patch = (fn: (l: Line) => void) => edit((d) => { const t = d.drawing.lines.find((x) => x.id === l.id); if (t) fn(t) })
 
   return (
-    <Section title="Linea">
+    <Section title={t('Line')}>
       <p className="muted">{tagOf(l.from.componentId)} → {tagOf(l.to.componentId)}</p>
-      <Field label="Fluido">
+      <Field label={t('Fluid')}>
         <div className="chips wrap">
           {FLUID_IDS.map((id: FluidId) => (
             <button key={id} className={'chip' + (l.fluid === id ? ' on' : '')} onClick={() => patch((t) => { t.fluid = id })} title={FLUIDS[id].name[lang]}>
@@ -297,19 +298,19 @@ function LinePanel({ l, sheet }: { l: Line; sheet: Drawing }) {
           ))}
         </div>
       </Field>
-      <Field label="Diametro tubo">
-        <Combobox ariaLabel="Diametro tubo" value={l.size ?? ''} getGroups={groups} placeholder="Scegli o scrivi…" onCommit={(v) => patch((t) => { t.size = v })} />
+      <Field label={t('Pipe size')}>
+        <Combobox ariaLabel={t('Pipe size')} value={l.size ?? ''} getGroups={groups} placeholder={t('Choose or type…')} onCommit={(v) => patch((t) => { t.size = v })} />
       </Field>
-      <Field label="Pressione di esercizio (bar)">
-        <TextField value={l.pressure ?? ''} placeholder="es. 60" ariaLabel="Pressione di esercizio" onCommit={(v) => patch((t) => { t.pressure = v || undefined })} />
+      <Field label={t('Operating pressure (bar)')}>
+        <TextField value={l.pressure ?? ''} placeholder={t('e.g. 60')} ariaLabel={t('Operating pressure')} onCommit={(v) => patch((t) => { t.pressure = v || undefined })} />
       </Field>
       {manualRouteValid(sheet, l) ? (
-        <p className="muted small">Percorso modificato a mano. <button className="link" onClick={() => patch((t) => { delete t.route })}>Ripristina il percorso automatico</button></p>
+        <p className="muted small">{t('Path edited by hand.')} <button className="link" onClick={() => patch((x) => { delete x.route })}>{t('Restore the automatic path')}</button></p>
       ) : (
-        <p className="muted small">Percorso automatico. Trascina le maniglie quadrate per spostare i tratti, il pallino azzurro agli estremi per ricollegare la linea.</p>
+        <p className="muted small">{t('Automatic path. Drag the square handles to move the segments, the blue dot at the ends to reconnect the line.')}</p>
       )}
       <div className="btn-row">
-        <button className="danger" onClick={() => { edit((d) => deleteItems(d.drawing, new Set([l.id]))); setSelection([]) }}><Trash2 size={14} />Elimina linea</button>
+        <button className="danger" onClick={() => { edit((d) => deleteItems(d.drawing, new Set([l.id]))); setSelection([]) }}><Trash2 size={14} />{t('Delete line')}</button>
       </div>
     </Section>
   )
@@ -326,30 +327,30 @@ function ProjectSummary() {
 
   return (
     <>
-      <Section title="Progetto">
-        <Field label="Nome (IT)"><TextField value={m.title.it} onCommit={(v) => setTitle('it', v)} /></Field>
-        <Field label="Name (EN)"><TextField value={m.title.en} onCommit={(v) => setTitle('en', v)} /></Field>
+      <Section title={t('Project')}>
+        <Field label={t('Name (IT)')}><TextField value={m.title.it} onCommit={(v) => setTitle('it', v)} /></Field>
+        <Field label={t('Name (EN)')}><TextField value={m.title.en} onCommit={(v) => setTitle('en', v)} /></Field>
         <div className="stats">
-          <div><b>{d.components.length}</b><span>componenti</span></div>
-          <div><b>{d.lines.length}</b><span>linee</span></div>
-          <div><b>{fluids.length}</b><span>fluidi</span></div>
+          <div><b>{d.components.length}</b><span>{t('components')}</span></div>
+          <div><b>{d.lines.length}</b><span>{t('lines')}</span></div>
+          <div><b>{fluids.length}</b><span>{t('fluids')}</span></div>
         </div>
-        <p className="muted small">Cartiglio, legenda, formato e impaginazione si impostano in <b>Esporta</b>: qui disegni senza pensare al foglio.</p>
+        <p className="muted small">{t('Title block, legend, format and layout are set in Export: here you draw without thinking about the sheet.')}</p>
       </Section>
-      <Section title="Numerazione">
-        <p className="muted small">I tag nuovi partono da 1 (BV-1, BV-2…). Nei progetti vecchi puoi rinumerare quelli automatici da 1, senza buchi, tenendo il loro ordine; i tag scritti da te non cambiano.</p>
-        <button className="wide-btn" onClick={() => { let n = 0; edit((x) => { n = renumberTags(x) }); setRenumbered(n) }}>Rinumera i tag da 1</button>
-        {renumbered !== null && <p className="muted small">{renumbered ? `${renumbered} ${renumbered === 1 ? 'tag cambiato' : 'tag cambiati'}. Si può annullare con ⌘Z.` : 'I tag sono già in ordine da 1.'}</p>}
+      <Section title={t('Numbering')}>
+        <p className="muted small">{t('New tags start at 1 (BV-1, BV-2…). In old projects you can renumber the automatic ones from 1, without gaps, keeping their order; tags you wrote yourself do not change.')}</p>
+        <button className="wide-btn" onClick={() => { let n = 0; edit((x) => { n = renumberTags(x) }); setRenumbered(n) }}>{t('Renumber the tags from 1')}</button>
+        {renumbered !== null && <p className="muted small">{renumbered ? tp(renumbered, '{n} tag changed. You can undo with ⌘Z.', '{n} tags changed. You can undo with ⌘Z.') : t('The tags are already in order from 1.')}</p>}
       </Section>
-      <Section title="Scorciatoie">
+      <Section title={t('Shortcuts')}>
         <ul className="keys">
-          <li><kbd>R</kbd> ruota · <kbd>M</kbd> specchia · <kbd>Canc</kbd> elimina</li>
-          <li><kbd>Maiusc</kbd> + clic per selezione multipla</li>
-          <li><kbd>Spazio</kbd> + trascina per spostare la vista</li>
-          <li><kbd>⌘</kbd>/<kbd>Ctrl</kbd> + rotella per lo zoom</li>
-          <li><kbd>0</kbd> inquadra tutto · <kbd>Esc</kbd> annulla</li>
-          <li><kbd>⌘Z</kbd> annulla · <kbd>⇧⌘Z</kbd> ripeti</li>
-          <li><kbd>⌘C</kbd> <kbd>⌘V</kbd> copia/incolla · <kbd>⌘D</kbd> duplica</li>
+          <li><kbd>R</kbd> {t('rotate')} · <kbd>M</kbd> {t('mirror')} · <kbd>{t('Del')}</kbd> {t('delete')}</li>
+          <li><kbd>{t('Shift')}</kbd> {t('+ click for multiple selection')}</li>
+          <li><kbd>{t('Space')}</kbd> {t('+ drag to pan the view')}</li>
+          <li><kbd>⌘</kbd>/<kbd>Ctrl</kbd> {t('+ wheel to zoom')}</li>
+          <li><kbd>0</kbd> {t('fit all')} · <kbd>Esc</kbd> {t('cancel')}</li>
+          <li><kbd>⌘Z</kbd> {t('undo')} · <kbd>⇧⌘Z</kbd> {t('redo')}</li>
+          <li><kbd>⌘C</kbd> <kbd>⌘V</kbd> {t('copy/paste')} · <kbd>⌘D</kbd> {t('duplicate')}</li>
         </ul>
       </Section>
     </>

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-/** Testo bilingue: l'interfaccia è italiana, ma ogni testo esportato esiste in IT e EN. */
+/** Bilingual text: the interface follows the system language, but every exported text exists in IT and EN. */
 const L10nSchema = z.object({ it: z.string(), en: z.string() })
 export type L10n = z.infer<typeof L10nSchema>
 export type Lang = keyof L10n
@@ -18,19 +18,19 @@ export type PortRef = z.infer<typeof PortRefSchema>
 
 const ComponentSchema = z.object({
   id: z.string(),
-  /** id del simbolo in libreria */
+  /** symbol id in the library */
   symbol: z.string(),
-  /** tag di impianto, es. SV-101 (indipendente dalla lingua) */
+  /** plant tag, e.g. SV-101 (language independent) */
   tag: z.string(),
-  /** posizione del CENTRO del simbolo, in mm sul foglio */
+  /** position of the symbol's CENTER, in mm on the sheet */
   x: z.number(),
   y: z.number(),
   rotation: RotationSchema.default(0),
   mirror: z.boolean().default(false),
   description: L10nSchema.optional(),
-  /** stato delle valvole per fase di missione (id fase → aperta/chiusa) */
+  /** valve states per operating phase (phase id → open/closed) */
   states: z.record(z.string(), z.enum(['open', 'closed'])).optional(),
-  /** proprietà tecniche libere: MAWP, Cv, diametro, NA/NC, ... */
+  /** free technical properties: MAWP, Cv, size, NO/NC, ... */
   props: z.record(z.string(), z.string()).default({}),
 })
 export type Component = z.infer<typeof ComponentSchema>
@@ -40,11 +40,11 @@ const LineSchema = z.object({
   fluid: FluidIdSchema,
   from: PortRefSchema,
   to: PortRefSchema,
-  /** diametro/attacco mostrato sulla linea, es. 1/4" */
+  /** size/connection shown on the line, e.g. 1/4" */
   size: z.string().optional(),
-  /** pressione di esercizio in bar (per i controlli di compatibilità) */
+  /** operating pressure in bar (for compatibility checks) */
   pressure: z.string().optional(),
-  /** percorso manuale; se assente viene calcolato automaticamente */
+  /** manual route; if absent it is computed automatically */
   route: z.array(PointSchema).optional(),
 })
 export type Line = z.infer<typeof LineSchema>
@@ -55,7 +55,7 @@ export type SheetFormat = z.infer<typeof SheetFormatSchema>
 export const TONES = ['neutral', 'blue', 'amber', 'green', 'red'] as const
 export type Tone = (typeof TONES)[number]
 
-/** Testi liberi e riquadri di zona (es. «lato volo», «GSE»): documentano lo schema senza far parte dell'impianto. */
+/** Free texts and zone boxes (e.g. "flight side", "GSE"): they document the diagram without being part of the plant. */
 const AnnotationSchema = z.object({
   id: z.string(),
   kind: z.enum(['text', 'box']),
@@ -64,17 +64,17 @@ const AnnotationSchema = z.object({
   y: z.number(),
   w: z.number().default(60),
   h: z.number().default(40),
-  /** testo (per il riquadro: l'etichetta nell'angolo) */
+  /** text (for the box: the label in the corner) */
   text: L10nSchema,
   size: z.number().default(3.5),
   bold: z.boolean().default(false),
   tone: z.enum(TONES).default('neutral'),
-  /** testo con cornice / riquadro con tinta di fondo */
+  /** text with frame / box with background tint */
   framed: z.boolean().default(false),
 })
 export type Annotation = z.infer<typeof AnnotationSchema>
 
-/** Il disegno vive su un canvas infinito: l'impaginazione esiste solo in esportazione. */
+/** The drawing lives on an infinite canvas: layout exists only at export. */
 const DrawingSchema = z.object({
   components: z.array(ComponentSchema).default([]),
   lines: z.array(LineSchema).default([]),
@@ -87,13 +87,13 @@ export type ExportMode = z.infer<typeof ExportModeSchema>
 
 const ExportSettingsSchema = z.object({
   format: SheetFormatSchema.default('A3'),
-  /** auto: 1:1 se ci sta, poi riduce fino a un limite leggibile, altrimenti divide in più fogli */
+  /** auto: 1:1 if it fits, then shrinks down to a readable limit, otherwise splits over several sheets */
   mode: ExportModeSchema.default('auto'),
   lang: z.enum(['it', 'en']).default('it'),
   color: z.boolean().default(true),
   legend: z.boolean().default(true),
   bom: z.boolean().default(true),
-  /** tabella degli stati delle valvole per fase (se ci sono fasi) */
+  /** valve states table per phase (if there are phases) */
   states: z.boolean().default(true),
 })
 export type ExportSettings = z.infer<typeof ExportSettingsSchema>
@@ -120,19 +120,19 @@ const PhaseSchema = z.object({ id: z.string(), name: L10nSchema })
 export type Phase = z.infer<typeof PhaseSchema>
 export type ValveState = 'open' | 'closed'
 
-/** Modifiche manuali alla distinta: i campi presenti sostituiscono quelli generati dal disegno. */
+/** Manual edits to the bill of materials: the fields present replace those generated from the drawing. */
 const BomOverrideSchema = z.object({
   description: L10nSchema.partial().optional(),
   type: L10nSchema.partial().optional(),
   note: L10nSchema.partial().optional(),
   size: z.string().optional(),
   pmax: z.string().optional(),
-  /** gruppo scelto a mano (id); senza, vale quello del tipo di componente */
+  /** group chosen by hand (id); without it, the component type's group applies */
   group: z.string().optional(),
 })
 export type BomOverride = z.infer<typeof BomOverrideSchema>
 
-/** Riga aggiunta a mano (materiale che non è un componente del disegno: tubi, raccordi, viti…). */
+/** Hand-added row (material that is not a drawing component: pipes, fittings, screws…). */
 const BomExtraSchema = z.object({
   id: z.string(),
   tag: z.string().default(''),
@@ -141,28 +141,28 @@ const BomExtraSchema = z.object({
   size: z.string().default(''),
   pmax: z.string().default(''),
   note: L10nSchema.default({ it: '', en: '' }),
-  /** id del gruppo; di base «Altro» */
+  /** group id; "Other" by default */
   group: z.string().default('misc'),
 })
 
 const BomSchema = z.object({
-  /** per id componente */
+  /** by component id */
   overrides: z.record(z.string(), BomOverrideSchema).default({}),
-  /** componenti esclusi dalla distinta */
+  /** components excluded from the bill of materials */
   hidden: z.array(z.string()).default([]),
   extra: z.array(BomExtraSchema).default([]),
-  /** distinta divisa in gruppi con intestazione (nello schermo e nel PDF) */
+  /** bill of materials split into groups with a header (on screen and in the PDF) */
   grouped: z.boolean().default(true),
-  /** gruppi creati a mano; quelli per tipo di componente (cat:valves, …) e «misc» esistono già */
+  /** hand-made groups; those by component type (cat:valves, …) and "misc" already exist */
   groups: z.array(z.object({ id: z.string(), name: L10nSchema })).default([]),
   /** nomi cambiati ai gruppi predefiniti */
   renames: z.record(z.string(), L10nSchema.partial()).default({}),
-  /** ordine dei gruppi (id); quelli non elencati seguono l'ordine predefinito */
+  /** group order (ids); those not listed follow the default order */
   order: z.array(z.string()).default([]),
 })
 export type BomConfig = z.infer<typeof BomSchema>
 
-/** Controlli dello schema: i suggerimenti (volumi chiudibili, diametri) sono spenti finché non li accendi; gli avvisi che ignori restano ignorati. */
+/** Diagram checks: suggestions (trappable volumes, sizes) are off until you turn them on; warnings you ignore stay ignored. */
 const ChecksSchema = z.object({
   hints: z.boolean().default(false),
   dismissed: z.array(z.string()).default([]),

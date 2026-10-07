@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { parseDocument } from './core'
-import { listenMenu } from './platform/menu'
+import { resolveLanguage, t } from './i18n'
+import { listenMenu, setMenuLanguage } from './platform/menu'
 import { isNativeApp, listenForSystemFiles, readProjectText } from './platform/openFiles'
 import { isDirty, tabName, useStore } from './state/store'
 import { APP_CREDIT, APP_NAME, APP_VERSION } from './appInfo'
@@ -33,8 +34,10 @@ export default function App() {
   const stageView = useStore((s) => s.stageView)
   const step = useStore((s) => s.step)
   const theme = useStore((s) => s.theme)
+  const language = useStore((s) => s.language)
+  const uiLang = resolveLanguage(language)
   const home = useStore((s) => s.home)
-  // nell'app nativa si aspetta di sapere se l'app è stata aperta con un file, per non mostrare la pagina iniziale per un attimo
+  // in the native app we wait to know whether the app was opened with a file, so the home page does not flash up first
   const [ready, setReady] = useState(!isNativeApp())
 
   useEffect(() => {
@@ -42,10 +45,12 @@ export default function App() {
     if (theme === 'system') root.removeAttribute('data-theme')
     else root.setAttribute('data-theme', theme)
   }, [theme])
+  // the native menu follows the interface language
+  useEffect(() => { void setMenuLanguage(uiLang) }, [uiLang])
   const closeTab = useStore((s) => s.closeTab)
 
   const tools: ExtraTool[] = useMemo(
-    () => MODULES.filter((m) => enabledModules[m.id]).map((m) => ({ id: m.id, label: m.toolLabel, title: m.name, Icon: m.Icon, onClick: () => setOpenModule(m.id) })),
+    () => MODULES.filter((m) => enabledModules[m.id]).map((m) => ({ id: m.id, label: t(m.toolLabel), title: t(m.name), Icon: m.Icon, onClick: () => setOpenModule(m.id) })),
     [enabledModules],
   )
 
@@ -61,40 +66,40 @@ export default function App() {
     else closeTab(id)
   }, [closeTab])
 
-  // file .fluidigram aperti dal sistema (doppio clic, "Apri con")
+  // .fluidigram files opened by the system (double click, "Open with")
   useEffect(() => {
     let off = () => {}
     let cancelled = false
     void listenForSystemFiles((f) => {
-      if ('error' in f) return notify(`Impossibile aprire il file: ${f.error}`, 'err')
+      if ('error' in f) return notify(t('Could not open the file: {error}', { error: f.error }), 'err')
       try { useStore.getState().openDocument(parseDocument(JSON.parse(f.text)), f.path) }
-      catch (e) { notify(`File non valido: ${e instanceof Error ? e.message : String(e)}`, 'err') }
+      catch (e) { notify(t('Invalid file: {error}', { error: e instanceof Error ? e.message : String(e) }), 'err') }
     }).then((fn) => { if (cancelled) fn(); else off = fn }).finally(() => setReady(true))
     const safety = setTimeout(() => setReady(true), 2000)
     return () => { cancelled = true; off(); clearTimeout(safety) }
   }, [notify])
 
-  // riapre un file dall'elenco dei recenti
+  // reopens a file from the recents list
   const openRecent = useCallback(async (path: string) => {
     try {
       const doc = parseDocument(JSON.parse(await readProjectText(path)))
       useStore.getState().openDocument(doc, path)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
-      // file spostato o cancellato: si toglie dall'elenco
-      if (/No such file|non esiste|not found|os error 2|cannot find/i.test(msg)) { useStore.getState().removeRecent(path); notify('Il file non c\'è più: l\'ho tolto dai recenti', 'err') }
-      else notify(`Impossibile aprire il file: ${msg}`, 'err')
+      // file moved or deleted: it is removed from the list
+      if (/No such file|does not exist|non esiste|not found|os error 2|cannot find/i.test(msg)) { useStore.getState().removeRecent(path); notify(t('The file no longer exists: it was removed from the recents'), 'err') }
+      else notify(t('Could not open the file: {error}', { error: msg }), 'err')
     }
   }, [notify])
 
-  // comandi dell'app (File, Impostazioni…): li esegue chi li riceve per primo, menu o scorciatoia
+  // app commands (File, Settings…): run by whoever receives them first, menu or shortcut
   const runCommand = useCallback((id: string): boolean => {
     const app = ['new', 'open', 'save', 'save-as', 'export', 'close-tab', 'settings', 'shortcuts', 'view-schema', 'view-bom', 'view-ops', 'about', 'home']
     if (!app.includes(id)) return runEditCommand(id)
-    flushFocusedField() // il testo che si sta scrivendo entra nel progetto prima di salvare, esportare o cambiare schermata
+    flushFocusedField() // the text being typed enters the project before saving, exporting or changing screen
     if (justRan(id, 250)) return true
     const st = useStore.getState()
-    // nella pagina iniziale non c'è niente da salvare, esportare o chiudere
+    // on the home page there is nothing to save, export or close
     if (st.home && ['save', 'save-as', 'export', 'close-tab', 'view-schema', 'view-bom', 'view-ops'].includes(id)) return true
     switch (id) {
       case 'home': st.setHome(true); break
@@ -109,12 +114,12 @@ export default function App() {
       case 'view-schema': st.setStageView('schema'); break
       case 'view-bom': st.setStageView('bom'); break
       case 'view-ops': st.setStep('operation'); break
-      case 'shortcuts': st.setSelection([]); st.setInspectorTab('props'); notify('Le scorciatoie sono elencate nel pannello a destra'); break
+      case 'shortcuts': st.setSelection([]); st.setInspectorTab('props'); notify(t('The shortcuts are listed in the panel on the right')); break
     }
     return true
   }, [notify, requestClose])
 
-  // voci del menu nativo
+  // native menu entries
   useEffect(() => {
     let off = () => {}
     let cancelled = false
@@ -122,7 +127,7 @@ export default function App() {
     return () => { cancelled = true; off() }
   }, [runCommand])
 
-  // scorciatoie da tastiera (nel browser, o dove il menu non le intercetta)
+  // keyboard shortcuts (in the browser, or where the menu does not intercept them)
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return
@@ -142,7 +147,7 @@ export default function App() {
   if (!ready) return <div className="app" />
 
   return (
-    <div className="app">
+    <div className="app" key={uiLang}>
       <header className="titlebar">
         <div className="brand">Fluidigram</div>
         <TabBar onClose={requestClose} />
@@ -171,7 +176,7 @@ export default function App() {
       )}
 
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
-      {settingsOpen && <SettingsDialog modules={MODULES.map(({ id, name, description }) => ({ id, name, description }))} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsDialog modules={MODULES.map(({ id, name, description }) => ({ id, name: t(name), description: t(description) }))} onClose={() => setSettingsOpen(false)} />}
       {MODULES.map(({ id, Dialog }) => openModule === id && enabledModules[id] && (
         <Suspense key={id} fallback={null}><Dialog onClose={() => setOpenModule(null)} /></Suspense>
       ))}
@@ -180,24 +185,24 @@ export default function App() {
       {closing && (
         <div className="modal-bg" onMouseDown={() => setConfirmClose(null)}>
           <div className="modal" role="dialog" aria-modal onMouseDown={(e) => e.stopPropagation()}>
-            <h3>Chiudere «{tabName(closing)}»?</h3>
-            <p>Ci sono modifiche non salvate.</p>
+            <h3>{t('Close “{name}”?', { name: tabName(closing) })}</h3>
+            <p>{t('There are unsaved changes.')}</p>
             <div className="btn-row end">
-              <button onClick={() => setConfirmClose(null)}>Annulla</button>
-              <button className="danger" onClick={() => { closeTab(closing.id); setConfirmClose(null) }}>Chiudi senza salvare</button>
+              <button onClick={() => setConfirmClose(null)}>{t('Cancel')}</button>
+              <button className="danger" onClick={() => { closeTab(closing.id); setConfirmClose(null) }}>{t('Close without saving')}</button>
               <button className="primary" onClick={async () => {
                 useStore.getState().setActive(closing.id)
-                // se il salvataggio è annullato o fallisce la scheda resta aperta: niente perdita di lavoro
+                // if saving is cancelled or fails the tab stays open: no work is lost
                 if (await saveActive(notify)) closeTab(closing.id)
                 setConfirmClose(null)
-              }}>Salva e chiudi</button>
+              }}>{t('Save and close')}</button>
             </div>
           </div>
         </div>
       )}
 
       <footer className="statusbar">
-        <button className="link" onClick={() => setAboutOpen(true)} title="About">{APP_NAME} v{APP_VERSION}</button>
+        <button className="link" onClick={() => setAboutOpen(true)} title={t('About')}>{APP_NAME} v{APP_VERSION}</button>
         <span>{APP_CREDIT}</span>
       </footer>
 

@@ -7,15 +7,15 @@ import { annotationBounds } from './annotations'
 import { endMarkers } from './endpoints'
 import { textWidth } from './svg'
 
-/** Corpo del testo delle etichette sul disegno (mm). */
+/** Text size of the labels on the drawing (mm). */
 export const TAG_SIZE = 2.4
 export const LINE_LABEL_SIZE = 1.7
 
 export interface LabelPlace { x: number; y: number; anchor: 'start' | 'middle' | 'end' }
 export interface LabelPlan {
-  /** posizione del tag dei componenti senza etichetta interna */
+  /** position of the tag of components without an inner label */
   tags: Map<string, LabelPlace>
-  /** posizione dell'etichetta fluido/diametro; assente se nessun tratto è abbastanza lungo */
+  /** position of the fluid/size label; absent if no segment is long enough */
   lines: Map<string, LabelPlace>
 }
 
@@ -32,8 +32,8 @@ function rectOf(p: LabelPlace, w: number, h: number): Rect {
 }
 
 /**
- * Sceglie dove scrivere tag e dati delle linee perché non tocchino linee, componenti, note né altre etichette.
- * Prima i tag dei componenti (vicino al pezzo), poi le etichette delle linee (sul tratto, di lato).
+ * Chooses where to write tags and line data so they do not touch lines, components, notes or other labels.
+ * Component tags first (near the part), then line labels (on the segment, to the side).
  */
 export function planLabels(d: Drawing): LabelPlan {
   const tags = new Map<string, LabelPlace>()
@@ -48,7 +48,7 @@ export function planLabels(d: Drawing): LabelPlan {
     }
   }
   const notes = d.annotations.filter((a) => a.kind === 'text').map((a) => inflate(annotationBounds(a, 'any'), 0.5))
-  // simboli di sfiato / ingresso esterno: le scritte non devono finirci sopra
+  // vent / external inlet symbols: the text must not end up on them
   const placed: Rect[] = d.components.flatMap((c) => endMarkers(c).map((m) => m.box))
 
   const count = (r: Rect, ownIdx = -1): number => {
@@ -60,7 +60,7 @@ export function planLabels(d: Drawing): LabelPlan {
     return n
   }
 
-  // --- tag dei componenti ---
+  // --- component tags ---
   comps.forEach(({ c, e }, idx) => {
     const def = getSymbol(c.symbol)
     if (def.labelInside) return
@@ -88,7 +88,7 @@ export function planLabels(d: Drawing): LabelPlan {
     let best = cands[0], bestScore = Infinity
     cands.forEach((cd, i) => {
       const r = rectOf(cd.p, w, h)
-      // un lato con una porta è meno adatto: lì arriverà (o potrebbe arrivare) un tubo
+      // a side with a port is less suitable: a pipe will arrive (or might arrive) there
       const score = count(r, idx) * 10 + (portSides.has(cd.side) ? 3 : 0) + i * 0.01
       if (score < bestScore) { bestScore = score; best = cd }
     })
@@ -96,7 +96,7 @@ export function planLabels(d: Drawing): LabelPlan {
     placed.push(rectOf(best.p, w, h))
   })
 
-  // --- etichette delle linee: i tratti più lunghi per primi ---
+  // --- line labels: longest segments first ---
   const order = [...routes].sort((a, b) => pathLen(b.pts) - pathLen(a.pts))
   for (const { l, pts } of order) {
     if (pts.length < 2) continue
@@ -126,7 +126,7 @@ export function planLabels(d: Drawing): LabelPlan {
   return { tags, lines }
 }
 
-/** Testo dell'etichetta di una linea (codice fluido + diametro). */
+/** Text of a line's label (fluid code + size). */
 export const lineLabelText = (fluid: FluidId, size?: string): string => (size ? `${FLUIDS[fluid].code} ${size}` : FLUIDS[fluid].code)
 
 function pathLen(pts: Point[]): number {

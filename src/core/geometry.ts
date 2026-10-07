@@ -2,7 +2,7 @@ export interface Point { x: number; y: number }
 export type Dir = 'N' | 'E' | 'S' | 'W'
 type Rotation = 0 | 90 | 180 | 270
 
-/** Passo della griglia in mm: tutte le porte e i centri stanno su questa griglia. */
+/** Grid step in mm: all ports and centers lie on this grid. */
 export const GRID = 5
 
 export const DIR_VEC: Record<Dir, Point> = {
@@ -24,7 +24,7 @@ function mirrorDir(d: Dir): Dir {
 
 export interface Placement { x: number; y: number; rotation: Rotation; mirror: boolean }
 
-/** Rotazione oraria (asse y verso il basso), esatta sugli interi. */
+/** Clockwise rotation (y axis pointing down), exact on integers. */
 function rotate(p: Point, rot: Rotation): Point {
   switch (rot) {
     case 0: return { x: p.x, y: p.y }
@@ -35,8 +35,8 @@ function rotate(p: Point, rot: Rotation): Point {
 }
 
 /**
- * Coordinate locali del simbolo (origine in alto a sinistra del box w×h) → foglio.
- * Ordine: centra → specchia → ruota → trasla. Equivale al transform SVG
+ * Local symbol coordinates (origin at the top left of the w×h box) → sheet.
+ * Order: center → mirror → rotate → translate. Equivalent to the SVG transform
  * `translate(x y) rotate(r) scale(±1 1) translate(-w/2 -h/2)`.
  */
 export function localToWorld(size: { w: number; h: number }, pl: Placement, p: Point): Point {

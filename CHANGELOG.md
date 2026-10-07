@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Checks: optional *suggestions* (trapped volumes, size mismatches), off by default; any warning can be ignored and restored; new check for valves without a state in a phase.
 
 ### Changed
+- The interface is available in **English and Italian**: it follows the system language and can be changed in Settings; the native menu follows it too.
 - Unified control styling (height, radius, spacing) across toolbar, step bar and panels.
 - Internal cleanup: dead code and unused exports removed, large UI files split, lint warnings fixed.
 - Developer documentation moved to English (`docs/`, `CONTRIBUTING.md`).

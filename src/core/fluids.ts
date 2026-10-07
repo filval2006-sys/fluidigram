@@ -3,10 +3,10 @@ import type { FluidId, L10n } from './types'
 export interface FluidDef {
   id: FluidId
   name: L10n
-  /** codice breve stampato sulla linea e in legenda */
+  /** short code printed on the line and in the legend */
   code: string
   color: string
-  /** stroke-dasharray: distingue i fluidi anche nelle stampe in bianco e nero */
+  /** stroke-dasharray: tells fluids apart even in black-and-white prints */
   dash: string | null
   width: number
 }

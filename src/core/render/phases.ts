@@ -35,7 +35,7 @@ const letter = (st: ValveState | undefined, lang: Lang): string => (st === 'open
 const rrect = (x: number, y: number, w: number, h: number, r: number, fill: string, stroke = 'none', sw = 0.25, extra = ''): string =>
   `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"${extra}/>`
 
-/** Pallino con la lettera dello stato (A/O aperta, C chiusa, ? non specificato). In bianco e nero: pieno = chiusa, vuoto = aperta. */
+/** Badge with the state letter (A/O open, C closed, ? unspecified). In black and white: filled = closed, empty = open. */
 function badge(x: number, y: number, st: ValveState | undefined, lang: Lang, color: boolean, r = 2.1): string {
   const fill = !color ? (st === 'closed' ? INK : '#fff') : st === 'open' ? OPEN : st === 'closed' ? CLOSED : '#fff'
   const ink = fill === '#fff' ? INK : '#fff'
@@ -45,7 +45,7 @@ function badge(x: number, y: number, st: ValveState | undefined, lang: Lang, col
     textEl(x, y, letter(st, lang), { size: r * 1.25, bold: true, color: ink })
 }
 
-/** Etichetta a capsula con lo stato scritto. */
+/** Capsule label with the written state. */
 function statePill(xRight: number, yMid: number, st: ValveState | undefined, lang: Lang, color: boolean): string {
   const word = st === 'open' ? t('openWord', lang) : st === 'closed' ? t('closedWord', lang) : t('unsetWord', lang)
   const w = 20, h = 4.4
@@ -71,7 +71,7 @@ function valveRows(doc: FluidDocument, phaseId: string, lang: Lang): ValveRow[] 
 
 const stateOf = (c: Component, phaseId: string): ValveState | undefined => c.states?.[phaseId]
 
-/** Righe della tabella di una fase, a zebra, con pallino, tag, descrizione e stato scritto. */
+/** Rows of a phase's table, zebra-striped, with badge, tag, description and written state. */
 function renderRows(rows: ValveRow[], rect: Rect, top: number, lang: Lang, color: boolean): string {
   let s = ''
   rows.forEach((r, i) => {
@@ -89,7 +89,7 @@ type PagePlan = { kind: 'phase'; phaseIdx: number; chunk: number } | { kind: 'ma
 
 const tableWidth = (layout: PageLayout): number => Math.min(135, Math.max(86, layout.page.w * 0.28))
 const bodyHeight = (layout: PageLayout): number => layout.frame.h - layout.titleBlock.h
-/** Righe che stanno nella prima pagina di una fase (c'è l'intestazione) e in quelle successive. */
+/** Rows that fit on the first page of a phase (it has the header) and on the following ones. */
 const capacity = (layout: PageLayout) => ({
   first: Math.max(1, Math.floor((bodyHeight(layout) - HEAD_H - 4) / ROW_H)),
   more: Math.max(1, Math.floor((bodyHeight(layout) - 14) / ROW_H)),
@@ -107,7 +107,7 @@ function planPages(doc: FluidDocument, layout: PageLayout): PagePlan[] {
   return out
 }
 
-/** Numero di fogli del documento delle fasi. */
+/** Number of sheets of the phases document. */
 export function phasePageCount(doc: FluidDocument): number {
   return doc.phases.length ? planPages(doc, layoutFor(doc.export.format, false)).length : 1
 }
@@ -115,7 +115,7 @@ export function phasePageCount(doc: FluidDocument): number {
 const shell = (layout: PageLayout, inner: string): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${layout.page.w} ${layout.page.h}" width="${layout.page.w}mm" height="${layout.page.h}mm"><rect width="${layout.page.w}" height="${layout.page.h}" fill="#fff"/>${inner}</svg>`
 
-/** Striscia delle fasi in cima al disegno: cerchi numerati uniti da una linea, quello della fase corrente pieno. */
+/** Phase strip at the top of the drawing: numbered circles joined by a line, the current phase filled. */
 function renderTimeline(phases: Phase[], current: number, area: Rect, lang: Lang, color: boolean): string {
   const count = phases.length
   const left = area.x + 20
@@ -137,7 +137,7 @@ function renderTimeline(phases: Phase[], current: number, area: Rect, lang: Lang
   return s
 }
 
-/** Legenda in fondo al disegno. */
+/** Legend at the bottom of the drawing. */
 function renderKey(area: Rect, lang: Lang, color: boolean): string {
   const y = area.y + area.h + LEGEND_H / 2
   let x = area.x + 8
@@ -153,7 +153,7 @@ function renderKey(area: Rect, lang: Lang, color: boolean): string {
   return s
 }
 
-/** Riepilogo: tutte le valvole per tutte le fasi, con i pallini. */
+/** Summary: all valves for all phases, with badges. */
 function renderMatrix(doc: FluidDocument, chunk: number, layout: PageLayout, lang: Lang, color: boolean): string {
   const { phases } = doc
   const cap = capacity(layout)
@@ -188,8 +188,8 @@ function renderMatrix(doc: FluidDocument, chunk: number, layout: PageLayout, lan
 }
 
 /**
- * Documento delle fasi di funzionamento: per ogni fase lo schema con lo stato di ogni valvola (pallino colorato con lettera)
- * e, accanto, la tabella scritta; in fondo il riepilogo di tutte le fasi.
+ * Operating phases document: for each phase the diagram with the state of each valve (colored badge with a letter)
+ * and, beside it, the written table; at the end the summary of all phases.
  */
 export function renderPhasePages(doc: FluidDocument): string[] {
   const { color, lang, format } = doc.export
@@ -225,7 +225,7 @@ export function renderPhasePages(doc: FluidDocument): string[] {
     const subtitle = `${lang === 'it' ? 'Fase' : 'Phase'} ${pg.phaseIdx + 1}/${doc.phases.length}: ${name}`
     const rows = valveRows(doc, phase.id, lang)
 
-    // pagine di continuazione: solo la tabella
+    // continuation pages: only the table
     if (pg.chunk > 0) {
       const slice = rows.slice(cap.first + (pg.chunk - 1) * cap.more, cap.first + pg.chunk * cap.more)
       const rect: Rect = { x: layout.frame.x + 6, y: layout.frame.y, w: layout.frame.w - 12, h: bodyH }

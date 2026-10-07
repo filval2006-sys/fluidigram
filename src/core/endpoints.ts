@@ -1,16 +1,16 @@
 import { componentPorts } from './scene'
-import type { Component } from './types'
+import type { Component, L10n } from './types'
 
 /**
- * Estremità dichiarata di una porta libera: il tubo non è disegnato, ma si dice dove va o da dove arriva.
- * Salvata in `props` (end.<porta> e endLabel.<porta>), quindi i file restano compatibili.
+ * Declared end of a free port: the pipe is not drawn, but it says where it goes to or comes from.
+ * Saved in `props` (end.<port> and endLabel.<port>), so files stay compatible.
  */
 export type EndKind = 'vent' | 'in' | 'out'
 
-export const END_KINDS: readonly { id: EndKind; label: string }[] = [
-  { id: 'vent', label: 'Sfiato in atmosfera' },
-  { id: 'in', label: 'Arriva da un altro impianto' },
-  { id: 'out', label: 'Va a un altro impianto' },
+export const END_KINDS: readonly { id: EndKind; label: L10n }[] = [
+  { id: 'vent', label: { it: 'Sfiato in atmosfera', en: 'Vent to atmosphere' } },
+  { id: 'in', label: { it: 'Arriva da un altro impianto', en: 'Comes from another system' } },
+  { id: 'out', label: { it: 'Va a un altro impianto', en: 'Goes to another system' } },
 ]
 
 export interface PortEnd { portId: string; kind: EndKind; label: string }
@@ -20,7 +20,7 @@ const LABEL = 'endLabel.'
 
 const isKind = (v: string | undefined): v is EndKind => v === 'vent' || v === 'in' || v === 'out'
 
-/** Testo mostrato accanto al simbolo: quello scritto dall'utente, altrimenti «ATM» per gli sfiati. */
+/** Text shown next to the symbol: the one typed by the user, otherwise "ATM" for vents. */
 export const endLabelText = (kind: EndKind, label: string): string => label.trim() || (kind === 'vent' ? 'ATM' : '')
 
 export function portEnds(c: Component): PortEnd[] {
@@ -33,7 +33,7 @@ export function portEnds(c: Component): PortEnd[] {
 }
 
 
-/** Imposta (o toglie, con kind vuoto) l'estremità di una porta. Muta il componente. */
+/** Sets (or removes, with empty kind) the end of a port. Mutates the component. */
 export function setPortEnd(c: Component, portId: string, kind: EndKind | '', label = ''): void {
   if (!kind) { delete c.props[KIND + portId]; delete c.props[LABEL + portId]; return }
   c.props[KIND + portId] = kind

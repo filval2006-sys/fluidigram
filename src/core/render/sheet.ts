@@ -10,9 +10,9 @@ import { INK, n, primsToSvg, textEl } from './svg'
 
 
 export interface ComponentRenderOptions {
-  /** stato nella fase mostrata: chiusa = corpo valvola pieno */
+  /** state in the shown phase: closed = filled valve body */
   state?: ValveState
-  /** dove scrivere il tag (da planLabels); senza, sceglie un lato libero del solo componente */
+  /** where to write the tag (from planLabels); without it, picks a free side of the component alone */
   label?: LabelPlace
 }
 
@@ -22,21 +22,21 @@ export function renderComponent(c: Component, opts: ComponentRenderOptions = {})
   const rot = def.fixedBody ? 0 : c.rotation
   const sx = c.mirror && !def.fixedBody ? -1 : 1
   const tr = `translate(${n(c.x)} ${n(c.y)}) rotate(${rot}) scale(${sx} 1) translate(${n(-def.w / 2)} ${n(-def.h / 2)})`
-  // il testo contro-ruota per restare leggibile
+  // the text counter-rotates to stay readable
   const upright = (x: number, y: number) => `translate(${n(x)} ${n(y)}) scale(${sx} 1) rotate(${-rot})`
   let body = primsToSvg(rs.prims, upright)
-  // valvola chiusa: il primo riempimento bianco è il corpo (triangoli)
+  // closed valve: the first white fill is the body (triangles)
   if (opts.state === 'closed') body = body.replace('fill="#fff"', `fill="${INK}"`)
   let s = `<g data-tag="${c.tag}" transform="${tr}">${body}</g>`
 
   if (def.labelInside) {
     const li = def.labelInside
     const size = li.size ?? 2.2
-    // posizione del punto interno in coordinate foglio
+    // position of the inner point in sheet coordinates
     const ext = worldExtent(c)
     const cx = (ext.minX + ext.maxX) / 2
     const cy = (ext.minY + ext.maxY) / 2
-    // per i simboli con etichetta interna il centro dell'ingombro coincide con il centro del box
+    // for symbols with an inner label the center of the extent coincides with the center of the box
     const m = /^([A-Za-z]+)-?(.*)$/.exec(c.tag)
     if (li.split && m) {
       s += textEl(cx, cy - size * 0.55, m[1], { size, bold: true })
@@ -68,11 +68,11 @@ export function renderComponent(c: Component, opts: ComponentRenderOptions = {})
   return s
 }
 
-/** `label`: posizione scelta da planLabels; se omesso usa il centro del tratto più lungo. */
+/** `label`: position chosen by planLabels; if omitted uses the center of the longest segment. */
 export function renderLine(sheet: Drawing, line: Line, color: boolean, label?: LabelPlace | null): string {
   const pts = lineRoute(sheet, line)
   const f = FLUIDS[line.fluid]
-  // collegamento diretto (porte a contatto, es. sensore montato sul serbatoio): niente tubo, solo un bocchello
+  // direct connection (ports in contact, e.g. sensor mounted on the vessel): no pipe, just a stub
   if (pts.length === 1) return `<circle cx="${n(pts[0].x)}" cy="${n(pts[0].y)}" r="0.9" fill="${color ? f.color : INK}"/>`
   if (pts.length < 2) return ''
   const dash = f.dash ? ` stroke-dasharray="${f.dash}"` : ''
@@ -81,7 +81,7 @@ export function renderLine(sheet: Drawing, line: Line, color: boolean, label?: L
 
   let pos = label
   if (pos === undefined) {
-    // etichetta (codice fluido + diametro) sul segmento più lungo
+    // label (fluid code + size) on the longest segment
     const segLen = (i: number) => Math.abs(pts[i + 1].x - pts[i].x) + Math.abs(pts[i + 1].y - pts[i].y)
     let best = 0
     for (let i = 1; i < pts.length - 1; i++) if (segLen(i) > segLen(best)) best = i

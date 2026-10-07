@@ -5,13 +5,13 @@ import { isDirty, useStore } from './store'
 
 const withParts = () => { const d = createEmptyDocument(); addComponent(d, 'valve.ball', 0, 0); return d }
 
-describe('recenti', () => {
-  it('il nome è quello del file senza estensione, anche con percorsi Windows', () => {
+describe('recents', () => {
+  it('the name is the file name without extension, also with Windows paths', () => {
     expect(fileLabel('/Users/me/Progetti/Razzo N2O.fluidigram')).toBe('Razzo N2O')
     expect(fileLabel('C:\\Users\\me\\Documenti\\banco.fluidigram')).toBe('banco')
   })
 
-  it('in cima l\'ultimo aperto, senza doppioni e al massimo 12', () => {
+  it('the last opened on top, without duplicates and at most 12', () => {
     let list: RecentFile[] = []
     for (let i = 0; i < 20; i++) list = pushRecent(list, `/p/f${i}.fluidigram`, i)
     expect(list).toHaveLength(MAX_RECENTS)
@@ -22,15 +22,15 @@ describe('recenti', () => {
   })
 })
 
-describe('lavoro da recuperare', () => {
-  it('si recupera quello con modifiche non salvate o i progetti nuovi con contenuto, non le schede vuote né quelle pulite su file', () => {
+describe('work to recover', () => {
+  it('tabs with unsaved changes or new projects with content are recovered, not empty tabs nor clean ones on a file', () => {
     expect(worthRecovering({ dirty: true, filePath: '/a.fluidigram' }, createEmptyDocument())).toBe(true)
     expect(worthRecovering({}, withParts())).toBe(true)
     expect(worthRecovering({}, createEmptyDocument())).toBe(false)
     expect(worthRecovering({ filePath: '/a.fluidigram' }, withParts())).toBe(false)
   })
 
-  it('l\'unione tiene la voce più recente, senza doppioni e con un tetto', () => {
+  it('the merge keeps the most recent entry, without duplicates and with a cap', () => {
     const mk = (id: string, savedAt: number): Recoverable => ({ id, doc: createEmptyDocument(), savedAt })
     const out = mergeRecoverable([mk('a', 1), mk('b', 2)], [mk('a', 5), mk('c', 3)])
     expect(out.map((r) => r.id)).toEqual(['a', 'c', 'b'])
@@ -38,14 +38,14 @@ describe('lavoro da recuperare', () => {
   })
 })
 
-describe('pagina iniziale e schede', () => {
+describe('home page and tabs', () => {
   const blank = () => {
     useStore.setState({ tabs: [], activeId: '', home: false, recents: [], recoverable: [] })
-    useStore.getState().newProject() // una scheda bianca come all'avvio
+    useStore.getState().newProject() // a blank tab as at startup
   }
   beforeEach(blank)
 
-  it('dalla pagina iniziale «Nuovo» sostituisce la sola scheda bianca; altrimenti ne aggiunge una', () => {
+  it('from the home page "New" replaces the lone blank tab; otherwise it adds one', () => {
     useStore.getState().setHome(true)
     const before = useStore.getState().tabs[0].id
     useStore.getState().newProject()
@@ -53,12 +53,12 @@ describe('pagina iniziale e schede', () => {
     expect(s.tabs).toHaveLength(1)
     expect(s.tabs[0].id).not.toBe(before)
     expect(s.home).toBe(false)
-    useStore.getState().newProject() // fuori dalla pagina iniziale: una scheda in più
+    useStore.getState().newProject() // outside the home page: one more tab
     s = useStore.getState()
     expect(s.tabs).toHaveLength(2)
   })
 
-  it('con del lavoro nella scheda, dalla pagina iniziale si aggiunge senza perdere niente', () => {
+  it('with work in the tab, from the home page one is added without losing anything', () => {
     useStore.getState().edit((d) => { addComponent(d, 'vessel.tank', 0, 0) })
     useStore.getState().setHome(true)
     useStore.getState().newProject()
@@ -66,7 +66,7 @@ describe('pagina iniziale e schede', () => {
     expect(isPristineTab(useStore.getState().tabs[0])).toBe(false)
   })
 
-  it('aprire un file lo mette nei recenti, nasconde la pagina iniziale e non apre due volte lo stesso file', () => {
+  it('opening a file puts it in the recents, hides the home page and does not open the same file twice', () => {
     useStore.getState().setHome(true)
     const doc = withParts()
     useStore.getState().openDocument(doc, '/p/banco.fluidigram')
@@ -81,14 +81,14 @@ describe('pagina iniziale e schede', () => {
     expect(s.recents).toHaveLength(1)
   })
 
-  it('aprire un file sostituisce la scheda bianca inutilizzata, ma non una con del lavoro', () => {
+  it('opening a file replaces the unused blank tab, but not one with work in it', () => {
     useStore.getState().openDocument(withParts(), '/p/uno.fluidigram')
     expect(useStore.getState().tabs).toHaveLength(1)
-    useStore.getState().openDocument(withParts(), '/p/due.fluidigram') // la scheda attiva ha un file: se ne aggiunge una
+    useStore.getState().openDocument(withParts(), '/p/due.fluidigram') // the active tab has a file: one is added
     expect(useStore.getState().tabs).toHaveLength(2)
   })
 
-  it('chiudere l\'ultima scheda riporta alla pagina iniziale; si può togliere un recente', () => {
+  it('closing the last tab returns to the home page; a recent can be removed', () => {
     useStore.getState().openDocument(withParts(), '/p/a.fluidigram')
     useStore.getState().closeTab(useStore.getState().activeId)
     expect(useStore.getState().home).toBe(true)
@@ -97,7 +97,7 @@ describe('pagina iniziale e schede', () => {
     expect(useStore.getState().recents).toEqual([])
   })
 
-  it('recuperare un lavoro non salvato lo riapre come modificato; scartarlo lo toglie', () => {
+  it('recovering unsaved work reopens it as modified; discarding it removes it', () => {
     const doc = withParts()
     useStore.setState({ home: true, recoverable: [{ id: 'r1', doc, savedAt: 1 }, { id: 'r2', doc: withParts(), savedAt: 0 }] })
     useStore.getState().recover('r1')

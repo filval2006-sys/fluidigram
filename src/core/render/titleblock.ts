@@ -12,11 +12,11 @@ function cell(x: number, y: number, w: number, h: number, label: string, value: 
 }
 
 export interface TitleBlockInfo {
-  /** numero del foglio (da 1) e totale */
+  /** sheet number (from 1) and total */
   index: number
   total: number
   scaleText: string
-  /** sostituisce il sottotitolo (es. "Distinta componenti") */
+  /** replaces the subtitle (e.g. "Bill of materials") */
   subtitle?: string
 }
 
@@ -35,7 +35,7 @@ export function renderTitleBlock(doc: FluidDocument, layout: PageLayout, lang: L
   if (subtitle) s += textEl(x + 1.2, y + 14.2, subtitle, { size: 3, anchor: 'start', color: '#333' })
   s += cell(x + 110, y, 60, half, t('drawingNo', lang), m.drawingNo, 4.2, true)
 
-  // riga 2: celle di servizio
+  // row 2: service cells
   const widths = [50, 15, 25, 25, 25, 15, 15]
   const cells: [string, string, boolean][] = [
     [t('company', lang), m.company, true],
@@ -54,7 +54,7 @@ export function renderTitleBlock(doc: FluidDocument, layout: PageLayout, lang: L
   return s
 }
 
-/** Tabella delle revisioni a sinistra del cartiglio (ultime 4, la più recente in basso). */
+/** Revisions table to the left of the title block (last 4, the most recent at the bottom). */
 export function renderRevisionTable(doc: FluidDocument, layout: PageLayout, lang: Lang): string {
   const { x, y, w, h } = layout.revisions
   const rowH = h / 5

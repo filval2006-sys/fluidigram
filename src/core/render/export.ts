@@ -12,7 +12,7 @@ import { renderComponent, renderLine } from './sheet'
 import { n, rectEl, textEl } from './svg'
 import { renderRevisionTable, renderTitleBlock } from './titleblock'
 
-/** Sotto questa scala il disegno diventa poco leggibile: in modalità automatica si divide in più fogli. */
+/** Below this scale the drawing becomes hard to read: in automatic mode it is split over several sheets. */
 const MIN_FIT_SCALE = 0.6
 const GRID = 5
 const CONTENT_PAD = 10
@@ -26,7 +26,7 @@ export interface ExportPlan {
   bounds: Rect
   xCuts: number[]
   yCuts: number[]
-  /** fogli con disegno (solo le tessere non vuote) */
+  /** sheets with drawing (only non-empty tiles) */
   tiles: PageTile[]
   bomPages: number
   statesPages: number
@@ -63,7 +63,7 @@ export function drawingBounds(d: Drawing): Rect | null {
   return { x: minX - CONTENT_PAD, y: minY - CONTENT_PAD, w: maxX - minX + 2 * CONTENT_PAD, h: maxY - minY + 2 * CONTENT_PAD }
 }
 
-/** Posizioni di taglio lungo un asse: evita di tagliare i simboli e di attraversare troppe linee. */
+/** Cut positions along an axis: avoids cutting symbols and crossing too many lines. */
 export function chooseCuts(min: number, max: number, cap: number, straddles: (c: number) => boolean, crossings: (c: number) => number): number[] {
   const cuts = [min]
   let pos = min
@@ -157,7 +157,7 @@ export function planExport(doc: FluidDocument, settings: ExportSettings = doc.ex
 
 export const scaleText = (scale: number): string => (scale === 1 ? '1:1' : `1:${+(1 / scale).toFixed(2)}`)
 
-/** Descrizione breve dell'impaginazione scelta, es. "2 fogli A3 · scala 1:1 · + 1 distinta". */
+/** Short description of the chosen layout, e.g. "2 A3 sheets · scale 1:1 · + 1 bill of materials". */
 export function describePlan(plan: ExportPlan, lang: Lang): string {
   const n = plan.tiles.length
   const fmt = plan.settings.format
@@ -176,7 +176,7 @@ function tileNumberAt(plan: ExportPlan, p: Point): number | undefined {
   return plan.tiles.find((t) => t.col === col && t.row === row)?.number
 }
 
-/** Frecce di continuazione dove una linea esce dal foglio ("→ Foglio 2"). */
+/** Continuation arrows where a line leaves the sheet ("→ Sheet 2"). */
 function continuationMarkers(plan: ExportPlan, tile: PageTile, d: Drawing, lang: Lang): string {
   const r = tile.region
   let s = ''
@@ -212,7 +212,7 @@ function pageShell(plan: ExportPlan, inner: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${page.w} ${page.h}" width="${page.w}mm" height="${page.h}mm"><rect width="${page.w}" height="${page.h}" fill="#fff"/>${inner}</svg>`
 }
 
-/** Disegna il foglio `pageNumber` (da 1): prima i fogli con il disegno, poi quelli della distinta. */
+/** Draws sheet `pageNumber` (from 1): first the sheets with the drawing, then those of the bill of materials. */
 export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: number, labels?: LabelPlan): string {
   const { settings, layout } = plan
   const lang = settings.lang
@@ -249,7 +249,7 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
     const r = lineRoute(d, l)
     return r.slice(1).some((p, i) => segmentTouches(r[i], p, region))
   })
-  // le etichette si decidono su tutto il disegno, così non cambiano tra un foglio e l'altro
+  // labels are decided on the whole drawing, so they do not change from one sheet to another
   const lp = labels ?? planLabels(d)
   const clipId = `clip-${pageNumber}`
   const anns = annsIntersect(d, region)

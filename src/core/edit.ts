@@ -4,13 +4,13 @@ import { componentPorts, lineRoute } from './scene'
 import { nearestOnRoute } from './routeEdit'
 import { setPortEnd } from './endpoints'
 import { getSymbol } from './symbols/library'
-import type { Annotation, Component, Drawing, FluidDocument, FluidId, PortRef } from './types'
+import type { Annotation, Component, Drawing, FluidDocument, FluidId, L10n, PortRef } from './types'
 
 export const snap = (v: number): number => Math.round(v / GRID) * GRID
 
 export const newId = (prefix: string): string => `${prefix}${Math.random().toString(36).slice(2, 9)}`
 
-/** Prossimo tag libero per un prefisso (BV-1, BV-2...), univoco in tutto il documento. */
+/** Next free tag for a prefix (BV-1, BV-2...), unique across the whole document. */
 export function nextTag(doc: FluidDocument, prefix: string): string {
   let max = 0
   const re = new RegExp(`^${prefix}-(\\d+)$`)
@@ -21,7 +21,7 @@ export function nextTag(doc: FluidDocument, prefix: string): string {
   return `${prefix}-${max + 1}`
 }
 
-/** Aggiunge un componente (le funzioni di questo modulo mutano: usarle dentro immer.produce). */
+/** Adds a component (the functions of this module mutate: use them inside immer.produce). */
 export function addComponent(doc: FluidDocument, symbolId: string, x: number, y: number): Component {
   const def = getSymbol(symbolId)
   const c: Component = {
@@ -38,7 +38,7 @@ function isPortFree(sheet: Drawing, ref: PortRef): boolean {
     (l.to.componentId === ref.componentId && l.to.portId === ref.portId))
 }
 
-/** Una porta collegata non ha più un'estremità dichiarata (sfiato, ingresso esterno...). */
+/** A connected port no longer has a declared end (vent, external inlet...). */
 function clearEnds(sheet: Drawing, ...refs: PortRef[]): void {
   for (const r of refs) {
     const c = sheet.components.find((x) => x.id === r.componentId)
@@ -46,7 +46,7 @@ function clearEnds(sheet: Drawing, ...refs: PortRef[]): void {
   }
 }
 
-/** Crea una linea tra due porte libere e distinte; restituisce l'id, o undefined se non valida. */
+/** Creates a line between two free, distinct ports; returns the id, or undefined if not valid. */
 export function connectPorts(sheet: Drawing, from: PortRef, to: PortRef, fluid: FluidId, size?: string): string | undefined {
   if (from.componentId === to.componentId && from.portId === to.portId) return undefined
   if (!isPortFree(sheet, from) || !isPortFree(sheet, to)) return undefined
@@ -56,7 +56,7 @@ export function connectPorts(sheet: Drawing, from: PortRef, to: PortRef, fluid: 
   return id
 }
 
-/** Elimina componenti e linee per id; le linee collegate ai componenti eliminati cadono con loro. */
+/** Deletes components and lines by id; lines connected to deleted components go with them. */
 export function deleteItems(sheet: Drawing, ids: ReadonlySet<string>): void {
   sheet.components = sheet.components.filter((c) => !ids.has(c.id))
   sheet.annotations = sheet.annotations.filter((a) => !ids.has(a.id))
@@ -75,8 +75,8 @@ export function mirrorComponents(sheet: Drawing, ids: ReadonlySet<string>): void
 const DIR_DOT: Record<Dir, [number, number]> = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] }
 
 /**
- * Tra porte libere che coincidono nello stesso punto (giunzioni) sceglie quella
- * rivolta di più verso `toward`.
+ * Among free ports that coincide at the same point (junctions) picks the one
+ * facing `toward` the most.
  */
 export function pickPortToward<T extends { p: { x: number; y: number }; dir: Dir }>(cands: T[], toward: { x: number; y: number }): T | undefined {
   let best: T | undefined
@@ -93,12 +93,12 @@ export function freePorts(sheet: Drawing, c: Component) {
   return componentPorts(c).filter((p) => isPortFree(sheet, { componentId: c.id, portId: p.id }))
 }
 
-/** Copia profonda che funziona anche sui draft di immer. */
+/** Deep copy that also works on immer drafts. */
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
 export interface Clip { components: Component[]; lines: Drawing['lines']; annotations: Annotation[] }
 
-/** Copia i componenti selezionati e le linee che li collegano tra loro (più le linee selezionate con entrambi gli estremi copiati). */
+/** Copies the selected components and the lines connecting them (plus selected lines with both ends copied). */
 export function copyItems(d: Drawing, ids: ReadonlySet<string>): Clip {
   const components = d.components.filter((c) => ids.has(c.id)).map((c) => clone(c))
   const inside = new Set(components.map((c) => c.id))
@@ -109,7 +109,7 @@ export function copyItems(d: Drawing, ids: ReadonlySet<string>): Clip {
   return { components, lines, annotations }
 }
 
-/** Incolla una copia con nuovi id e tag, spostata di (dx, dy). Restituisce gli id dei nuovi elementi. Muta il documento. */
+/** Pastes a copy with new ids and tags, shifted by (dx, dy). Returns the ids of the new items. Mutates the document. */
 export function pasteItems(doc: FluidDocument, clip: Clip, dx: number, dy: number): string[] {
   const idMap = new Map<string, string>()
   const created: string[] = []
@@ -139,7 +139,7 @@ export function pasteItems(doc: FluidDocument, clip: Clip, dx: number, dy: numbe
   return created
 }
 
-/** Sposta un estremo di una linea su un'altra porta libera. Il percorso manuale decade. */
+/** Moves one end of a line to another free port. The manual route is dropped. */
 export function reconnectLine(d: Drawing, lineId: string, end: 'from' | 'to', to: PortRef): boolean {
   const l = d.lines.find((x) => x.id === lineId)
   if (!l) return false
@@ -154,8 +154,8 @@ export function reconnectLine(d: Drawing, lineId: string, end: 'from' | 'to', to
 }
 
 /**
- * Deriva una linea dal punto più vicino a `at` su una linea esistente: inserisce una giunzione, divide la linea in due
- * (stesso fluido, diametro e pressione) e collega `branch` alla giunzione. Restituisce l'id della giunzione.
+ * Branches a line from the point nearest to `at` on an existing line: inserts a junction, splits the line in two
+ * (same fluid, size and pressure) and connects `branch` to the junction. Returns the junction id.
  */
 export function branchFromLine(doc: FluidDocument, lineId: string, at: { x: number; y: number }, branch: PortRef, size?: string): string | undefined {
   const d = doc.drawing
@@ -185,7 +185,7 @@ export function branchFromLine(doc: FluidDocument, lineId: string, at: { x: numb
 
 export type AnnotationKind = Annotation['kind']
 
-/** Aggiunge un testo o un riquadro con valori predefiniti. */
+/** Adds a text or a box with default values. */
 export function addAnnotation(doc: FluidDocument, kind: AnnotationKind, x: number, y: number): Annotation {
   const a: Annotation = kind === 'box'
     ? { id: newId('a'), kind, x: snap(x), y: snap(y), w: 60, h: 40, text: { it: 'Zona', en: 'Zone' }, size: 3.5, bold: true, tone: 'blue', framed: true }
@@ -195,12 +195,12 @@ export function addAnnotation(doc: FluidDocument, kind: AnnotationKind, x: numbe
 }
 
 
-/** Distanza massima (mm) a cui un sensore si aggancia a un attacco libero di un altro componente. */
+/** Maximum distance (mm) at which a sensor snaps to a free connection of another component. */
 const MOUNT_SNAP = 7.5
 
 /**
- * Montaggio diretto: un sensore vicino a un attacco libero (di un serbatoio, di un raccordo...) con la porta rivolta
- * verso di esso si porta a contatto e si collega senza tubo. Restituisce true se ha agganciato qualcosa. Muta il disegno.
+ * Direct mounting: a sensor near a free connection (of a vessel, a fitting...) with its port facing
+ * it moves into contact and connects without a pipe. Returns true if it snapped to something. Mutates the drawing.
  */
 export function mountInstrument(sheet: Drawing, c: Component, fluid: FluidId): boolean {
   if (getSymbol(c.symbol).category !== 'instruments') return false
@@ -223,23 +223,23 @@ export function mountInstrument(sheet: Drawing, c: Component, fluid: FluidId): b
   return !!connectPorts(sheet, { componentId: c.id, portId: best.mine }, best.theirs, fluid)
 }
 
-// ---- sostituzione di componenti ----------------------------------------------------------------
+// ---- component replacement ----------------------------------------------------------------
 
 export interface ReplaceResult {
   replaced: string[]
-  /** componenti lasciati com'erano, con il motivo */
-  skipped: { id: string; tag: string; reason: string }[]
+  /** components left as they were, with the reason */
+  skipped: { id: string; tag: string; reason: L10n }[]
 }
 
-/** Distanza massima (mm) tra una porta del pezzo vecchio e quella del nuovo a cui passa il collegamento. */
+/** Maximum distance (mm) between a port of the old part and the one of the new part to which the connection moves. */
 const REPLACE_REACH = 15
 
 /**
- * Sostituisce il simbolo dei componenti indicati mantenendo posizione, rotazione, specchio e collegamenti.
- * Ogni porta collegata passa alla porta del nuovo simbolo con lo stesso nome (se è rivolta allo stesso lato e vicina),
- * altrimenti alla più vicina rivolta allo stesso lato. Se una porta collegata non trova posto il componente resta com'era.
- * Proprietà generiche (diametro, pressione, note, descrizione, stati per fase) si conservano; quelle del vecchio simbolo no.
- * Il tag si rinumera solo se era automatico e il prefisso cambia. Muta il documento.
+ * Replaces the symbol of the given components keeping position, rotation, mirror and connections.
+ * Each connected port moves to the new symbol's port with the same name (if it faces the same side and is close),
+ * otherwise to the nearest one facing the same side. If a connected port finds no place the component stays as it was.
+ * Generic properties (size, pressure, notes, description, per-phase states) are kept; those of the old symbol are not.
+ * The tag is renumbered only if it was automatic and the prefix changes. Mutates the document.
  */
 export function replaceComponents(doc: FluidDocument, ids: ReadonlySet<string>, symbolId: string): ReplaceResult {
   const d = doc.drawing
@@ -256,7 +256,7 @@ export function replaceComponents(doc: FluidDocument, ids: ReadonlySet<string>, 
     for (const l of d.lines) for (const r of [l.from, l.to]) if (r.componentId === c.id) attached.add(r.portId)
     const withEnd = oldPorts.filter((p) => c.props[`end.${p.id}`]).map((p) => p.id)
 
-    // assegnazione porta vecchia → porta nuova, una sola volta per porta nuova
+    // old port → new port assignment, once per new port
     const map = new Map<string, string>()
     const taken = new Set<string>()
     let failed: string | undefined
@@ -273,11 +273,11 @@ export function replaceComponents(doc: FluidDocument, ids: ReadonlySet<string>, 
       taken.add(fits[0].q.id)
     }
     if (failed) {
-      result.skipped.push({ id: c.id, tag: c.tag, reason: `il collegamento sulla porta «${failed}» non ha un punto corrispondente in ${def.name.it}` })
+      result.skipped.push({ id: c.id, tag: c.tag, reason: { it: `il collegamento sulla porta «${failed}» non ha un punto corrispondente in ${def.name.it}`, en: `the connection on port “${failed}” has no matching point in ${def.name.en}` } })
       continue
     }
 
-    // proprietà: via quelle del vecchio simbolo, rimappate le estremità dichiarate
+    // properties: those of the old symbol dropped, declared ends remapped
     const props: Record<string, string> = {}
     const own = new Set(['actuator', 'normal', ...(old.options ?? []).map((o) => o.key)])
     for (const [k, v] of Object.entries(c.props)) {
@@ -294,7 +294,7 @@ export function replaceComponents(doc: FluidDocument, ids: ReadonlySet<string>, 
       if (c.props[`endLabel.${from}`]) props[`endLabel.${to}`] = c.props[`endLabel.${from}`]
     }
 
-    // tag: rinumerato solo se automatico e se il prefisso cambia
+    // tag: renumbered only if automatic and the prefix changes
     const auto = new RegExp(`^${old.tagPrefix}-\\d+$`).test(c.tag)
     if (auto && old.tagPrefix !== def.tagPrefix) c.tag = nextTag(doc, def.tagPrefix)
 
@@ -304,7 +304,7 @@ export function replaceComponents(doc: FluidDocument, ids: ReadonlySet<string>, 
     c.symbol = symbolId
     c.props = props
     if (c.states && !(def.category === 'valves' && !def.id.startsWith('valve.check') && def.id !== 'valve.relief')) delete c.states
-    // il tipo scritto a mano nella distinta riguardava il vecchio simbolo
+    // the type written by hand in the bill of materials referred to the old symbol
     const ov = doc.bom.overrides[c.id]
     if (ov?.type) { delete ov.type; if (!Object.keys(ov).length) delete doc.bom.overrides[c.id] }
     result.replaced.push(c.id)
@@ -312,7 +312,7 @@ export function replaceComponents(doc: FluidDocument, ids: ReadonlySet<string>, 
   return result
 }
 
-/** Prefissi usati in passato da simboli che poi hanno cambiato sigla: i tag così fatti contano come automatici. */
+/** Prefixes used in the past by symbols that later changed code: tags like these count as automatic. */
 const LEGACY_PREFIXES: Record<string, string[]> = {
   'valve.solenoid2': ['SV'],
   'valve.solenoid3': ['SV'],
@@ -321,8 +321,8 @@ const LEGACY_PREFIXES: Record<string, string[]> = {
 }
 
 /**
- * Rinumera da 1 i tag automatici (PREFISSO-numero) senza buchi, tenendo l'ordine che avevano; i tag scelti a mano non si toccano.
- * Serve per i progetti nati quando la numerazione partiva da 101. Restituisce quanti tag sono cambiati. Muta il documento.
+ * Renumbers automatic tags (PREFIX-number) from 1 without gaps, keeping their order; tags chosen by hand are not touched.
+ * Needed for projects created when numbering started at 101. Returns how many tags changed. Mutates the document.
  */
 export function renumberTags(doc: FluidDocument): number {
   const byPrefix = new Map<string, { c: Component; n: number }[]>()
@@ -332,7 +332,7 @@ export function renumberTags(doc: FluidDocument): number {
     const m = new RegExp(`^(?:${all})-(\\d+)$`).exec(c.tag)
     if (m) byPrefix.set(prefix, [...(byPrefix.get(prefix) ?? []), { c, n: Number(m[1]) }])
   }
-  // per evitare collisioni con tag a mano uguali a un numero libero, si salta quello già occupato
+  // to avoid collisions with hand-written tags equal to a free number, the occupied one is skipped
   const taken = new Set(doc.drawing.components.map((c) => c.tag))
   let changed = 0
   const plan: { c: Component; tag: string }[] = []

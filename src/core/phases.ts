@@ -1,9 +1,9 @@
 import type { FluidDocument, ValveState } from './types'
 
-/** Stato successivo al clic: non specificato → chiusa → aperta → non specificato. */
+/** State after a click: unspecified → closed → open → unspecified. */
 const NEXT: Record<string, ValveState | undefined> = { '': 'closed', closed: 'open', open: undefined }
 
-/** Imposta lo stato di una valvola in una fase (undefined = non specificato). Si applica a una bozza immer. */
+/** Sets the state of a valve in a phase (undefined = unspecified). Applies to an immer draft. */
 export function setValveState(doc: FluidDocument, compId: string, phaseId: string, state: ValveState | undefined): void {
   const c = doc.drawing.components.find((x) => x.id === compId)
   if (!c) return
@@ -20,7 +20,7 @@ export function cycleValveState(doc: FluidDocument, compId: string, phaseId: str
   setValveState(doc, compId, phaseId, NEXT[c.states?.[phaseId] ?? ''])
 }
 
-/** Imposta lo stesso stato a tutte le valvole indicate in una fase. */
+/** Sets the same state on all the given valves in a phase. */
 export function setPhaseForAll(doc: FluidDocument, ids: string[], phaseId: string, state: ValveState | undefined): void {
   for (const id of ids) setValveState(doc, id, phaseId, state)
 }

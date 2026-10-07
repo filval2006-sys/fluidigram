@@ -1,4 +1,4 @@
-/** Conversione delle pagine SVG in PDF vettoriale e PNG. Le librerie pesanti si caricano solo all'uso. */
+/** Converts SVG pages to vector PDF and PNG. The heavy libraries load only when used. */
 
 function toBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf)
@@ -7,13 +7,13 @@ function toBase64(buf: ArrayBuffer): string {
   return btoa(bin)
 }
 
-/** Dimensioni in mm lette dal viewBox della pagina. */
+/** Size in mm read from the page's viewBox. */
 function pageSizeOf(svg: string): { w: number; h: number } {
   const m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg)
   return m ? { w: Number(m[1]), h: Number(m[2]) } : { w: 420, h: 297 }
 }
 
-/** PDF vettoriale con un foglio per pagina SVG. Il font DejaVu incorporato copre Ø, ₂, → e le lettere accentate. */
+/** Vector PDF with one sheet per SVG page. The embedded DejaVu font covers Ø, ₂, → and accented letters. */
 export async function svgPagesToPdf(svgs: string[]): Promise<Uint8Array> {
   const [{ jsPDF }, { svg2pdf }, sansUrl, boldUrl] = await Promise.all([
     import('jspdf'),
@@ -26,7 +26,7 @@ export async function svgPagesToPdf(svgs: string[]): Promise<Uint8Array> {
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [first.w, first.h], compress: true })
   pdf.addFileToVFS('DejaVuSans.ttf', toBase64(sans))
   pdf.addFileToVFS('DejaVuSans-Bold.ttf', toBase64(bold))
-  // registrati come "Arial": è il font-family che usano i nostri SVG
+  // registered as "Arial": it is the font-family our SVGs use
   pdf.addFont('DejaVuSans.ttf', 'Arial', 'normal')
   pdf.addFont('DejaVuSans-Bold.ttf', 'Arial', 'bold')
 
@@ -46,7 +46,7 @@ export async function svgPagesToPdf(svgs: string[]): Promise<Uint8Array> {
   return new Uint8Array(pdf.output('arraybuffer'))
 }
 
-/** PNG a `dpi` punti per pollice (300 = qualità di stampa). */
+/** PNG at `dpi` dots per inch (300 = print quality). */
 export async function svgToPng(svg: string, dpi = 200): Promise<Uint8Array> {
   const { w, h } = pageSizeOf(svg)
   const px = (mm: number) => Math.round((mm / 25.4) * dpi)
@@ -63,7 +63,7 @@ export async function svgToPng(svg: string, dpi = 200): Promise<Uint8Array> {
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
     const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'))
-    if (!blob) throw new Error('Impossibile creare il PNG')
+    if (!blob) throw new Error('Could not create the PNG')
     return new Uint8Array(await blob.arrayBuffer())
   } finally {
     URL.revokeObjectURL(url)

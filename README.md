@@ -24,13 +24,14 @@ The app is not code-signed or notarized by Apple/Microsoft yet (that costs money
 
 Questa è l'avviso normale per un'app non firmata, non indica un virus. Su Mac: Impostazioni di Sistema → Privacy e sicurezza → **Apri comunque**.
 
-The interface is currently in Italian; exported drawings can be in Italian or English.
+The interface is available in English and Italian (it follows your system language; you can change it in Settings). Exported drawings can be in Italian or English, independently.
 
 ## About
 
 Desktop app (macOS and Windows, built with [Tauri](https://tauri.app/)) for drawing **fluid diagrams** in P&ID style, made for model rocketry:
 symbols and lines, checks on the schematic, valve states per operating phase, and professional export
 (PDF/SVG/PNG with title block, legend, bill of materials and automatic multi-sheet layout, in Italian and English).
+The interface is available in English and Italian and follows the system language (changeable in Settings).
 
 The app **draws fluid diagrams and nothing else**. Everything else is an optional module, off by default.
 

@@ -1,14 +1,14 @@
 import { DIR_VEC, add, scale, type Point } from './geometry'
 import { simplify, type Endpoint } from './routing'
 
-/** Rettangolo d'ingombro (stesso formato di worldExtent). */
+/** Bounding rectangle (same format as worldExtent). */
 export interface Box { minX: number; minY: number; maxX: number; maxY: number }
 
-const G = 5 // passo della griglia di ricerca (mm): le porte sono tutte su questa griglia
-const PAD = 1.5 // distanza di rispetto dai componenti
-const MARGIN = 45 // quanto la zona di ricerca eccede il rettangolo tra le due porte
-const TURN = 2.5 // penalità per ogni curva (preferisce percorsi con meno gomiti)
-const NEAR = 0.35 // piccola penalità per i nodi adiacenti a un ostacolo
+const G = 5 // search grid step (mm): the ports all lie on this grid
+const PAD = 1.5 // clearance distance from components
+const MARGIN = 45 // how much the search area exceeds the rectangle between the two ports
+const TURN = 2.5 // penalty for each turn (prefers paths with fewer bends)
+const NEAR = 0.35 // small penalty for nodes adjacent to an obstacle
 const MAX_EXPANSIONS = 60_000
 
 const DI = { N: 0, E: 1, S: 2, W: 3 } as const
@@ -54,7 +54,7 @@ const cache = new Map<string, Point[] | null>()
 
 const sizeBox = (b: Box) => `${b.minX},${b.minY},${b.maxX},${b.maxY}`
 
-/** Vero se il segmento rettilineo a→b non attraversa nessun ostacolo (agli estremi si ignora il bordo del componente). */
+/** True if the straight segment a→b crosses no obstacle (at the ends the component's border is ignored). */
 function straightClear(a: Point, b: Point, boxes: Box[]): boolean {
   const len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
   const n = Math.round(len / G)
@@ -67,9 +67,9 @@ function straightClear(a: Point, b: Point, boxes: Box[]): boolean {
 }
 
 /**
- * Instradamento ortogonale che evita i componenti (A* su griglia da 5 mm con penalità per le curve).
- * Il percorso esce di 5 mm dalla porta nella sua direzione e arriva alla porta di destinazione allo stesso modo.
- * Restituisce null se non esiste un percorso (l'istanza chiamante ricade sull'instradamento semplice).
+ * Orthogonal routing that avoids components (A* on a 5 mm grid with turn penalties).
+ * The path leaves the port by 5 mm in its direction and reaches the destination port the same way.
+ * Returns null if no path exists (the caller falls back to simple routing).
  */
 export function autoRoute(a: Endpoint, b: Endpoint, obstacles: Box[]): Point[] | null {
   const a1 = add(a.p, scale(DIR_VEC[a.dir], G))
@@ -100,7 +100,7 @@ export function autoRoute(a: Endpoint, b: Endpoint, obstacles: Box[]): Point[] |
     for (let iy = iya; iy <= iyb; iy++) for (let ix = ixa; ix <= ixb; ix++) blocked[iy * W + ix] = 1
   }
   const idx = (p: Point) => ((p.y - y0) / G) * W + (p.x - x0) / G
-  // le porte stesse non si attraversano mai
+  // the ports themselves are never crossed
   for (const q of [a.p, b.p]) { const ix = (q.x - x0) / G, iy = (q.y - y0) / G; if (ix >= 0 && iy >= 0 && ix < W && iy < H) blocked[iy * W + ix] = 1 }
   const sI = idx(a1), gI = idx(b1)
   blocked[sI] = 0
@@ -121,7 +121,7 @@ export function autoRoute(a: Endpoint, b: Endpoint, obstacles: Box[]): Point[] |
   for (let it = 0; heap.size && it < MAX_EXPANSIONS; it++) {
     const { v: s } = heap.pop()
     const node = Math.floor(s / 5), d = s % 5
-    if (d === 4) { found = s; break } // stato terminale: già comprensivo della curva finale
+    if (d === 4) { found = s; break } // terminal state: already includes the final turn
     const g = gScore[s]
     const nx = node % W, ny = Math.floor(node / W)
     for (let nd = 0; nd < 4; nd++) {

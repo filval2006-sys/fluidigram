@@ -4,25 +4,25 @@ import { isDirty, useStore } from './store'
 
 const active = () => { const s = useStore.getState(); return s.tabs.find((t) => t.id === s.activeId)! }
 
-describe('store: schede e cronologia', () => {
+describe('store: tabs and history', () => {
   beforeEach(() => {
     useStore.setState({ tabs: [], activeId: '' })
     useStore.getState().newProject()
   })
 
-  it('più progetti in contemporanea, ognuno con la sua cronologia', () => {
+  it('several projects at once, each with its own history', () => {
     const st = useStore.getState()
     const first = active().id
     st.edit((d) => { addComponent(d, 'valve.ball', 50, 50) })
     st.newProject()
     expect(useStore.getState().tabs).toHaveLength(2)
     expect(active().doc.drawing.components).toHaveLength(0)
-    st.undo() // niente da annullare nel secondo progetto
+    st.undo() // nothing to undo in the second project
     st.setActive(first)
     expect(active().doc.drawing.components).toHaveLength(1)
   })
 
-  it('annulla e ripeti; dirty torna falso tornando allo stato salvato', () => {
+  it('undo and redo; dirty goes back to false when returning to the saved state', () => {
     const st = useStore.getState()
     expect(isDirty(active())).toBe(false)
     st.edit((d) => { addComponent(d, 'vessel.tank', 50, 50) })
@@ -34,7 +34,7 @@ describe('store: schede e cronologia', () => {
     expect(active().doc.drawing.components).toHaveLength(1)
   })
 
-  it('un trascinamento è un solo passo di annullamento', () => {
+  it('a drag is a single undo step', () => {
     const st = useStore.getState()
     st.edit((d) => { addComponent(d, 'valve.ball', 50, 50) })
     st.checkpoint()
@@ -44,7 +44,7 @@ describe('store: schede e cronologia', () => {
     expect(active().doc.drawing.components[0].x).toBe(50)
   })
 
-  it('le modifiche ai dati del progetto sono annullabili', () => {
+  it('edits to project data can be undone', () => {
     const st = useStore.getState()
     st.edit((d) => { d.meta.title.it = 'Banco prova' })
     expect(active().doc.meta.title.it).toBe('Banco prova')
@@ -52,7 +52,7 @@ describe('store: schede e cronologia', () => {
     expect(active().doc.meta.title.it).toBe('Nuovo progetto')
   })
 
-  it('collegare due porte crea una linea con fluido e diametro scelti', () => {
+  it('connecting two ports creates a line with the chosen fluid and size', () => {
     const st = useStore.getState()
     let a = '', b = ''
     st.edit((d) => { a = addComponent(d, 'valve.ball', 50, 50).id; b = addComponent(d, 'valve.check', 100, 50).id })
@@ -60,7 +60,7 @@ describe('store: schede e cronologia', () => {
     expect(active().doc.drawing.lines[0]).toMatchObject({ fluid: 'fuel', size: 'AN-6' })
   })
 
-  it('chiudere l\'ultima scheda ne apre una nuova vuota', () => {
+  it('closing the last tab opens a new empty one', () => {
     const st = useStore.getState()
     st.closeTab(active().id)
     expect(useStore.getState().tabs).toHaveLength(1)

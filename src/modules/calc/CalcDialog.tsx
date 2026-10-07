@@ -5,6 +5,7 @@ import { LIQUIDS, cvOfOrifice, dropFromCv, liquidFlowFromCv, pipeDrop } from './
 import {
   N2O_T_MAX, N2O_T_MIN, holeArea, holeDiameter, n2oFlux, n2oMassFlow, n2oRequiredArea, satAtT, upstreamState,
 } from './engine/n2o'
+import { N_, t, uiLanguage } from '../../i18n'
 import { useActiveTab, useStore } from '../../state/store'
 import { Num } from '../../ui/Fields'
 
@@ -37,7 +38,7 @@ function Note({ children, warn }: { children: ReactNode; warn?: boolean }) {
   return <p className={'calc-note' + (warn ? ' warn' : '')}>{warn && <AlertTriangle size={15} />}<span>{children}</span></p>
 }
 
-/** Curve portata–pressione di camera per i tre modelli. */
+/** Flow rate vs. chamber pressure curves for the three models. */
 function FlowChart({ tC, pTank, pressurized, area, cd, choked, pc }: { tC: number; pTank: number; pressurized: boolean; area: number; cd: number; choked: boolean; pc: number }) {
   const data = useMemo(() => {
     const up = upstreamState(tC + 273.15, pressurized ? pTank * BAR : undefined)
@@ -59,15 +60,15 @@ function FlowChart({ tC, pTank, pressurized, area, cd, choked, pc }: { tC: numbe
   const yt = [0, 0.25, 0.5, 0.75, 1].map((f) => f * ymax)
   return (
     <figure className="chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Portata in funzione della pressione di camera">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t('Flow rate versus chamber pressure')}>
         {yt.map((v) => <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="gl" /><text x={L - 6} y={y(v) + 3} textAnchor="end" className="tk">{fmt(v, 2)}</text></g>)}
         {xt.map((v) => <text key={v} x={x(v)} y={H - 10} textAnchor="middle" className="tk">{Math.round(v)}</text>)}
         <path d={path('spi')} className="c-spi" /><path d={path('hem')} className="c-hem" /><path d={path('dyer')} className="c-dyer" />
         <line x1={x(pc)} x2={x(pc)} y1={T} y2={H - B} className="marker" />
-        <text x={W / 2} y={H - 0} textAnchor="middle" className="tk">pressione di camera (bar)</text>
+        <text x={W / 2} y={H - 0} textAnchor="middle" className="tk">{t('chamber pressure (bar)')}</text>
         <text x={L - 6} y={12} textAnchor="end" className="tk">g/s</text>
       </svg>
-      <figcaption><i className="k-spi" />SPI <i className="k-hem" />HEM <i className="k-dyer" />Dyer <i className="k-mark" />pressione scelta</figcaption>
+      <figcaption><i className="k-spi" />SPI <i className="k-hem" />HEM <i className="k-dyer" />Dyer <i className="k-mark" />{t('chosen pressure')}</figcaption>
     </figure>
   )
 }
@@ -76,13 +77,13 @@ function N2OTab({ st, set, selected }: { st: Calc['n2o']; set: (p: Partial<Calc[
   const out = useMemo(() => {
     try {
       const T = st.tC + 273.15
-      if (T < N2O_T_MIN || T > N2O_T_MAX - 0.5) throw new RangeError(`Temperatura fuori campo: ${N2O_T_MIN - 273.15 | 0}…${(N2O_T_MAX - 273.15) | 0} °C (qui limitata a ${(N2O_T_MAX - 273.15 - 0.5).toFixed(1)} °C, vicino al punto critico)`)
+      if (T < N2O_T_MIN || T > N2O_T_MAX - 0.5) throw new RangeError(t('Temperature out of range: {min}…{max} °C (limited here to {lim} °C, near the critical point)', { min: N2O_T_MIN - 273.15 | 0, max: (N2O_T_MAX - 273.15) | 0, lim: (N2O_T_MAX - 273.15 - 0.5).toFixed(1) }))
       const sat = satAtT(T)
       const Pu = st.pressurized ? Math.max(st.pTank, sat.P / BAR) * BAR : undefined
       const Pd = st.pc * BAR
       const upP = Pu ?? sat.P
-      if (Pd >= upP) throw new RangeError('La pressione di camera deve essere inferiore a quella del serbatoio.')
-      if (Pd < 1e5 * 0.5) throw new RangeError('Pressione di camera troppo bassa (min 0,5 bar).')
+      if (Pd >= upP) throw new RangeError(t('The chamber pressure must be lower than the tank pressure.'))
+      if (Pd < 1e5 * 0.5) throw new RangeError(t('Chamber pressure too low (min 0.5 bar).'))
       const area = st.mode === 'flow' ? holeArea(st.dMm / 1000, st.n) : n2oRequiredArea(T, Pu, Pd, st.mdotG / 1000, st.cd, st.choked)
       const r = n2oMassFlow(T, Pu, Pd, area, st.cd, st.choked)
       return { sat, r, area, upP, Pd, ok: true as const }
@@ -94,30 +95,30 @@ function N2OTab({ st, set, selected }: { st: Calc['n2o']; set: (p: Partial<Calc[
   return (
     <div className="calc-grid">
       <div className="calc-inputs">
-        <h3>Serbatoio</h3>
-        <Num label="Temperatura del liquido" unit="°C" value={st.tC} onChange={(v) => set({ tC: v })} />
-        <label className="check-line"><input type="checkbox" checked={st.pressurized} onChange={(e) => set({ pressurized: e.target.checked })} />Pressurizzato con gas (liquido sottoraffreddato)</label>
-        {st.pressurized && <Num label="Pressione nel serbatoio" unit="bar" value={st.pTank} onChange={(v) => set({ pTank: v })} hint="Se inferiore alla pressione di vapore si usa quest'ultima." />}
-        <h3>Iniettore</h3>
-        <Num label="Pressione in camera" unit="bar" value={st.pc} onChange={(v) => set({ pc: v })} />
-        <Num label="Coefficiente di scarico Cd" value={st.cd} onChange={(v) => set({ cd: v })} hint="Tipico 0,6–0,85 per fori netti." />
-        <div className="seg wide" role="group" aria-label="Modo di calcolo">
-          <button className={st.mode === 'flow' ? 'on' : ''} onClick={() => set({ mode: 'flow' })}>Calcola la portata</button>
-          <button className={st.mode === 'size' ? 'on' : ''} onClick={() => set({ mode: 'size' })}>Dimensiona i fori</button>
+        <h3>{t('Tank')}</h3>
+        <Num label={t('Liquid temperature')} unit="°C" value={st.tC} onChange={(v) => set({ tC: v })} />
+        <label className="check-line"><input type="checkbox" checked={st.pressurized} onChange={(e) => set({ pressurized: e.target.checked })} />{t('Pressurized with gas (subcooled liquid)')}</label>
+        {st.pressurized && <Num label={t('Tank pressure')} unit="bar" value={st.pTank} onChange={(v) => set({ pTank: v })} hint={t('If lower than the vapor pressure, the latter is used.')} />}
+        <h3>{t('Injector')}</h3>
+        <Num label={t('Chamber pressure')} unit="bar" value={st.pc} onChange={(v) => set({ pc: v })} />
+        <Num label={t('Discharge coefficient Cd')} value={st.cd} onChange={(v) => set({ cd: v })} hint={t('Typically 0.6–0.85 for sharp-edged holes.')} />
+        <div className="seg wide" role="group" aria-label={t('Calculation mode')}>
+          <button className={st.mode === 'flow' ? 'on' : ''} onClick={() => set({ mode: 'flow' })}>{t('Calculate the flow rate')}</button>
+          <button className={st.mode === 'size' ? 'on' : ''} onClick={() => set({ mode: 'size' })}>{t('Size the holes')}</button>
         </div>
         {st.mode === 'flow' ? (
-          <div className="two"><Num label="Numero di fori" value={st.n} onChange={(v) => set({ n: Math.max(1, Math.round(v)) })} /><Num label="Diametro foro" unit="mm" value={st.dMm} onChange={(v) => set({ dMm: v })} /></div>
+          <div className="two"><Num label={t('Number of holes')} value={st.n} onChange={(v) => set({ n: Math.max(1, Math.round(v)) })} /><Num label={t('Hole diameter')} unit="mm" value={st.dMm} onChange={(v) => set({ dMm: v })} /></div>
         ) : (
           <>
-            <Num label="Portata richiesta" unit="g/s" value={st.mdotG} onChange={(v) => set({ mdotG: v })} />
-            <Num label="Numero di fori" value={st.n} onChange={(v) => set({ n: Math.max(1, Math.round(v)) })} />
+            <Num label={t('Required flow rate')} unit="g/s" value={st.mdotG} onChange={(v) => set({ mdotG: v })} />
+            <Num label={t('Number of holes')} value={st.n} onChange={(v) => set({ n: Math.max(1, Math.round(v)) })} />
           </>
         )}
-        <label className="check-line"><input type="checkbox" checked={st.choked} onChange={(e) => set({ choked: e.target.checked })} />HEM con portata critica (consigliato)</label>
+        <label className="check-line"><input type="checkbox" checked={st.choked} onChange={(e) => set({ choked: e.target.checked })} />{t('HEM with critical flow (recommended)')}</label>
         {selected && (
           <div className="btn-row">
-            <button onClick={() => { const p = selected.props; set({ n: Number(p.holes) || 1, dMm: Number(p.holeDia) || st.dMm, cd: Number(p.cd) || st.cd, mode: 'flow' }) }}>Leggi da {selected.tag}</button>
-            {out.ok && <button onClick={() => selected.apply(st.n, holeDiameter(out.area, st.n) * 1000, st.cd)}>Scrivi su {selected.tag}</button>}
+            <button onClick={() => { const p = selected.props; set({ n: Number(p.holes) || 1, dMm: Number(p.holeDia) || st.dMm, cd: Number(p.cd) || st.cd, mode: 'flow' }) }}>{t('Read from {tag}', { tag: selected.tag })}</button>
+            {out.ok && <button onClick={() => selected.apply(st.n, holeDiameter(out.area, st.n) * 1000, st.cd)}>{t('Write to {tag}', { tag: selected.tag })}</button>}
           </div>
         )}
       </div>
@@ -125,24 +126,24 @@ function N2OTab({ st, set, selected }: { st: Calc['n2o']; set: (p: Partial<Calc[
         {!out.ok ? <Note warn>{out.error}</Note> : (
           <>
             <div className="stat-grid">
-              <Stat tone="main" label="Portata (modello di Dyer)" value={fmt(out.r.mdotDyer * 1000)} unit="g/s" />
-              <Stat label="Solo SPI (liquido)" value={fmt(out.r.mdotSPI * 1000)} unit="g/s" />
-              <Stat label="Solo HEM (equilibrio)" value={fmt(out.r.mdotHEM * 1000)} unit="g/s" />
-              <Stat label="κ (non-equilibrio)" value={Number.isFinite(out.r.kappa) ? fmt(out.r.kappa) : '∞'} />
-              {st.mode === 'size' && <Stat tone="main" label={`Diametro di ciascuno dei ${st.n} fori`} value={fmt(holeDiameter(out.area, st.n) * 1000)} unit="mm" />}
-              <Stat label="Area totale" value={fmt(out.area * 1e6)} unit="mm²" />
-              <Stat label="Flusso specifico" value={fmt(out.r.dyer)} unit="kg/s·m²" />
-              <Stat label="ΔP iniettore" value={fmt((out.upP - out.Pd) / BAR)} unit="bar" />
+              <Stat tone="main" label={t('Flow rate (Dyer model)')} value={fmt(out.r.mdotDyer * 1000)} unit="g/s" />
+              <Stat label={t('SPI only (liquid)')} value={fmt(out.r.mdotSPI * 1000)} unit="g/s" />
+              <Stat label={t('HEM only (equilibrium)')} value={fmt(out.r.mdotHEM * 1000)} unit="g/s" />
+              <Stat label={t('κ (non-equilibrium)')} value={Number.isFinite(out.r.kappa) ? fmt(out.r.kappa) : '∞'} />
+              {st.mode === 'size' && <Stat tone="main" label={t('Diameter of each of the {n} holes', { n: st.n })} value={fmt(holeDiameter(out.area, st.n) * 1000)} unit="mm" />}
+              <Stat label={t('Total area')} value={fmt(out.area * 1e6)} unit="mm²" />
+              <Stat label={t('Specific flux')} value={fmt(out.r.dyer)} unit="kg/s·m²" />
+              <Stat label={t('Injector ΔP')} value={fmt((out.upP - out.Pd) / BAR)} unit="bar" />
             </div>
-            {(out.upP - out.Pd) / out.Pd < 0.2 && <Note warn>La caduta di pressione sull'iniettore è {fmt(((out.upP - out.Pd) / out.Pd) * 100, 2)}% della pressione di camera: sotto il 20% circa aumenta il rischio di instabilità di combustione (accoppiamento con il feed system).</Note>}
-            <Note>{out.r.regime === 'liquid' ? 'Flusso interamente liquido: la pressione di camera è sopra la pressione di vapore, quindi SPI e Dyer coincidono.' : 'Flusso bifase (flashing): Dyer combina SPI e HEM in base a κ.'}</Note>
+            {(out.upP - out.Pd) / out.Pd < 0.2 && <Note warn>{t('The pressure drop across the injector is {pct}% of the chamber pressure: below about 20% the risk of combustion instability (coupling with the feed system) increases.', { pct: fmt(((out.upP - out.Pd) / out.Pd) * 100, 2) })}</Note>}
+            <Note>{out.r.regime === 'liquid' ? t('Fully liquid flow: the chamber pressure is above the vapor pressure, so SPI and Dyer coincide.') : t('Two-phase (flashing) flow: Dyer combines SPI and HEM according to κ.')}</Note>
             <div className="stat-grid small">
-              <Stat label="Pressione di vapore" value={fmt(out.sat.P / BAR)} unit="bar" />
-              <Stat label="Densità liquido" value={fmt(out.sat.rhoL)} unit="kg/m³" />
-              <Stat label="Densità vapore" value={fmt(out.sat.rhoV)} unit="kg/m³" />
+              <Stat label={t('Vapor pressure')} value={fmt(out.sat.P / BAR)} unit="bar" />
+              <Stat label={t('Liquid density')} value={fmt(out.sat.rhoL)} unit="kg/m³" />
+              <Stat label={t('Vapor density')} value={fmt(out.sat.rhoV)} unit="kg/m³" />
             </div>
             <FlowChart tC={st.tC} pTank={st.pTank} pressurized={st.pressurized} area={out.area} cd={st.cd} choked={st.choked} pc={st.pc} />
-            <Note>Proprietà dal NIST (equazione di stato di Span–Wagner). Liquido compresso trattato come incomprimibile. Il modello di Dyer è un'approssimazione ingegneristica: verifica i risultati con prove a freddo.</Note>
+            <Note>{t('Properties from NIST (Span–Wagner equation of state). Compressed liquid treated as incompressible. The Dyer model is an engineering approximation: verify the results with cold-flow tests.')}</Note>
           </>
         )}
       </div>
@@ -154,7 +155,7 @@ function GasTab({ st, set }: { st: Calc['gas']; set: (p: Partial<Calc['gas']>) =
   const gas = gasById(st.gas)
   const out = useMemo(() => {
     const P0 = st.p0 * BAR, Pd = st.pd * BAR, T0 = st.tC + 273.15
-    if (Pd >= P0) return { ok: false, error: 'La pressione a valle deve essere inferiore a quella a monte.' } as const
+    if (Pd >= P0) return { ok: false, error: t('The downstream pressure must be lower than the upstream one.') } as const
     const area = st.mode === 'flow' ? Math.PI * (st.dMm / 1000) ** 2 / 4 : gasRequiredArea(gas, P0, T0, Pd, st.mdotG / 1000, st.cd)
     const r = gasOrificeFlow(gas, P0, T0, Pd, area, st.cd)
     return { ok: true as const, r, area }
@@ -162,31 +163,31 @@ function GasTab({ st, set }: { st: Calc['gas']; set: (p: Partial<Calc['gas']>) =
   return (
     <div className="calc-grid">
       <div className="calc-inputs">
-        <h3>Gas</h3>
-        <label className="field"><span>Gas</span><select value={st.gas} onChange={(e) => set({ gas: e.target.value })}>{GASES.map((g) => <option key={g.id} value={g.id}>{g.name.it}</option>)}</select></label>
-        <Num label="Pressione a monte" unit="bar" value={st.p0} onChange={(v) => set({ p0: v })} />
-        <Num label="Temperatura a monte" unit="°C" value={st.tC} onChange={(v) => set({ tC: v })} />
-        <Num label="Pressione a valle" unit="bar" value={st.pd} onChange={(v) => set({ pd: v })} />
-        <h3>Orifizio</h3>
-        <Num label="Coefficiente di scarico Cd" value={st.cd} onChange={(v) => set({ cd: v })} />
+        <h3>{t('Gas')}</h3>
+        <label className="field"><span>{t('Gas')}</span><select value={st.gas} onChange={(e) => set({ gas: e.target.value })}>{GASES.map((g) => <option key={g.id} value={g.id}>{g.name[uiLanguage()]}</option>)}</select></label>
+        <Num label={t('Upstream pressure')} unit="bar" value={st.p0} onChange={(v) => set({ p0: v })} />
+        <Num label={t('Upstream temperature')} unit="°C" value={st.tC} onChange={(v) => set({ tC: v })} />
+        <Num label={t('Downstream pressure')} unit="bar" value={st.pd} onChange={(v) => set({ pd: v })} />
+        <h3>{t('Orifice')}</h3>
+        <Num label={t('Discharge coefficient Cd')} value={st.cd} onChange={(v) => set({ cd: v })} />
         <div className="seg wide" role="group">
-          <button className={st.mode === 'flow' ? 'on' : ''} onClick={() => set({ mode: 'flow' })}>Calcola la portata</button>
-          <button className={st.mode === 'size' ? 'on' : ''} onClick={() => set({ mode: 'size' })}>Dimensiona il foro</button>
+          <button className={st.mode === 'flow' ? 'on' : ''} onClick={() => set({ mode: 'flow' })}>{t('Calculate the flow rate')}</button>
+          <button className={st.mode === 'size' ? 'on' : ''} onClick={() => set({ mode: 'size' })}>{t('Size the hole')}</button>
         </div>
-        {st.mode === 'flow' ? <Num label="Diametro del foro" unit="mm" value={st.dMm} onChange={(v) => set({ dMm: v })} /> : <Num label="Portata richiesta" unit="g/s" value={st.mdotG} onChange={(v) => set({ mdotG: v })} />}
+        {st.mode === 'flow' ? <Num label={t('Hole diameter')} unit="mm" value={st.dMm} onChange={(v) => set({ dMm: v })} /> : <Num label={t('Required flow rate')} unit="g/s" value={st.mdotG} onChange={(v) => set({ mdotG: v })} />}
       </div>
       <div className="calc-results">
         {!out.ok ? <Note warn>{out.error}</Note> : (
           <>
             <div className="stat-grid">
-              <Stat tone="main" label="Portata massica" value={fmt(out.r.mdot * 1000)} unit="g/s" />
-              {st.mode === 'size' && <Stat tone="main" label="Diametro del foro" value={fmt(Math.sqrt((4 * out.area) / Math.PI) * 1000)} unit="mm" />}
-              <Stat label="Regime" value={out.r.choked ? 'critico (bloccato)' : 'subsonico'} />
-              <Stat label="Rapporto critico Pd/P0" value={fmt(out.r.criticalRatio)} />
-              <Stat label="Area" value={fmt(out.area * 1e6)} unit="mm²" />
+              <Stat tone="main" label={t('Mass flow rate')} value={fmt(out.r.mdot * 1000)} unit="g/s" />
+              {st.mode === 'size' && <Stat tone="main" label={t('Hole diameter')} value={fmt(Math.sqrt((4 * out.area) / Math.PI) * 1000)} unit="mm" />}
+              <Stat label={t('Regime')} value={out.r.choked ? t('critical (choked)') : t('subsonic')} />
+              <Stat label={t('Critical ratio Pd/P0')} value={fmt(out.r.criticalRatio)} />
+              <Stat label={t('Area')} value={fmt(out.area * 1e6)} unit="mm²" />
             </div>
-            {st.p0 > 100 && <Note warn>Oltre circa 100 bar il gas reale si discosta dal gas ideale (fattore Z): il risultato è indicativo.</Note>}
-            <Note>Gas ideale, espansione isentropica monodimensionale. Con flusso bloccato la portata dipende solo dalle condizioni a monte.</Note>
+            {st.p0 > 100 && <Note warn>{t('Above about 100 bar the real gas departs from the ideal gas (factor Z): the result is indicative.')}</Note>}
+            <Note>{t('Ideal gas, one-dimensional isentropic expansion. With choked flow the flow rate depends only on the upstream conditions.')}</Note>
           </>
         )}
       </div>
@@ -197,22 +198,22 @@ function GasTab({ st, set }: { st: Calc['gas']; set: (p: Partial<Calc['gas']>) =
 function liquidProps(id: string, tC: number): { rho: number; mu: number; label: string } {
   if (id === 'n2o') {
     const s = satAtT(Math.min(N2O_T_MAX - 1, Math.max(N2O_T_MIN, tC + 273.15)))
-    return { rho: s.rhoL, mu: s.muL, label: 'N₂O liquido saturo' }
+    return { rho: s.rhoL, mu: s.muL, label: t('Saturated liquid N₂O') }
   }
   const l = LIQUIDS.find((x) => x.id === id) ?? LIQUIDS[0]
-  return { rho: l.rho, mu: l.mu, label: l.name.it }
+  return { rho: l.rho, mu: l.mu, label: l.name[uiLanguage()] }
 }
 
 function LiquidSelect({ value, onChange, tC, onT }: { value: string; onChange: (v: string) => void; tC: number; onT: (v: number) => void }) {
   return (
     <>
-      <label className="field"><span>Fluido</span>
+      <label className="field"><span>{t('Fluid')}</span>
         <select value={value} onChange={(e) => onChange(e.target.value)}>
-          <option value="n2o">Protossido d'azoto liquido (saturo)</option>
-          {LIQUIDS.map((l) => <option key={l.id} value={l.id}>{l.name.it}</option>)}
+          <option value="n2o">{t('Liquid nitrous oxide (saturated)')}</option>
+          {LIQUIDS.map((l) => <option key={l.id} value={l.id}>{l.name[uiLanguage()]}</option>)}
         </select>
       </label>
-      {value === 'n2o' && <Num label="Temperatura N₂O" unit="°C" value={tC} onChange={onT} />}
+      {value === 'n2o' && <Num label={t('N₂O temperature')} unit="°C" value={tC} onChange={onT} />}
     </>
   )
 }
@@ -228,31 +229,31 @@ function PipeTab({ st, set }: { st: Calc['pipe']; set: (p: Partial<Calc['pipe']>
   return (
     <div className="calc-grid">
       <div className="calc-inputs">
-        <h3>Fluido e portata</h3>
+        <h3>{t('Fluid and flow rate')}</h3>
         <LiquidSelect value={st.liquid} onChange={(v) => set({ liquid: v })} tC={st.tC} onT={(v) => set({ tC: v })} />
-        <Num label="Portata massica" unit="g/s" value={st.mdotG} onChange={(v) => set({ mdotG: v })} />
-        <h3>Tubo</h3>
-        <Num label="Diametro interno" unit="mm" value={st.dMm} onChange={(v) => set({ dMm: v })} hint="Diametro esterno meno due volte la parete." />
-        <Num label="Lunghezza" unit="m" value={st.L} onChange={(v) => set({ L: v })} />
-        <Num label="Rugosità assoluta" unit="µm" value={st.rough} onChange={(v) => set({ rough: v })} hint="Tubo trafilato ≈ 1,5 µm; acciaio commerciale ≈ 45 µm." />
-        <Num label="Perdite concentrate ΣK" value={st.K} onChange={(v) => set({ K: v })} hint="Gomito 90° ≈ 0,3–0,9; valvola a sfera aperta ≈ 0,05–0,2; ingresso ≈ 0,5." />
+        <Num label={t('Mass flow rate')} unit="g/s" value={st.mdotG} onChange={(v) => set({ mdotG: v })} />
+        <h3>{t('Pipe')}</h3>
+        <Num label={t('Inner diameter')} unit="mm" value={st.dMm} onChange={(v) => set({ dMm: v })} hint={t('Outer diameter minus twice the wall.')} />
+        <Num label={t('Length')} unit="m" value={st.L} onChange={(v) => set({ L: v })} />
+        <Num label={t('Absolute roughness')} unit="µm" value={st.rough} onChange={(v) => set({ rough: v })} hint={t('Drawn tube ≈ 1.5 µm; commercial steel ≈ 45 µm.')} />
+        <Num label={t('Minor losses ΣK')} value={st.K} onChange={(v) => set({ K: v })} hint={t('90° elbow ≈ 0.3–0.9; open ball valve ≈ 0.05–0.2; entrance ≈ 0.5.')} />
       </div>
       <div className="calc-results">
         {!out.ok ? <Note warn>{out.error}</Note> : (
           <>
             <div className="stat-grid">
-              <Stat tone="main" label="Perdita di carico totale" value={fmt(out.r.dpTotal / BAR)} unit="bar" />
-              <Stat label="Distribuita (attrito)" value={fmt(out.r.dpFriction / BAR)} unit="bar" />
-              <Stat label="Concentrata" value={fmt(out.r.dpMinor / BAR)} unit="bar" />
-              <Stat label="Velocità" value={fmt(out.r.velocity)} unit="m/s" />
+              <Stat tone="main" label={t('Total pressure drop')} value={fmt(out.r.dpTotal / BAR)} unit="bar" />
+              <Stat label={t('Distributed (friction)')} value={fmt(out.r.dpFriction / BAR)} unit="bar" />
+              <Stat label={t('Minor')} value={fmt(out.r.dpMinor / BAR)} unit="bar" />
+              <Stat label={t('Velocity')} value={fmt(out.r.velocity)} unit="m/s" />
               <Stat label="Reynolds" value={fmt(out.r.reynolds, 4)} />
-              <Stat label="Regime" value={out.r.regime} />
-              <Stat label="Fattore di attrito f" value={fmt(out.r.frictionFactor)} />
-              <Stat label="Densità · viscosità" value={`${fmt(out.f.rho)} · ${fmt(out.f.mu * 1000)}`} unit="kg/m³ · mPa·s" />
+              <Stat label={t('Regime')} value={out.r.regime} />
+              <Stat label={t('Friction factor f')} value={fmt(out.r.frictionFactor)} />
+              <Stat label={t('Density · viscosity')} value={`${fmt(out.f.rho)} · ${fmt(out.f.mu * 1000)}`} unit="kg/m³ · mPa·s" />
             </div>
-            {out.r.velocity > 8 && <Note warn>Velocità elevata ({fmt(out.r.velocity)} m/s): rischio di colpo d'ariete e di cavitazione. Per liquidi si resta spesso sotto 5–8 m/s.</Note>}
-            {st.liquid === 'n2o' && <Note warn>Con N₂O saturo, una caduta di pressione nella linea può provocare vaporizzazione (flashing): se il liquido è saturo conviene sottoraffreddarlo con un gas pressurizzante.</Note>}
-            <Note>Darcy–Weisbach, liquido incomprimibile. Attrito: 64/Re in laminare, Swamee–Jain in turbolento.</Note>
+            {out.r.velocity > 8 && <Note warn>{t('High velocity ({v} m/s): risk of water hammer and cavitation. For liquids it is often kept below 5–8 m/s.', { v: fmt(out.r.velocity) })}</Note>}
+            {st.liquid === 'n2o' && <Note warn>{t('With saturated N₂O, a pressure drop in the line can cause vaporization (flashing): if the liquid is saturated it is advisable to subcool it with a pressurizing gas.')}</Note>}
+            <Note>{t('Darcy–Weisbach, incompressible liquid. Friction: 64/Re in laminar flow, Swamee–Jain in turbulent flow.')}</Note>
           </>
         )}
       </div>
@@ -277,26 +278,26 @@ function CvTab({ st, set }: { st: Calc['cv']; set: (p: Partial<Calc['cv']>) => v
   return (
     <div className="calc-grid">
       <div className="calc-inputs">
-        <h3>Fluido</h3>
+        <h3>{t('Fluid')}</h3>
         <LiquidSelect value={st.liquid} onChange={(v) => set({ liquid: v })} tC={st.tC} onT={(v) => set({ tC: v })} />
-        <h3>Condizioni</h3>
-        <Num label="Portata massica" unit="g/s" value={st.mdotG} onChange={(v) => set({ mdotG: v })} />
-        <Num label="Caduta di pressione ammessa" unit="bar" value={st.dp} onChange={(v) => set({ dp: v })} />
-        <h3>Valvola</h3>
-        <Num label="Cv della valvola" value={st.cv} onChange={(v) => set({ cv: v })} hint="Cv in gpm USA per √psi, come sulle schede tecniche." />
-        <Num label="Cd per l'orifizio equivalente" value={st.cdOrifice} onChange={(v) => set({ cdOrifice: v })} />
+        <h3>{t('Conditions')}</h3>
+        <Num label={t('Mass flow rate')} unit="g/s" value={st.mdotG} onChange={(v) => set({ mdotG: v })} />
+        <Num label={t('Allowed pressure drop')} unit="bar" value={st.dp} onChange={(v) => set({ dp: v })} />
+        <h3>{t('Valve')}</h3>
+        <Num label={t('Valve Cv')} value={st.cv} onChange={(v) => set({ cv: v })} hint={t('Cv in US gpm per √psi, as on data sheets.')} />
+        <Num label={t('Cd for the equivalent orifice')} value={st.cdOrifice} onChange={(v) => set({ cdOrifice: v })} />
       </div>
       <div className="calc-results">
         {!out.ok ? <Note warn>{out.error}</Note> : (
           <>
             <div className="stat-grid">
-              <Stat tone="main" label="Cv necessario" value={fmt(out.cvReq)} />
-              <Stat label={`Portata con Cv ${st.cv} e ΔP ${st.dp} bar`} value={fmt(out.flow * 1000)} unit="g/s" />
-              <Stat label={`ΔP con Cv ${st.cv} alla portata data`} value={fmt(out.drop / BAR)} unit="bar" />
-              <Stat label="Foro equivalente a quel Cv" value={fmt(out.eqD * 1000)} unit="mm" />
-              <Stat label="Kv equivalente" value={fmt(st.cv * 0.865)} unit="m³/h·√bar⁻¹" />
+              <Stat tone="main" label={t('Required Cv')} value={fmt(out.cvReq)} />
+              <Stat label={t('Flow rate with Cv {cv} and ΔP {dp} bar', { cv: st.cv, dp: st.dp })} value={fmt(out.flow * 1000)} unit="g/s" />
+              <Stat label={t('ΔP with Cv {cv} at the given flow rate', { cv: st.cv })} value={fmt(out.drop / BAR)} unit="bar" />
+              <Stat label={t('Hole equivalent to that Cv')} value={fmt(out.eqD * 1000)} unit="mm" />
+              <Stat label={t('Equivalent Kv')} value={fmt(st.cv * 0.865)} unit="m³/h·√bar⁻¹" />
             </div>
-            <Note>Formula per liquidi non vaporizzanti: Q = Kv·√(ΔP/SG). Per N₂O vicino alla saturazione il flusso può vaporizzare e il Cv non basta: usa il calcolo dell'iniettore.</Note>
+            <Note>{t('Formula for non-vaporizing liquids: Q = Kv·√(ΔP/SG). For N₂O near saturation the flow can vaporize and Cv is not enough: use the injector calculation.')}</Note>
           </>
         )}
       </div>
@@ -324,10 +325,10 @@ function useSelectedInjector() {
 }
 
 const TABS: { id: TabId; label: string; Icon: typeof Flame }[] = [
-  { id: 'n2o', label: 'Iniettore N₂O', Icon: Flame },
-  { id: 'gas', label: 'Orifizio gas', Icon: Wind },
-  { id: 'pipe', label: 'Perdite di carico', Icon: Droplets },
-  { id: 'cv', label: 'Valvole (Cv)', Icon: Gauge },
+  { id: 'n2o', label: N_('N₂O injector'), Icon: Flame },
+  { id: 'gas', label: N_('Gas orifice'), Icon: Wind },
+  { id: 'pipe', label: N_('Pressure drop'), Icon: Droplets },
+  { id: 'cv', label: N_('Valves (Cv)'), Icon: Gauge },
 ]
 
 export default function CalcDialog({ onClose }: { onClose: () => void }) {
@@ -335,7 +336,7 @@ export default function CalcDialog({ onClose }: { onClose: () => void }) {
   const [calc, setCalc] = useState<Calc>(loadCalc)
   const selected = useSelectedInjector()
   useEffect(() => {
-    try { localStorage.setItem(STORAGE, JSON.stringify(calc)) } catch { /* storage non disponibile */ }
+    try { localStorage.setItem(STORAGE, JSON.stringify(calc)) } catch { /* storage unavailable */ }
   }, [calc])
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -346,16 +347,16 @@ export default function CalcDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="modal-bg" onMouseDown={onClose}>
-      <div className="export calc" role="dialog" aria-modal aria-label="Calcoli" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="export calc" role="dialog" aria-modal aria-label={t('Calculations')} onMouseDown={(e) => e.stopPropagation()}>
         <header className="export-head">
-          <h2>Calcoli</h2>
+          <h2>{t('Calculations')}</h2>
           <div className="calc-tabs" role="tablist">
             {TABS.map(({ id, label, Icon }) => (
-              <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}><Icon size={15} />{label}</button>
+              <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}><Icon size={15} />{t(label)}</button>
             ))}
           </div>
           <div className="spacer" />
-          <button className="icon-btn" aria-label="Chiudi" onClick={onClose}><X size={18} /></button>
+          <button className="icon-btn" aria-label={t('Close')} onClick={onClose}><X size={18} /></button>
         </header>
         <div className="calc-body">
           {tab === 'n2o' && <N2OTab st={calc.n2o} set={upd('n2o')} selected={selected} />}

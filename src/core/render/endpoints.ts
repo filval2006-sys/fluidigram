@@ -19,15 +19,15 @@ function marker(kind: EndKind, p: { x: number; y: number }, dir: Dir, label: str
   const at = (a: number, b = 0): [number, number] => [p.x + u.x * a + v.x * b, p.y + u.y * a + v.y * b]
   let svg = ''
   if (kind === 'vent') {
-    // tratto e punta aperta verso l'esterno
+    // stroke and arrowhead open towards the outside
     svg += polyline([at(0), at(6)])
     svg += polyline([at(4, 1.6), at(6.2), at(4, -1.6)])
   } else if (kind === 'in') {
-    // il fluido arriva: triangolo che punta verso il componente
+    // the fluid arrives: triangle pointing towards the component
     svg += polyline([at(0), at(STUB)])
     svg += polyline([at(STUB + 0.2), at(REACH - 1, 1.6), at(REACH - 1, -1.6)], true, INK)
   } else {
-    // il fluido esce: triangolo che punta verso l'esterno
+    // the fluid leaves: triangle pointing outwards
     svg += polyline([at(0), at(STUB - 1)])
     svg += polyline([at(REACH - 1), at(STUB - 0.8, 1.6), at(STUB - 0.8, -1.6)], true, INK)
   }
@@ -50,7 +50,7 @@ function marker(kind: EndKind, p: { x: number; y: number }, dir: Dir, label: str
   return { svg, box }
 }
 
-/** Simboli delle estremità dichiarate di un componente (in coordinate foglio). */
+/** Symbols for a component's declared ends (in sheet coordinates). */
 export function endMarkers(c: Component): EndMarker[] {
   const ports = componentPorts(c)
   return portEnds(c).flatMap((e) => {

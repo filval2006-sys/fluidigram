@@ -4,10 +4,10 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 
 /**
- * Separazione dei livelli:
+ * Layer separation:
  *   core  ← state ← ui ← App
- *   modules (calcoli, ecc.) dipendono da core/state/ui, ma nessuno dipende da loro tranne App.tsx.
- * Lo schema fluidico (core + state + ui) funziona identico senza la cartella `modules`.
+ *   modules (calculators, etc.) depend on core/state/ui, but nothing depends on them except App.tsx.
+ * The fluid diagram (core + state + ui) works the same without the `modules` folder.
  */
 const SRC = resolve(process.cwd(), 'src')
 
@@ -18,7 +18,7 @@ function walk(dir: string): string[] {
   })
 }
 
-/** specificatori di import (statici, dinamici ed export-from) di un file */
+/** import specifiers (static, dynamic and export-from) of a file */
 function importsOf(file: string): string[] {
   const src = readFileSync(file, 'utf8')
   const out: string[] = []
@@ -26,7 +26,7 @@ function importsOf(file: string): string[] {
   return out
 }
 
-/** cartella di primo livello (sotto src) a cui punta un import relativo, null per i pacchetti npm */
+/** top-level folder (under src) a relative import points to, null for npm packages */
 function layerOf(file: string, spec: string): string | null {
   if (!spec.startsWith('.')) return null
   const target = relative(SRC, resolve(dirname(file), spec))
@@ -36,8 +36,8 @@ function layerOf(file: string, spec: string): string | null {
 const files = walk(SRC)
 const inLayer = (layer: string) => files.filter((f) => relative(SRC, f).split(/[\\/]/)[0] === layer)
 
-describe('architettura a livelli', () => {
-  it('core è puro: non importa da state, ui, modules né da React', () => {
+describe('layered architecture', () => {
+  it('core is pure: it does not import from state, ui, modules or React', () => {
     for (const f of inLayer('core')) {
       for (const spec of importsOf(f)) {
         expect(['state', 'ui', 'modules'], `${relative(SRC, f)} importa ${spec}`).not.toContain(layerOf(f, spec))
@@ -45,13 +45,13 @@ describe('architettura a livelli', () => {
       }
     }
   })
-  it('state non importa da ui né da modules', () => {
+  it('state does not import from ui or modules', () => {
     for (const f of inLayer('state')) for (const spec of importsOf(f)) expect(['ui', 'modules'], `${relative(SRC, f)} importa ${spec}`).not.toContain(layerOf(f, spec))
   })
-  it('ui non importa da modules: lo schema non conosce i moduli opzionali', () => {
+  it('ui does not import from modules: the diagram does not know the optional modules', () => {
     for (const f of inLayer('ui')) for (const spec of importsOf(f)) expect(layerOf(f, spec), `${relative(SRC, f)} importa ${spec}`).not.toBe('modules')
   })
-  it('solo App.tsx importa la cartella modules', () => {
+  it('only App.tsx imports the modules folder', () => {
     for (const f of files) {
       const rel = relative(SRC, f)
       if (rel.startsWith('modules') || rel === 'App.tsx') continue
@@ -59,7 +59,7 @@ describe('architettura a livelli', () => {
     }
     expect(importsOf(join(SRC, 'App.tsx')).some((s) => s.includes('modules'))).toBe(true)
   })
-  it('i motori di calcolo sono puri: nessuna dipendenza da React, ui, state o dallo schema', () => {
+  it('calculation engines are pure: no dependency on React, ui, state or the diagram', () => {
     for (const f of walk(join(SRC, 'modules', 'calc', 'engine'))) {
       for (const spec of importsOf(f)) {
         expect(spec.startsWith('.'), `${relative(SRC, f)} importa ${spec}`).toBe(true)
@@ -67,7 +67,7 @@ describe('architettura a livelli', () => {
       }
     }
   })
-  it('i dati dello schema non contengono campi dei calcoli', () => {
+  it('diagram data contains no calculation fields', () => {
     const types = readFileSync(join(SRC, 'core', 'types.ts'), 'utf8')
     expect(types).not.toMatch(/n2o|dyer|blowdown/i)
   })

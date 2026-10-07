@@ -20,9 +20,9 @@ export function createEmptyDocument(): FluidDocument {
 
 interface V1Sheet { format?: string; components?: { y: number }[]; lines?: { route?: { y: number }[] }[] }
 
-/** Simboli rinominati o accorpati: il vecchio id si legge come il nuovo, così i file già salvati continuano ad aprirsi. */
+/** Renamed or merged symbols: the old id reads as the new one, so files already saved keep opening. */
 const LEGACY_SYMBOLS: Record<string, string> = {
-  'instr.pta': 'instr.pt', // trasduttore analogico: ora è il PT con la scelta del segnale di uscita
+  'instr.pta': 'instr.pt', // analog transducer: now it is the PT with the output signal choice
 }
 
 function renameLegacySymbols(raw: unknown): unknown {
@@ -32,7 +32,7 @@ function renameLegacySymbols(raw: unknown): unknown {
   return { ...doc, drawing: { ...doc!.drawing, components: comps.map((c) => (typeof c?.symbol === 'string' && LEGACY_SYMBOLS[c.symbol] ? { ...c, symbol: LEGACY_SYMBOLS[c.symbol] } : c)) } }
 }
 
-/** Porta i file delle versioni precedenti al formato corrente (v1: più fogli → un unico disegno). */
+/** Brings files of previous versions to the current format (v1: several sheets → a single drawing). */
 function migrateDocument(raw: unknown): unknown {
   const r = raw as { version?: number; sheets?: V1Sheet[]; meta?: unknown; revisions?: unknown } | null
   if (!r || r.version !== 1 || !Array.isArray(r.sheets)) return renameLegacySymbols(raw)
@@ -43,7 +43,7 @@ function migrateDocument(raw: unknown): unknown {
     const ys = (sh.components ?? []).map((c) => c.y)
     const minY = ys.length ? Math.min(...ys) : 0
     const maxY = ys.length ? Math.max(...ys) : 0
-    // i fogli successivi vengono impilati sotto il precedente
+    // following sheets are stacked below the previous one
     const shift = offsetY - minY
     for (const c of sh.components ?? []) components.push({ ...c, y: c.y + shift })
     for (const l of sh.lines ?? []) lines.push(l.route ? { ...l, route: l.route.map((p) => ({ ...p, y: p.y + shift })) } : l)
@@ -53,7 +53,7 @@ function migrateDocument(raw: unknown): unknown {
   return { version: 2, meta: r.meta, revisions: r.revisions, drawing: { components, lines, annotations: [] }, export: { format: fmt === 'A4' ? 'A4' : 'A3' } }
 }
 
-/** Legge un JSON di qualsiasi versione e lo valida. */
+/** Reads a JSON of any version and validates it. */
 export function readDocument(raw: unknown): FluidDocument {
   return DocumentSchema.parse(migrateDocument(raw))
 }

@@ -1,14 +1,14 @@
 import type { Annotation, Lang, Tone } from '../types'
 import { INK, esc, FONT, n } from './svg'
 
-/** Colori fissi per i toni (leggibili su fondo chiaro e scuro, stampabili). */
+/** Fixed colors for the tones (readable on light and dark backgrounds, printable). */
 const TONE_COLOR: Record<Tone, string> = { neutral: INK, blue: '#2f6fed', amber: '#b87500', green: '#2b8a3e', red: '#d6342c' }
 
 export const annotationText = (a: Annotation, lang: Lang): string => a.text[lang] || a.text[lang === 'it' ? 'en' : 'it'] || ''
 
 const LINE_H = 1.28
 
-/** Ingombro stimato (font a spaziatura media): serve per selezione ed esportazione. */
+/** Estimated extent (monospaced-ish font): used for selection and export. */
 export function annotationBounds(a: Annotation, lang: Lang | 'any' = 'it'): { minX: number; minY: number; maxX: number; maxY: number } {
   if (a.kind === 'box') return { minX: a.x, minY: a.y, maxX: a.x + a.w, maxY: a.y + a.h }
   if (lang === 'any') {
@@ -21,7 +21,7 @@ export function annotationBounds(a: Annotation, lang: Lang | 'any' = 'it'): { mi
   return { minX: a.x, minY: a.y, maxX: a.x + w, maxY: a.y + h }
 }
 
-/** Riquadro di zona (da disegnare sotto linee e componenti). */
+/** Zone box (to be drawn under lines and components). */
 export function renderAnnotationBox(a: Annotation, lang: Lang): string {
   const c = TONE_COLOR[a.tone]
   const label = annotationText(a, lang)
@@ -30,7 +30,7 @@ export function renderAnnotationBox(a: Annotation, lang: Lang): string {
   return s
 }
 
-/** Testo libero, anche su più righe, con cornice opzionale. */
+/** Free text, also on several lines, with an optional frame. */
 export function renderAnnotationText(a: Annotation, lang: Lang): string {
   const c = TONE_COLOR[a.tone]
   const lines = annotationText(a, lang).split('\n')

@@ -8,7 +8,7 @@ export const FONT = 'Arial, Helvetica, sans-serif'
 export const esc = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-/** Arrotonda a 3 decimali e toglie gli zeri inutili. */
+/** Rounds to 3 decimals and removes useless zeros. */
 export const n = (v: number): string => String(Math.round(v * 1000) / 1000)
 
 const fillOf = (f: Fill | undefined): string => (f === 'ink' ? INK : f === 'paper' ? '#fff' : 'none')
@@ -18,11 +18,11 @@ export interface TextOpts {
   anchor?: 'start' | 'middle' | 'end'
   bold?: boolean
   color?: string
-  /** trasformazione aggiuntiva (es. contro-rotazione) */
+  /** additional transform (e.g. counter-rotation) */
   transform?: string
 }
 
-/** Larghezza stimata del testo (Arial/DejaVu, grassetto un po' più largo). */
+/** Estimated text width (Arial/DejaVu, bold a bit wider). */
 export const textWidth = (s: string, size: number, bold = false): number => s.length * size * (bold ? 0.62 : 0.56)
 
 export function textEl(x: number, y: number, s: string, o: TextOpts): string {
@@ -38,7 +38,7 @@ export function rectEl(x: number, y: number, w: number, h: number, sw = 0.25, fi
   return `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="${fill}" stroke="${INK}" stroke-width="${sw}"/>`
 }
 
-/** Spezza un testo in righe di al massimo `maxChars` caratteri. */
+/** Splits a text into lines of at most `maxChars` characters. */
 export function wrapText(s: string, maxChars: number): string[] {
   const lines: string[] = []
   let cur = ''
@@ -51,8 +51,8 @@ export function wrapText(s: string, maxChars: number): string[] {
 }
 
 /**
- * Primitive del simbolo in coordinate locali.
- * `textTransform` serve a tenere il testo dritto quando il gruppo è ruotato/specchiato.
+ * Symbol primitives in local coordinates.
+ * `textTransform` keeps text upright when the group is rotated/mirrored.
  */
 export function primsToSvg(prims: Prim[], textTransform = (x: number, y: number) => `translate(${n(x)} ${n(y)})`): string {
   const stroke = `stroke="${INK}" stroke-width="${SYMBOL_STROKE}" stroke-linejoin="round" stroke-linecap="round"`
@@ -68,7 +68,7 @@ export function primsToSvg(prims: Prim[], textTransform = (x: number, y: number)
     .join('')
 }
 
-/** Simbolo disegnato in orientamento neutro, scalato per entrare in un riquadro (legenda, libreria). */
+/** Symbol drawn in neutral orientation, scaled to fit a box (legend, library). */
 export function symbolThumbnail(
   def: SymbolDef, cx: number, cy: number, maxW: number, maxH: number, maxScale = 1, props: Record<string, string> = {},
 ): { svg: string; height: number } {

@@ -23,21 +23,21 @@ export function resolvePort(sheet: Drawing, ref: PortRef): WorldPort | undefined
   return c && componentPorts(c).find((p) => p.id === ref.portId)
 }
 
-/** Ingombri da evitare: tutti i componenti tranne le giunzioni (un puntino). */
+/** Footprints to avoid: all components except junctions (a dot). */
 export function obstaclesOf(sheet: Drawing): Box[] {
   return sheet.components.filter((c) => c.symbol !== 'fitting.junction').map(worldExtent)
 }
 
 const samePt = (a: Point, b: Point) => a.x === b.x && a.y === b.y
 
-/** Il percorso manuale vale solo finché le porte sono dove erano quando è stato tracciato. */
+/** The manual route is valid only while the ports are where they were when it was drawn. */
 export function manualRouteValid(sheet: Drawing, line: Line): boolean {
   const a = resolvePort(sheet, line.from)
   const b = resolvePort(sheet, line.to)
   return !!(a && b && line.route && line.route.length >= 2 && samePt(line.route[0], a.p) && samePt(line.route[line.route.length - 1], b.p))
 }
 
-/** Percorso della linea: quello manuale se valido, altrimenti l'instradamento automatico che evita i componenti. */
+/** Route of the line: the manual one if valid, otherwise the automatic routing that avoids components. */
 export function lineRoute(sheet: Drawing, line: Line): Point[] {
   const a = resolvePort(sheet, line.from)
   const b = resolvePort(sheet, line.to)
@@ -46,7 +46,7 @@ export function lineRoute(sheet: Drawing, line: Line): Point[] {
   return autoRoute(a, b, obstaclesOf(sheet)) ?? routeLine(a, b)
 }
 
-/** Rettangolo d'ingombro del disegno in coordinate foglio. */
+/** Bounding rectangle of the drawing in sheet coordinates. */
 export function worldExtent(c: Component): { minX: number; minY: number; maxX: number; maxY: number } {
   const def = getSymbol(c.symbol)
   const e = resolveSymbol(def, c.props).extent

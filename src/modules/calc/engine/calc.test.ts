@@ -7,8 +7,8 @@ import { cvOfOrifice, dropFromCv, frictionFactor, liquidFlowFromCv, pipeDrop } f
 
 const close = (a: number, b: number, rel: number) => expect(Math.abs(a - b) / Math.abs(b)).toBeLessThan(rel)
 
-describe('proprietà N₂O (interpolazione sui dati NIST)', () => {
-  // punti NON presenti nella tabella, presi direttamente dal NIST WebBook
+describe('N₂O properties (interpolation on NIST data)', () => {
+  // points NOT in the table, taken directly from the NIST WebBook
   const nist = [
     { T: 200.5, P: 0.239547e6, rl: 1182.83, rv: 6.64597, hl: 27.3727e3, hv: 383.147e3 },
     { T: 238.0, P: 1.11058e6, rl: 1057.1, rv: 28.7383, hl: 94.7975e3, hv: 398.086e3 },
@@ -28,21 +28,21 @@ describe('proprietà N₂O (interpolazione sui dati NIST)', () => {
       expect(Math.abs(s.hV - p.hv)).toBeLessThan(p.T > 305 ? 4e3 : 0.6e3)
     })
   }
-  it('pressione di vapore a 20 °C ≈ 50.4 bar e a 0 °C ≈ 31.3 bar', () => {
+  it('vapor pressure at 20 °C ≈ 50.4 bar and at 0 °C ≈ 31.3 bar', () => {
     close(satAtT(293.15).P, 5.0e6, 0.02)
     close(satAtT(273.15).P, 3.127e6, 0.01)
   })
-  it('satTempAtP inverte la pressione di vapore', () => {
+  it('satTempAtP inverts the vapor pressure', () => {
     for (const T of [200, 250, 273.15, 290, 300]) expect(Math.abs(satTempAtP(satAtT(T).P) - T)).toBeLessThan(1e-4)
     expect(satAtP(5e6).T).toBeCloseTo(292.9, 0)
   })
-  it('fuori campo lancia un errore chiaro', () => {
+  it('out of range throws a clear error', () => {
     expect(() => satAtT(150)).toThrow(RangeError)
     expect(() => satTempAtP(1e3)).toThrow(RangeError)
   })
 })
 
-describe('portata N₂O: SPI, HEM e modello di Dyer', () => {
+describe('N₂O flow: SPI, HEM and the Dyer model', () => {
   const T = 293.15
   const up = upstreamState(T) // saturo, ~50 bar
   const Pc = 25e5
@@ -50,48 +50,48 @@ describe('portata N₂O: SPI, HEM e modello di Dyer', () => {
   it('SPI = √(2ρΔP)', () => {
     close(spiFlux(up, Pc), Math.sqrt(2 * up.rho * (up.P - Pc)), 1e-12)
   })
-  it('con serbatoio saturo κ = 1 e Dyer è la media di SPI e HEM', () => {
+  it('with a saturated tank κ = 1 and Dyer is the average of SPI and HEM', () => {
     const f = n2oFlux(up, Pc)
     close(f.kappa, 1, 1e-9)
     close(f.dyer, 0.5 * f.spi + 0.5 * f.hem, 1e-9)
     expect(f.regime).toBe('two-phase')
   })
-  it('Dyer sta tra HEM e SPI', () => {
+  it('Dyer lies between HEM and SPI', () => {
     for (const pd of [10e5, 25e5, 40e5, 48e5]) {
       const f = n2oFlux(up, pd)
       expect(f.dyer).toBeGreaterThanOrEqual(Math.min(f.spi, f.hem) - 1e-9)
       expect(f.dyer).toBeLessThanOrEqual(Math.max(f.spi, f.hem) + 1e-9)
     }
   })
-  it('ordini di grandezza realistici: ~ 4–6 ·10⁴ kg/s/m² (circa 45 g/s per mm²) per ΔP di 25 bar', () => {
+  it('realistic orders of magnitude: ~ 4–6 ·10⁴ kg/s/m² (about 45 g/s per mm²) for ΔP of 25 bar', () => {
     const f = n2oFlux(up, Pc)
     expect(f.dyer).toBeGreaterThan(35000)
     expect(f.dyer).toBeLessThan(65000)
   })
-  it('sopra la pressione di vapore il flusso è liquido (SPI)', () => {
+  it('above the vapor pressure the flow is liquid (SPI)', () => {
     const pressurized = upstreamState(T, 80e5)
     const f = n2oFlux(pressurized, 60e5)
     expect(f.regime).toBe('liquid')
     expect(f.dyer).toBe(f.spi)
     expect(f.kappa).toBe(Infinity)
   })
-  it('un serbatoio sottoraffreddato (pressurizzato) fa aumentare κ e avvicina Dyer a SPI', () => {
+  it('a subcooled (pressurized) tank raises κ and brings Dyer closer to SPI', () => {
     const sat = n2oFlux(upstreamState(T), Pc)
     const sub = n2oFlux(upstreamState(T, 80e5), Pc)
     expect(sub.kappa).toBeGreaterThan(sat.kappa)
     expect(Math.abs(sub.dyer - sub.spi) / sub.spi).toBeLessThan(Math.abs(sat.dyer - sat.spi) / sat.spi)
   })
-  it('la portata cresce con ΔP e si annulla a ΔP = 0', () => {
+  it('flow grows with ΔP and is zero at ΔP = 0', () => {
     const lo = n2oFlux(up, 45e5).dyer, hi = n2oFlux(up, 15e5).dyer
     expect(hi).toBeGreaterThan(lo)
     expect(n2oFlux(up, up.P).dyer).toBe(0)
   })
-  it('HEM bloccato non decresce abbassando la pressione di valle', () => {
+  it('choked HEM does not decrease when lowering the downstream pressure', () => {
     const a = hemFlux(up, 20e5), b = hemFlux(up, 5e5), c = hemFlux(up, 1e5)
     expect(b).toBeGreaterThanOrEqual(a * (1 - 1e-6))
     expect(c).toBeGreaterThanOrEqual(b * (1 - 1e-6))
   })
-  it('portata e dimensionamento sono l\'uno l\'inverso dell\'altro', () => {
+  it('flow and sizing are the inverse of each other', () => {
     const area = holeArea(1.5e-3, 12)
     const r = n2oMassFlow(T, undefined, Pc, area, 0.8)
     const back = n2oRequiredArea(T, undefined, Pc, r.mdotDyer, 0.8)
@@ -104,13 +104,13 @@ describe('portata N₂O: SPI, HEM e modello di Dyer', () => {
 
 describe('gas', () => {
   const n2 = gasById('n2')
-  it('portata critica dell\'azoto: ṁ = 0.0404·P0·A/√T0 (Cd=1, SI)', () => {
+  it('critical flow of nitrogen: ṁ = 0.0404·P0·A/√T0 (Cd=1, SI)', () => {
     const r = gasOrificeFlow(n2, 50e5, 293.15, 1e5, 1e-6, 1)
     expect(r.choked).toBe(true)
-    close(r.mdot, 0.0404 * 50e5 * 1e-6 / Math.sqrt(293.15), 0.03) // costante 0.0404 valida per l'aria: l'azoto ha R maggiore dell'1.7%
+    close(r.mdot, 0.0404 * 50e5 * 1e-6 / Math.sqrt(293.15), 0.03) // constant 0.0404 is valid for air: nitrogen has an R that is 1.7% higher
     close(r.criticalRatio, 0.5283, 0.001)
   })
-  it('sotto il rapporto critico la portata non dipende dalla pressione di valle; sopra sì', () => {
+  it('below the critical ratio the flow does not depend on the downstream pressure; above it does', () => {
     const a = gasOrificeFlow(n2, 50e5, 293.15, 10e5, 1e-6, 1).mdot
     const b = gasOrificeFlow(n2, 50e5, 293.15, 20e5, 1e-6, 1).mdot
     close(a, b, 1e-9)
@@ -118,23 +118,23 @@ describe('gas', () => {
     expect(c.choked).toBe(false)
     expect(c.mdot).toBeLessThan(a)
   })
-  it('è continua al rapporto critico', () => {
+  it('it is continuous at the critical ratio', () => {
     const crit = gasOrificeFlow(n2, 1e6, 300, 1, 1e-6, 1).criticalRatio
     close(gasOrificeFlow(n2, 1e6, 300, 1e6 * (crit + 1e-6), 1e-6, 1).mdot, gasOrificeFlow(n2, 1e6, 300, 1e6 * (crit - 1e-6), 1e-6, 1).mdot, 1e-4)
   })
-  it('l\'elio, più leggero, a parità di condizioni passa più portata volumetrica ma meno massica? (ṁ ∝ √(γ/R))', () => {
+  it('helium, lighter, at equal conditions passes more volumetric but less mass flow? (ṁ ∝ √(γ/R))', () => {
     const he = gasOrificeFlow(gasById('he'), 50e5, 293.15, 1e5, 1e-6, 1).mdot
     const n = gasOrificeFlow(n2, 50e5, 293.15, 1e5, 1e-6, 1).mdot
     expect(he).toBeLessThan(n)
   })
-  it('dimensionamento inverso', () => {
+  it('inverse sizing', () => {
     const area = gasRequiredArea(n2, 50e5, 293.15, 1e5, 0.05, 0.9)
     close(gasOrificeFlow(n2, 50e5, 293.15, 1e5, area, 0.9).mdot, 0.05, 1e-9)
   })
 })
 
-describe('idraulica', () => {
-  it('acqua in un tubo da 10 mm a 0.1 kg/s: Re≈12700, v≈1.3 m/s', () => {
+describe('hydraulics', () => {
+  it('water in a 10 mm pipe at 0.1 kg/s: Re≈12700, v≈1.3 m/s', () => {
     const r = pipeDrop(0.1, 0.01, 1, 998, 1e-3, 1.5e-6, 0)
     close(r.velocity, 1.276, 0.01)
     close(r.reynolds, 12_700, 0.02)
@@ -142,23 +142,23 @@ describe('idraulica', () => {
     // Darcy con f≈0.029: ΔP ≈ 0.029·(1/0.01)·0.5·998·1.276² ≈ 2.4 kPa
     close(r.dpFriction, 2400, 0.1)
   })
-  it('laminare: f = 64/Re', () => {
+  it('laminar: f = 64/Re', () => {
     close(frictionFactor(1000, 0.001), 0.064, 1e-12)
   })
-  it('il fattore di attrito è continuo nella transizione', () => {
+  it('the friction factor is continuous in the transition', () => {
     close(frictionFactor(2300, 1e-4), frictionFactor(2300.0001, 1e-4), 1e-3)
     close(frictionFactor(3999.99, 1e-4), frictionFactor(4000.01, 1e-4), 1e-3)
   })
-  it('perdite concentrate: K·ρv²/2', () => {
+  it('minor losses: K·ρv²/2', () => {
     const r = pipeDrop(0.1, 0.01, 0, 998, 1e-3, 0, 2)
     close(r.dpMinor, 2 * 0.5 * 998 * r.velocity ** 2, 1e-9)
   })
-  it('Cv: 1 Cv con acqua e 1 psi → circa 0.063 L/s; andata e ritorno coerenti', () => {
+  it('Cv: 1 Cv with water and 1 psi → about 0.063 L/s; round trip consistent', () => {
     const m = liquidFlowFromCv(1, 6894.76, 1000)
     close(m, 0.0631, 0.01)
     close(dropFromCv(1, m, 1000), 6894.76, 1e-9)
   })
-  it('Cv equivalente di un orifizio piccolo', () => {
+  it('equivalent Cv of a small orifice', () => {
     // Ø2 mm, Cd 0.8 → ~0.1 Cv
     const cv = cvOfOrifice(Math.PI * 1e-6, 0.8)
     expect(cv).toBeGreaterThan(0.13)

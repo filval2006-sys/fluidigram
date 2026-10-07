@@ -1,5 +1,5 @@
-; Icona propria per i file .fluidigram (foglio col logo), al posto di quella dell'app.
-; Il file .ico viene installato accanto all'app (bundle.resources); Tauri registra l'estensione, qui ne cambiamo solo l'icona.
+; Own icon for .fluidigram files (sheet with the logo), instead of the app's one.
+; The .ico file is installed next to the app (bundle.resources); Tauri registers the extension, here we only change its icon.
 !macro NSIS_HOOK_POSTINSTALL
   ReadRegStr $R0 SHCTX "Software\Classes\.fluidigram" ""
   ${If} $R0 != ""

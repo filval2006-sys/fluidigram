@@ -15,15 +15,15 @@ const LEGEND_W = 70
 export interface PageLayout {
   page: { w: number; h: number }
   frame: Rect
-  /** area utile per il disegno */
+  /** usable area for the drawing */
   drawing: Rect
-  /** colonna della legenda (assente se la legenda è disattivata) */
+  /** legend column (absent if the legend is off) */
   legend: Rect | null
   titleBlock: Rect
   revisions: Rect
 }
 
-/** Impaginazione di un foglio orizzontale. */
+/** Layout of a landscape sheet. */
 export function layoutFor(format: SheetFormat, withLegend: boolean): PageLayout {
   const page = PAGE[format]
   const frame = { x: MARGIN, y: MARGIN, w: page.w - 2 * MARGIN, h: page.h - 2 * MARGIN }

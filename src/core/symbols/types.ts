@@ -5,7 +5,7 @@ export type ActuatorId = 'none' | 'manual' | 'solenoid' | 'servo' | 'pneumatic' 
 
 export type Fill = 'none' | 'ink' | 'paper'
 
-/** Primitive di disegno in coordinate locali (mm, origine in alto a sinistra del box). */
+/** Drawing primitives in local coordinates (mm, origin at the top left of the box). */
 export type Prim =
   | { k: 'path'; d: string; fill?: Fill }
   | { k: 'circle'; cx: number; cy: number; r: number; fill?: Fill }
@@ -27,28 +27,28 @@ export interface SymbolDef {
   id: string
   name: L10n
   category: SymbolCategory
-  /** box di posizionamento (multipli di 10 mm, così il centro sta sulla griglia da 5 mm) */
+  /** placement box (multiples of 10 mm, so the center sits on the 5 mm grid) */
   w: number
   h: number
-  /** ingombro reale del disegno, se eccede il box (es. attuatore) */
+  /** actual extent of the drawing, if it exceeds the box (e.g. actuator) */
   extent?: { x: number; y: number; w: number; h: number }
   ports: PortDef[]
   prims: Prim[]
-  /** prefisso del tag di impianto (SV, BV, TK...) */
+  /** plant tag prefix (SV, BV, TK...) */
   tagPrefix: string
-  /** lati (locali) occupati da parti del disegno, dove non va messa l'etichetta */
+  /** (local) sides occupied by parts of the drawing, where the label must not go */
   avoidSides?: Dir[]
-  /** se presente, il tag è scritto dentro il simbolo (strumenti, serbatoi) */
+  /** if present, the tag is written inside the symbol (instruments, vessels) */
   labelInside?: { x: number; y: number; split?: boolean; size?: number }
-  /** se presente, il simbolo accetta un azionamento (manuale, elettrico, pneumatico...) disegnato sopra il corpo */
+  /** if present, the symbol accepts an actuator (manual, electric, pneumatic...) drawn above the body */
   actuatable?: { defaultActuator: ActuatorId }
-  /** opzioni scelte dall'utente (salvate in props) che cambiano il disegno tramite `variantPrims` */
+  /** options chosen by the user (saved in props) that change the drawing through `variantPrims` */
   options?: OptionDef[]
   variantPrims?: (props: Record<string, string>) => Prim[]
-  /** parole alternative per la ricerca (sinonimi, sigle) */
+  /** alternative search words (synonyms, codes) */
   keywords?: string[]
-  /** il corpo non ruota né si specchia (solo le porte): per simboli simmetrici con scritte interne */
+  /** the body neither rotates nor mirrors (only the ports): for symmetric symbols with inner text */
   fixedBody?: boolean
-  /** mostrato nella legenda? (false per raccordi come le giunzioni) */
+  /** shown in the legend? (false for fittings such as junctions) */
   legend: boolean
 }

@@ -11,7 +11,7 @@ function rng(seed: number) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 2 ** 32 }
 }
 
-/** Controllo minimale di buona formazione XML (tag bilanciati, nessun carattere di controllo). */
+/** Minimal XML well-formedness check (balanced tags, no control characters). */
 function wellFormed(svg: string): string | null {
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(svg)) return 'carattere di controllo'
@@ -23,7 +23,7 @@ function wellFormed(svg: string): string | null {
     if (self) continue
     if (close) { if (stack.pop() !== name) return `tag non bilanciato </${name}>` } else stack.push(name)
   }
-  // '&' non seguita da un'entità valida
+  // '&' not followed by a valid entity
   if (/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);)/i.test(svg)) return 'ampersand non escapata'
   return stack.length ? `tag aperto: ${stack.at(-1)}` : null
 }
@@ -58,25 +58,25 @@ function randomDoc(seed: number, n: number, spread: number): FluidDocument {
   return doc
 }
 
-describe('audit: documenti casuali', () => {
+describe('audit: random documents', () => {
   for (const [seed, n, spread] of [[1, 6, 200], [2, 25, 400], [3, 60, 900], [4, 40, 3000], [5, 12, 20], [6, 80, 1500]] as const) {
-    it(`seed ${seed} (${n} pezzi)`, () => {
+    it(`seed ${seed} (${n} parts)`, () => {
       const doc = randomDoc(seed, n, spread)
       expect(checkIntegrity(doc)).toEqual([])
-      // round-trip del file
+      // file round-trip
       const back = parseDocument(JSON.parse(JSON.stringify(doc)))
       expect(JSON.parse(JSON.stringify(back))).toEqual(JSON.parse(JSON.stringify(doc)))
-      // controlli e flusso non devono mai lanciare
+      // checks and flow must never throw
       const issues = runChecks(doc)
       expect(new Set(issues.map((i) => i.id)).size).toBe(issues.length)
       for (const p of doc.phases) traceFlow(doc, p.id)
-      // instradamento: tutti i punti finiti
+      // routing: all points are finite
       for (const l of doc.drawing.lines) {
         const pts = lineRoute(doc.drawing, l)
         expect(pts.length).toBeGreaterThanOrEqual(1)
         for (const p of pts) { expect(Number.isFinite(p.x) && Number.isFinite(p.y)).toBe(true) }
       }
-      // esportazione in tutte le combinazioni
+      // export in all combinations
       for (const format of ['A4', 'A3', 'A2'] as const) for (const mode of ['auto', 'fit', 'split'] as const) for (const lang of ['it', 'en'] as const) {
         const settings = { ...doc.export, format, mode, lang }
         const plan = planExport(doc, settings)
@@ -92,8 +92,8 @@ describe('audit: documenti casuali', () => {
   }
 })
 
-describe('audit: modifiche', () => {
-  it('rotazione/specchio su tutti i simboli mantengono le porte sulla griglia da 5 mm', () => {
+describe('audit: edits', () => {
+  it('rotation/mirror on all symbols keep the ports on the 5 mm grid', () => {
     const doc = createEmptyDocument()
     for (const def of ALL_SYMBOLS) {
       const c = addComponent(doc, def.id, 0, 0)
@@ -107,7 +107,7 @@ describe('audit: modifiche', () => {
     }
   })
 
-  it('copia/incolla: nessun id duplicato, tag unici, linee ricollegate', () => {
+  it('copy/paste: no duplicate ids, unique tags, lines reconnected', () => {
     const doc = randomDoc(7, 30, 500)
     const ids = new Set(doc.drawing.components.map((c) => c.id))
     const clip = copyItems(doc.drawing, ids)
@@ -116,7 +116,7 @@ describe('audit: modifiche', () => {
     expect(checkIntegrity(doc)).toEqual([])
   })
 
-  it('elimina tutto e poi esporta un disegno vuoto', () => {
+  it('delete everything and then export an empty drawing', () => {
     const doc = randomDoc(8, 15, 300)
     deleteItems(doc.drawing, new Set([...doc.drawing.components.map((c) => c.id), ...doc.drawing.lines.map((l) => l.id)]))
     expect(doc.drawing.lines).toEqual([])
@@ -126,7 +126,7 @@ describe('audit: modifiche', () => {
     expect(runChecks(doc)).toEqual([])
   })
 
-  it('ruota e specchia ripetutamente senza corrompere il file', () => {
+  it('rotate and mirror repeatedly without corrupting the file', () => {
     const doc = randomDoc(9, 20, 300)
     const all = new Set(doc.drawing.components.map((c) => c.id))
     for (let i = 0; i < 5; i++) { rotateComponents(doc.drawing, all); mirrorComponents(doc.drawing, all) }
@@ -134,19 +134,19 @@ describe('audit: modifiche', () => {
   })
 })
 
-describe('audit: file danneggiati', () => {
-  it('rifiuta con un errore, senza crash, input non validi', () => {
+describe('audit: damaged files', () => {
+  it('rejects invalid input with an error, without crashing', () => {
     for (const bad of [null, undefined, 42, 'x', [], {}, { version: 3 }, { version: 2 }, { version: 1 }, { version: 1, sheets: 'x' }]) {
       expect(() => parseDocument(bad)).toThrow()
     }
   })
-  it('un file con linee verso componenti inesistenti viene respinto', () => {
+  it('a file with lines to nonexistent components is rejected', () => {
     const doc = randomDoc(10, 10, 200)
     const bad = JSON.parse(JSON.stringify(doc))
     bad.drawing.lines.push({ id: 'lx', fluid: 'fuel', from: { componentId: 'nope', portId: 'a' }, to: { componentId: 'nope2', portId: 'a' } })
     expect(() => parseDocument(bad)).toThrow()
   })
-  it('un file con simbolo sconosciuto viene respinto invece di rompere la tela', () => {
+  it('a file with an unknown symbol is rejected instead of breaking the canvas', () => {
     const doc = randomDoc(11, 4, 100)
     const bad = JSON.parse(JSON.stringify(doc))
     bad.drawing.components[0].symbol = 'valve.inventata'
@@ -154,8 +154,8 @@ describe('audit: file danneggiati', () => {
   })
 })
 
-describe('sensori', () => {
-  it('si collegano da tutti i lati e ruotando non ruota la riga che taglierebbe la scritta', () => {
+describe('sensors', () => {
+  it('connect from all sides, and rotating does not turn the line that would cut through the text', () => {
     const doc = createEmptyDocument()
     const c = addComponent(doc, 'instr.pt', 0, 0)
     expect(componentPorts(c).map((p) => p.dir).sort()).toEqual(['E', 'N', 'S', 'W'])
@@ -163,18 +163,18 @@ describe('sensori', () => {
       c.rotation = rot
       const svg = renderComponent(c)
       expect(svg).toContain('rotate(0)')
-      // il vecchio file con la porta "process" resta valido
+      // the old file with the "process" port stays valid
       expect(componentPorts(c).some((p) => p.id === 'process')).toBe(true)
     }
-    // un solo collegamento basta: nessun avviso di porta aperta
+    // a single connection is enough: no open-port warning
     const t = addComponent(doc, 'vessel.tank', 40, 0)
     connectPorts(doc.drawing, { componentId: t.id, portId: 'left' }, { componentId: c.id, portId: 'right' }, 'pressurant')
     expect(runChecks(doc).filter((i) => i.code === 'open-port')).toEqual([])
   })
 })
 
-describe('etichette', () => {
-  it('i tag non toccano linee e pezzi nei disegni radi, e restano a distanza ragionevole nei fitti', () => {
+describe('labels', () => {
+  it('tags do not touch lines and parts in sparse drawings, and stay at a reasonable distance in dense ones', () => {
     let touching = 0, total = 0
     for (const seed of [21, 22, 23, 24]) {
       const doc = randomDoc(seed, 14, 260)
@@ -198,13 +198,13 @@ describe('etichette', () => {
   })
 })
 
-describe('sensore montato sul serbatoio', () => {
-  it('si aggancia alla parete senza tubo, e un serbatoio ha più attacchi per lato', () => {
+describe('sensor mounted on the vessel', () => {
+  it('snaps to the wall without a pipe, and a vessel has several connections per side', () => {
     const doc = createEmptyDocument()
     const tank = addComponent(doc, 'vessel.tank', 0, 0) // parete destra a x=10
     const sensors = ['right-up', 'right', 'right-down'].map((id) => componentPorts(tank).find((p) => p.id === id)!)
     expect(sensors.map((p) => p.p.y)).toEqual([-10, 0, 10])
-    // sensore posato a una cella (5 mm) dal contatto (porta sinistra del sensore su x=10)
+    // sensor placed one cell (5 mm) from contact (sensor's left port at x=10)
     const s = addComponent(doc, 'instr.pt', 20, -10)
     expect(mountInstrument(doc.drawing, s, 'pressurant')).toBe(true)
     const left = componentPorts(s).find((p) => p.id === 'left')!
@@ -212,21 +212,21 @@ describe('sensore montato sul serbatoio', () => {
     expect(doc.drawing.lines).toHaveLength(1)
     expect(lineRoute(doc.drawing, doc.drawing.lines[0])).toHaveLength(1)
     expect(renderLine(doc.drawing, doc.drawing.lines[0], true)).toContain('<circle')
-    // un secondo sensore sullo stesso lato, altro attacco
+    // a second sensor on the same side, other connection
     const s2 = addComponent(doc, 'instr.tt', 20, 12)
     expect(mountInstrument(doc.drawing, s2, 'pressurant')).toBe(true)
     expect(doc.drawing.lines).toHaveLength(2)
-    // lontano: nessun aggancio
+    // far away: no snapping
     const far = addComponent(doc, 'instr.pi', 80, 80)
     expect(mountInstrument(doc.drawing, far, 'pressurant')).toBe(false)
-    // i due montati non risultano isolati né con porte aperte; quello lontano sì
+    // the two mounted ones are neither isolated nor have open ports; the far one is
     const warn = runChecks(doc).filter((i) => i.code === 'open-port' || i.code === 'isolated')
     expect(warn.map((i) => i.targets[0])).toEqual([far.id])
   })
 })
 
-describe('sensori sopra e sotto', () => {
-  it('si montano su tutti gli attacchi di testa e di fondo, anche nel serbatoio orizzontale', () => {
+describe('sensors on top and bottom', () => {
+  it('mount on all top and bottom connections, also in the horizontal vessel', () => {
     const doc = createEmptyDocument()
     const tank = addComponent(doc, 'vessel.tank', 0, 0) // testa a y=-20, fondo a y=20
     const tops = componentPorts(tank).filter((p) => p.p.y === -20).map((p) => p.p.x).sort((a, b) => a - b)
@@ -241,13 +241,13 @@ describe('sensori sopra e sotto', () => {
     const h = addComponent(doc, 'vessel.horizontal', 60, 0)
     const ends = componentPorts(h).filter((p) => p.p.x === 40).map((p) => p.p.y).sort((a, b) => a - b)
     expect(ends).toEqual([-5, 0, 5])
-    // tutte le porte dei recipienti stanno su una cella da 5 mm
+    // all vessel ports sit on a 5 mm cell
     for (const c of doc.drawing.components) for (const p of componentPorts(c)) { expect(Math.abs(p.p.x % 5)).toBe(0); expect(Math.abs(p.p.y % 5)).toBe(0) }
   })
 })
 
-describe('estremità dichiarate', () => {
-  it('uno sfiato o un ingresso esterno dichiarati non generano avvisi e si cancellano collegando la porta', () => {
+describe('declared ends', () => {
+  it('a declared vent or external inlet raises no warnings and is cleared by connecting the port', () => {
     const doc = createEmptyDocument()
     const qd = addComponent(doc, 'fitting.qd', 0, 0)
     const v = addComponent(doc, 'valve.ball', 30, 0)
@@ -267,18 +267,18 @@ describe('estremità dichiarate', () => {
     expect(portEnds(qd)).toHaveLength(1)
     // salvataggio e rilettura
     expect(portEnds(parseDocument(JSON.parse(JSON.stringify(doc))).drawing.components[0])).toHaveLength(1)
-    // l'ingresso esterno alimenta la linea
+    // the external inlet feeds the line
     doc.phases = [{ id: 'p', name: { it: 'x', en: 'x' } }]
     expect(traceFlow(doc, 'p').live.size).toBe(2)
-    // collegare la porta toglie la dichiarazione
+    // connecting the port removes the declaration
     const extra = addComponent(doc, 'valve.ball', -30, 0)
     connectPorts(doc.drawing, { componentId: qd.id, portId: free }, { componentId: extra.id, portId: 'b' }, 'oxidizer')
     expect(portEnds(doc.drawing.components.find((c) => c.id === qd.id)!)).toHaveLength(0)
   })
 })
 
-describe('strumenti riconoscibili', () => {
-  it('ogni strumento ha un disegno diverso: quadrante per gli analogici, sigla fissa per gli altri', () => {
+describe('recognizable instruments', () => {
+  it('each instrument has a different drawing: dial for the analog ones, fixed code for the others', () => {
     const instr = ALL_SYMBOLS.filter((s) => s.category === 'instruments')
     expect(new Set(instr.map((s) => JSON.stringify(s.prims))).size).toBe(instr.length)
     const texts = (id: string) => instr.find((s) => s.id === id)!.prims.flatMap((p) => (p.k === 'text' ? [p.s] : []))
@@ -286,14 +286,14 @@ describe('strumenti riconoscibili', () => {
     expect(texts('instr.tt')).toContain('TC')
     expect(instr.find((s) => s.id === 'instr.tt')!.tagPrefix).toBe('TC')
     for (const id of ['instr.pi', 'instr.ti']) expect(instr.find((s) => s.id === id)!.prims.some((p) => p.k === 'path' && p.d.includes('L6.9,3.1'))).toBe(true) // lancetta
-    // il tag sta fuori dal simbolo
+    // the tag sits outside the symbol
     expect(instr.every((s) => !s.labelInside)).toBe(true)
     expect(instr.find((s) => s.id === 'instr.pt')!.options!.map((o) => o.key)).toEqual(['signal', 'range'])
   })
 })
 
-describe('compatibilità dei file', () => {
-  it('un trasduttore analogico di una versione precedente si legge come PT', () => {
+describe('file compatibility', () => {
+  it('an analog transducer from an earlier version reads as PT', () => {
     const doc = randomDoc(31, 6, 200)
     const raw = JSON.parse(JSON.stringify(doc))
     raw.drawing.components[0].symbol = 'instr.pta'
@@ -303,15 +303,15 @@ describe('compatibilità dei file', () => {
   })
 })
 
-describe('camera di combustione', () => {
-  it('ha prese per i sensori e i sensori vi si montano direttamente', () => {
+describe('combustion chamber', () => {
+  it('has taps for sensors and sensors mount on it directly', () => {
     const doc = createEmptyDocument()
     const cc = addComponent(doc, 'engine.chamber', 0, 0) // box 40×20 centrato: parete alta a y=-10
     const ports = componentPorts(cc)
     expect(ports.filter((p) => p.dir === 'N')).toHaveLength(3)
     expect(ports.filter((p) => p.dir === 'S')).toHaveLength(3)
     expect(ports.some((p) => p.id === 'in')).toBe(true)
-    const up = addComponent(doc, 'instr.pt', -15, -20) // porta bassa del sensore a y=-15, presa a y=-10: una cella
+    const up = addComponent(doc, 'instr.pt', -15, -20) // the sensor's low port at y=-15, tap at y=-10: one cell
     const down = addComponent(doc, 'instr.tt', -5, 20)
     expect(mountInstrument(doc.drawing, up, 'pressurant')).toBe(true)
     expect(mountInstrument(doc.drawing, down, 'pressurant')).toBe(true)
@@ -320,7 +320,7 @@ describe('camera di combustione', () => {
   })
 })
 
-describe('sostituzione di componenti', () => {
+describe('component replacement', () => {
   const chain = () => {
     const doc = createEmptyDocument()
     const a = addComponent(doc, 'valve.ball', 0, 0)
@@ -331,7 +331,7 @@ describe('sostituzione di componenti', () => {
     return { doc, a, b, c }
   }
 
-  it('sostituisce una valvola tenendo posizione, rotazione e collegamenti, e rinumera il tag', () => {
+  it('replaces a valve keeping position, rotation and connections, and renumbers the tag', () => {
     const { doc, b } = chain()
     b.rotation = 0
     b.props.size = '1/4" OD'
@@ -342,13 +342,13 @@ describe('sostituzione di componenti', () => {
     expect(nb.symbol).toBe('valve.check')
     expect(nb.x).toBe(30)
     expect(nb.props.size).toBe('1/4" OD')
-    expect(nb.props.actuator).toBeUndefined() // la valvola di ritegno non ha azionamento
+    expect(nb.props.actuator).toBeUndefined() // the check valve has no actuator
     expect(nb.tag).not.toMatch(/^BV-/)
     expect(doc.drawing.lines).toHaveLength(2)
     expect(checkIntegrity(doc)).toEqual([])
   })
 
-  it('in gruppo: tutte le valvole selezionate, azionamento mantenuto se il nuovo simbolo lo ammette', () => {
+  it('in a group: all selected valves, actuator kept if the new symbol allows it', () => {
     const { doc, a, b, c } = chain()
     a.props.actuator = 'solenoid'; b.props.actuator = 'manual'
     const r = replaceComponents(doc, new Set([a.id, b.id, c.id]), 'valve.globe')
@@ -359,7 +359,7 @@ describe('sostituzione di componenti', () => {
     expect(checkIntegrity(doc)).toEqual([])
   })
 
-  it('un tag scelto a mano non cambia; un pezzo incompatibile resta com\'era e viene segnalato', () => {
+  it('a hand-chosen tag does not change; an incompatible part stays as it was and is reported', () => {
     const { doc, b } = chain()
     b.tag = 'MAIN'
     replaceComponents(doc, new Set([b.id]), 'valve.solenoid2')
@@ -375,7 +375,7 @@ describe('sostituzione di componenti', () => {
     expect(checkIntegrity(doc)).toEqual([])
   })
 
-  it('sostituzioni casuali tra valvole non rompono mai il disegno', () => {
+  it('random replacements between valves never break the drawing', () => {
     const valves = ALL_SYMBOLS.filter((s) => s.category === 'valves').map((s) => s.id)
     for (const seed of [41, 42, 43]) {
       const doc = randomDoc(seed, 25, 300)
@@ -391,7 +391,7 @@ describe('sostituzione di componenti', () => {
   })
 })
 
-describe('distinta modificabile', () => {
+describe('editable bill of materials', () => {
   const setup = () => {
     const doc = createEmptyDocument()
     const a = addComponent(doc, 'valve.ball', 0, 0)
@@ -400,23 +400,23 @@ describe('distinta modificabile', () => {
     return { doc, a, b }
   }
 
-  it('una modifica a mano vince sul disegno, per lingua, e tornare al valore del disegno la toglie', () => {
+  it('a hand edit wins over the drawing, per language, and going back to the drawing value removes it', () => {
     const { doc, a } = setup()
     setBomCell(doc, a.id, false, 'description', 'it', 'Mia descrizione')
     setBomCell(doc, a.id, false, 'size', 'it', '6 mm')
     expect(bomRows(doc.drawing, 'it', doc.bom).find((r) => r.tag === a.tag)!.description).toBe('Mia descrizione')
-    expect(bomRows(doc.drawing, 'en', doc.bom).find((r) => r.tag === a.tag)!.description).toBe('Shutoff') // l'inglese non cambia
+    expect(bomRows(doc.drawing, 'en', doc.bom).find((r) => r.tag === a.tag)!.description).toBe('Shutoff') // English does not change
     expect(bomRows(doc.drawing, 'en', doc.bom).find((r) => r.tag === a.tag)!.size).toBe('6 mm')
-    // si può anche svuotare un campo
+    // a field can also be emptied
     setBomCell(doc, a.id, false, 'description', 'it', '')
     expect(bomRows(doc.drawing, 'it', doc.bom).find((r) => r.tag === a.tag)!.description).toBe('')
-    // riscrivere il valore generato = nessuna modifica
+    // rewriting the generated value = no change
     setBomCell(doc, a.id, false, 'description', 'it', 'Intercettazione')
     setBomCell(doc, a.id, false, 'size', 'it', '')
     expect(doc.bom.overrides[a.id]).toBeUndefined()
   })
 
-  it('righe nascoste e righe aggiunte, nel PDF e nel conteggio dei fogli', () => {
+  it('hidden rows and added rows, in the PDF and in the sheet count', () => {
     const { doc, a, b } = setup()
     setBomHidden(doc, b.id, true)
     const x = addBomExtra(doc)
@@ -430,7 +430,7 @@ describe('distinta modificabile', () => {
     const bomPage = pages.at(-1)!
     expect(bomPage).toContain('TB-1')
     expect(bomPage).toContain(`>${a.tag}<`)
-    expect(bomPage).not.toContain(`>${b.tag}<`) // nascosta dalla distinta, ma resta nel disegno
+    expect(bomPage).not.toContain(`>${b.tag}<`) // hidden from the bill of materials, but it stays in the drawing
     expect(pages[0]).toContain(`>${b.tag}<`)
     expect(bomEditorRows(doc.drawing, 'it', doc.bom).find((r) => r.id === b.id)!.hidden).toBe(true)
     removeBomExtra(doc, x)
@@ -438,7 +438,7 @@ describe('distinta modificabile', () => {
     expect(bomRows(doc.drawing, 'it', doc.bom)).toHaveLength(2)
   })
 
-  it('un testo lungo va a capo nel PDF e il file si rilegge identico', () => {
+  it('a long text wraps in the PDF and the file reads back identical', () => {
     const { doc, a } = setup()
     setBomCell(doc, a.id, false, 'note', 'it', 'Verificare la tenuta a 150 bar prima di ogni campagna di prove a freddo')
     const svg = renderAllPages(doc, planExport(doc)).join('')
@@ -446,7 +446,7 @@ describe('distinta modificabile', () => {
     expect(JSON.parse(JSON.stringify(parseDocument(JSON.parse(JSON.stringify(doc)))))).toEqual(JSON.parse(JSON.stringify(doc)))
   })
 
-  it('eliminare un componente toglie le sue modifiche dalla distinta', () => {
+  it('deleting a component removes its edits from the bill of materials', () => {
     const { doc, a } = setup()
     setBomCell(doc, a.id, false, 'note', 'it', 'x')
     setBomHidden(doc, a.id, true)
@@ -456,14 +456,14 @@ describe('distinta modificabile', () => {
     expect(doc.bom.hidden).toEqual([])
   })
 
-  it('i file vecchi senza distinta modificabile si aprono', () => {
+  it('old files without the editable bill of materials open', () => {
     const raw = JSON.parse(JSON.stringify(createEmptyDocument()))
     delete raw.bom
     expect(parseDocument(raw).bom).toEqual({ overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] })
   })
 })
 
-describe('distinta a gruppi', () => {
+describe('grouped bill of materials', () => {
   const setup = () => {
     const doc = createEmptyDocument()
     const tank = addComponent(doc, 'vessel.tank', 0, 0)
@@ -474,20 +474,20 @@ describe('distinta a gruppi', () => {
   }
   const names = (doc: ReturnType<typeof createEmptyDocument>, lang: 'it' | 'en' = 'it') => bomItems(doc.drawing, lang, doc.bom).map((i) => (i.kind === 'group' ? `# ${i.name}` : i.row.tag))
 
-  it('di base le righe sono divise per tipo di componente, nell\'ordine serbatoi, valvole, strumenti', () => {
+  it('by default rows are split by component type, in the order vessels, valves, instruments', () => {
     const { doc, tank, v1, v2, pt } = setup()
     expect(names(doc)).toEqual(['# Serbatoi', tank.tag, '# Valvole', v1.tag, v2.tag, '# Strumenti', pt.tag])
     expect(names(doc, 'en')[0]).toBe('# Vessels')
     setBomGrouped(doc, false)
-    // senza gruppi: un elenco solo, per tag in ordine naturale
+    // without groups: a single list, by tag in natural order
     expect(names(doc)).toEqual([tank.tag, v1.tag, v2.tag, pt.tag].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })))
   })
 
-  it('si possono rinominare, creare, riordinare i gruppi e spostare le righe', () => {
+  it('groups can be renamed, created, reordered and rows moved', () => {
     const { doc, v1, v2, pt } = setup()
     renameBomGroup(doc, 'cat:valves', 'it', 'Intercettazione')
     expect(names(doc)).toContain('# Intercettazione')
-    expect(names(doc, 'en')).toContain('# Valves') // l\'inglese non cambia
+    expect(names(doc, 'en')).toContain('# Valves') // English does not change
     const g = addBomGroup(doc)
     renameBomGroup(doc, g, 'it', 'Linea ossidante')
     setBomRowGroup(doc, v2.id, false, g)
@@ -495,20 +495,20 @@ describe('distinta a gruppi', () => {
     const n = names(doc)
     expect(n.slice(n.indexOf('# Linea ossidante'))).toEqual(['# Linea ossidante', v2.tag, pt.tag])
     expect(n).toContain(v1.tag)
-    // sposta in alto il gruppo proprio
+    // moves the group itself up
     moveBomGroup(doc, g, -1); moveBomGroup(doc, g, -1); moveBomGroup(doc, g, -1)
     expect(names(doc)[0]).toBe('# Linea ossidante')
-    // riportare una riga nel gruppo del suo tipo non lascia tracce
+    // putting a row back in its type's group leaves no trace
     setBomRowGroup(doc, v2.id, false, 'cat:valves')
     expect(doc.bom.overrides[v2.id]).toBeUndefined()
-    // eliminare il gruppo riporta le righe al loro tipo
+    // deleting the group returns the rows to their type
     removeBomGroup(doc, g)
     expect(names(doc)).toEqual(expect.not.arrayContaining(['# Linea ossidante']))
     expect(doc.bom.overrides[pt.id]).toBeUndefined()
     expect(names(doc)).toContain('# Strumenti')
   })
 
-  it('il PDF mostra i gruppi, mai un\'intestazione sola in fondo alla pagina, e conta le pagine giuste', () => {
+  it('the PDF shows the groups, never a lone header at the bottom of the page, and counts the pages correctly', () => {
     const items = Array.from({ length: 7 }, (_, i) => (i % 3 === 0 && i < 6 ? { kind: 'group' as const, name: `G${i}`, count: 2 } : { kind: 'row' as const, row: { key: `k${i}`, tag: `T${i}`, description: '', type: '', size: '', pmax: '', note: '' } }))
     for (const per of [2, 3, 4, 5]) {
       const pages = paginateBom(items, per)
@@ -524,7 +524,7 @@ describe('distinta a gruppi', () => {
     expect(renderAllPages(doc, planExport(doc)).at(-1)!).not.toContain('VALVOLE')
   })
 
-  it('righe aggiunte a mano finiscono nel gruppo scelto, di base «Altro»', () => {
+  it('hand-added rows go in the chosen group, "Other" by default', () => {
     const { doc } = setup()
     const a = addBomExtra(doc)
     const g = addBomGroup(doc)
@@ -538,8 +538,8 @@ describe('distinta a gruppi', () => {
   })
 })
 
-describe('numerazione e sigle', () => {
-  it('i tag nuovi partono da 1 e la cella di carico è LC', () => {
+describe('numbering and codes', () => {
+  it('new tags start at 1 and the load cell is LC', () => {
     const doc = createEmptyDocument()
     expect(addComponent(doc, 'valve.ball', 0, 0).tag).toBe('BV-1')
     expect(addComponent(doc, 'valve.ball', 30, 0).tag).toBe('BV-2')
@@ -548,18 +548,18 @@ describe('numerazione e sigle', () => {
     expect(getSymbol('instr.wt').prims.some((p) => p.k === 'text' && p.s === 'LC')).toBe(true)
   })
 
-  it('rinumera da 1 i tag automatici (anche con vecchie sigle), senza toccare quelli a mano', () => {
+  it('renumbers automatic tags from 1 (also with old codes), without touching the hand-made ones', () => {
     const doc = createEmptyDocument()
     const mk = (symbol: string, tag: string) => { const c = addComponent(doc, symbol, 0, 0); c.tag = tag; return c }
     const a = mk('valve.ball', 'BV-101'), b = mk('valve.ball', 'BV-105'), hand = mk('valve.ball', 'MAIN')
     const sv = mk('valve.solenoid2', 'SV-101'), wt = mk('instr.wt', 'WT-102'), tt = mk('instr.tt', 'TT-101')
     expect(renumberTags(doc)).toBe(5)
     expect([a.tag, b.tag, hand.tag, sv.tag, wt.tag, tt.tag]).toEqual(['BV-1', 'BV-2', 'MAIN', 'EV-1', 'LC-1', 'TC-1'])
-    expect(renumberTags(doc)).toBe(0) // già a posto
+    expect(renumberTags(doc)).toBe(0) // already in place
     expect(checkIntegrity(doc)).toEqual([])
   })
 
-  it('un tag a mano già uguale a un numero libero non crea doppioni', () => {
+  it('a hand-made tag already equal to a free number creates no duplicates', () => {
     const doc = createEmptyDocument()
     const a = addComponent(doc, 'valve.ball', 0, 0); a.tag = 'BV-5'
     const b = addComponent(doc, 'valve.ball', 30, 0); b.tag = 'BV-9'

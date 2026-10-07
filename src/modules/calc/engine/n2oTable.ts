@@ -1,5 +1,5 @@
-// Generato dai dati NIST Chemistry WebBook (fluid.cgi, N2O = C10024972, equazione di stato Span-Wagner): saturazione da 183 K a 309 K, passo 1 K.
-// Unità SI: K, Pa, kg/m3, J/kg, J/(kg K), Pa s. Non modificare a mano.
+// Generated from NIST Chemistry WebBook data (fluid.cgi, N2O = C10024972, Span-Wagner equation of state): saturation from 183 K to 309 K, 1 K step.
+// SI units: K, Pa, kg/m3, J/kg, J/(kg K), Pa s. Do not edit by hand.
 export const N2O_T_MIN = 183
 export const N2O_T_MAX = 309
 

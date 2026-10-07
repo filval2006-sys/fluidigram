@@ -1,4 +1,4 @@
-/** Gas ideali comuni per la pressurizzazione. R specifica = R/M. */
+/** Common ideal gases for pressurization. Specific R = R/M. */
 export interface Gas { id: string; name: { it: string; en: string }; gamma: number; M: number }
 
 const R_UNIVERSAL = 8.314462618
@@ -18,14 +18,14 @@ export interface GasOrificeResult {
   /** kg/s */
   mdot: number
   choked: boolean
-  /** rapporto critico Pd/P0 sotto il quale la portata è bloccata */
+  /** critical ratio Pd/P0 below which the flow is choked */
   criticalRatio: number
 }
 
 /**
- * Portata di gas ideale attraverso un orifizio (isentropica monodimensionale).
- * P0, T0: ristagno a monte (Pa, K); Pd: pressione a valle; area in m². Non include il fattore di comprimibilità Z:
- * oltre ~100 bar è un'approssimazione.
+ * Flow rate of an ideal gas through an orifice (one-dimensional isentropic).
+ * P0, T0: upstream stagnation (Pa, K); Pd: downstream pressure; area in m². It does not include the compressibility factor Z:
+ * above ~100 bar it is an approximation.
  */
 export function gasOrificeFlow(gas: Gas, P0: number, T0: number, Pd: number, area: number, Cd: number): GasOrificeResult {
   const g = gas.gamma
@@ -42,7 +42,7 @@ export function gasOrificeFlow(gas: Gas, P0: number, T0: number, Pd: number, are
   return { mdot, choked: false, criticalRatio: critical }
 }
 
-/** Area (m²) per ottenere `mdot` (kg/s) con gas ideale. */
+/** Area (m²) to obtain `mdot` (kg/s) with an ideal gas. */
 export function gasRequiredArea(gas: Gas, P0: number, T0: number, Pd: number, mdot: number, Cd: number): number {
   const unit = gasOrificeFlow(gas, P0, T0, Pd, 1, Cd).mdot
   return unit > 0 ? mdot / unit : Infinity

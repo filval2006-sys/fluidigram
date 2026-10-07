@@ -1,4 +1,5 @@
-/** Apertura/salvataggio file: dialoghi nativi in Tauri, download/upload del browser altrimenti. */
+/** Opening and saving files: native dialogs in Tauri, browser download/upload otherwise. */
+import { t } from '../i18n'
 
 const inTauri = (): boolean => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
@@ -8,8 +9,8 @@ export async function openTextFile(extensions: string[]): Promise<OpenedFile | n
   if (inTauri()) {
     const { open } = await import('@tauri-apps/plugin-dialog')
     const { readTextFile } = await import('@tauri-apps/plugin-fs')
-    // "Tutti i file": una copia a cui il sistema ha cambiato o tolto l'estensione si apre lo stesso
-    const path = await open({ multiple: false, filters: [{ name: 'Fluidigram', extensions }, { name: 'Tutti i file', extensions: ['*'] }] })
+    // "All files": a copy whose extension was changed or removed by the system still opens
+    const path = await open({ multiple: false, filters: [{ name: 'Fluidigram', extensions }, { name: t('All files'), extensions: ['*'] }] })
     if (!path || Array.isArray(path)) return null
     return { name: path.split(/[\\/]/).pop() ?? path, path, text: await readTextFile(path) }
   }
@@ -45,8 +46,8 @@ const splitPath = (p: string) => {
 }
 
 /**
- * Salva uno o più file. Con `path` scrive direttamente il primo file (solo Tauri); altrimenti chiede dove salvare.
- * Con più file chiede una volta sola: gli altri finiscono nella stessa cartella. Restituisce il primo percorso (o nome), null se annullato.
+ * Saves one or more files. With `path` it writes the first file directly (Tauri only); otherwise it asks where to save.
+ * With several files it asks once: the others go in the same folder. Returns the first path (or name), null if cancelled.
  */
 export async function saveFiles(files: OutFile[], extension: string, filterName: string, path?: string): Promise<string | null> {
   if (!files.length) return null
@@ -55,7 +56,7 @@ export async function saveFiles(files: OutFile[], extension: string, filterName:
     const { invoke } = await import('@tauri-apps/api/core')
     const chosen = path ?? (await save({ defaultPath: files[0].name, filters: [{ name: filterName, extensions: [extension] }] }))
     if (!chosen) return null
-    // il nome scelto deve finire con l'estensione giusta, altrimenti il file diventa "sconosciuto"
+    // the chosen name must end with the right extension, otherwise the file becomes "unknown"
     const target = chosen.toLowerCase().endsWith('.' + extension) ? chosen : `${chosen}.${extension}`
     const { dir } = splitPath(target)
     for (let i = 0; i < files.length; i++) {

@@ -2,7 +2,7 @@ import {
   N2O_T_MAX, N2O_T_MIN, N2O_P, N2O_rhoL, N2O_rhoV, N2O_hL, N2O_hV, N2O_sL, N2O_sV, N2O_muL, N2O_cpL,
 } from './n2oTable'
 
-/** Proprietà del protossido d'azoto saturo (dati NIST, EOS di Span–Wagner), interpolate sulla tabella a passo 1 K. */
+/** Properties of saturated nitrous oxide (NIST data, Span–Wagner EOS), interpolated on the 1 K step table. */
 export interface N2OSat {
   T: number; P: number
   rhoL: number; rhoV: number
@@ -13,7 +13,7 @@ export interface N2OSat {
 
 export { N2O_T_MIN, N2O_T_MAX }
 
-/** Interpolazione cubica di Catmull–Rom su nodi equidistanti di 1 K. */
+/** Catmull–Rom cubic interpolation on nodes spaced 1 K apart. */
 function interp(arr: readonly number[], T: number): number {
   const x = T - N2O_T_MIN
   const i = Math.min(arr.length - 2, Math.max(0, Math.floor(x)))
@@ -39,7 +39,7 @@ export function satAtT(T: number): N2OSat {
 const N2O_P_MIN = N2O_P[0]
 const N2O_P_MAX = N2O_P[N2O_P.length - 1]
 
-/** Temperatura di saturazione alla pressione data (bisezione sulla pressione di vapore). */
+/** Saturation temperature at the given pressure (bisection on the vapor pressure). */
 export function satTempAtP(P: number): number {
   if (!(P >= N2O_P_MIN && P <= N2O_P_MAX)) throw new RangeError(`Pressione fuori campo di saturazione (${(N2O_P_MIN / 1e5).toFixed(2)}–${(N2O_P_MAX / 1e5).toFixed(1)} bar): ${(P / 1e5).toFixed(2)} bar`)
   let lo = N2O_T_MIN, hi = N2O_T_MAX
@@ -56,7 +56,7 @@ export const satAtP = (P: number): N2OSat => satAtT(satTempAtP(P))
 
 export interface N2OUpstream {
   sat: N2OSat
-  /** pressione a monte (≥ pressione di vapore) */
+  /** upstream pressure (≥ vapor pressure) */
   P: number
   rho: number
   h: number
@@ -64,8 +64,8 @@ export interface N2OUpstream {
 }
 
 /**
- * Stato del liquido nel serbatoio: saturo a temperatura T, eventualmente compresso dal gas pressurizzante a P ≥ Psat.
- * Il liquido compresso è trattato come incomprimibile (errore sulla densità < 1% sotto circa 30 bar di sovrapressione).
+ * State of the liquid in the tank: saturated at temperature T, possibly compressed by the pressurant gas to P ≥ Psat.
+ * Compressed liquid is treated as incompressible (density error < 1% below about 30 bar of overpressure).
  */
 export function upstreamState(T: number, P?: number): N2OUpstream {
   const sat = satAtT(T)
@@ -73,9 +73,9 @@ export function upstreamState(T: number, P?: number): N2OUpstream {
   return { sat, P: Pu, rho: sat.rhoL, h: sat.hL + (Pu - sat.P) / sat.rhoL, s: sat.sL }
 }
 
-/** Flusso massico specifico (kg/s/m²) dell'espansione isentropica all'equilibrio fino alla pressione P. */
+/** Specific mass flux (kg/s/m²) of the isentropic expansion at equilibrium down to pressure P. */
 function equilibriumFlux(up: N2OUpstream, P: number): number {
-  if (P >= up.sat.P) return Math.sqrt(2 * up.rho * Math.max(0, up.P - P)) // ancora liquido: coincide con SPI
+  if (P >= up.sat.P) return Math.sqrt(2 * up.rho * Math.max(0, up.P - P)) // still liquid: same as SPI
   const d = satAtP(P)
   const x = Math.min(1, Math.max(0, (up.s - d.sL) / (d.sV - d.sL)))
   const h = d.hL + x * (d.hV - d.hL)
@@ -87,8 +87,8 @@ function equilibriumFlux(up: N2OUpstream, P: number): number {
 export const spiFlux = (up: N2OUpstream, Pd: number): number => Math.sqrt(2 * up.rho * Math.max(0, up.P - Pd))
 
 /**
- * HEM: flusso a pressione di valle Pd. Con `choked` (predefinito) è il massimo tra Pd e la pressione a monte,
- * cioè la portata critica: sotto la pressione di blocco la portata non cresce più abbassando Pd.
+ * HEM: flow at downstream pressure Pd. With `choked` (default) it is the maximum between Pd and the upstream pressure,
+ * i.e. the critical flow: below the choking pressure the flow no longer grows when lowering Pd.
  */
 export function hemFlux(up: N2OUpstream, Pd: number, choked = true): number {
   if (!choked) return equilibriumFlux(up, Pd)
@@ -100,7 +100,7 @@ export function hemFlux(up: N2OUpstream, Pd: number, choked = true): number {
     const g = equilibriumFlux(up, at(i))
     if (g > best) { best = g; bi = i }
   }
-  // raffina il massimo con una ricerca a sezione aurea tra i nodi vicini
+  // refines the maximum with a golden-section search between the neighboring nodes
   let a = at(Math.max(0, bi - 1)), b = at(Math.min(N, bi + 1))
   const phi = (Math.sqrt(5) - 1) / 2
   let c = b - phi * (b - a), d = a + phi * (b - a)
@@ -113,19 +113,19 @@ export function hemFlux(up: N2OUpstream, Pd: number, choked = true): number {
 }
 
 export interface N2OFlux {
-  /** flussi specifici in kg/s/m² */
+  /** specific fluxes in kg/s/m² */
   spi: number
   hem: number
   dyer: number
-  /** parametro di non-equilibrio di Dyer, = Infinity se non c'è vaporizzazione (Pd ≥ Pv) */
+  /** Dyer non-equilibrium parameter, = Infinity if there is no vaporization (Pd ≥ Pv) */
   kappa: number
-  /** regime: liquido (nessuna vaporizzazione) o bifase (flashing) */
+  /** regime: liquid (no vaporization) or two-phase (flashing) */
   regime: 'liquid' | 'two-phase'
 }
 
 /**
- * Modello di Dyer et al. (2007): media pesata di SPI e HEM con κ = √((P₁−P₂)/(Pv−P₂)).
- * ṁ/A = κ/(κ+1)·G_SPI + 1/(κ+1)·G_HEM. Se la valle è sopra la pressione di vapore il flusso è liquido (SPI).
+ * Dyer et al. (2007) model: weighted average of SPI and HEM with κ = √((P₁−P₂)/(Pv−P₂)).
+ * ṁ/A = κ/(κ+1)·G_SPI + 1/(κ+1)·G_HEM. If the downstream is above the vapor pressure the flow is liquid (SPI).
  */
 export function n2oFlux(up: N2OUpstream, Pd: number, choked = true): N2OFlux {
   const spi = spiFlux(up, Pd)
@@ -143,14 +143,14 @@ export interface N2OInjectorResult extends N2OFlux {
   up: N2OUpstream
 }
 
-/** Portata attraverso un'area (m²) con coefficiente di scarico Cd. */
+/** Flow rate through an area (m²) with discharge coefficient Cd. */
 export function n2oMassFlow(T: number, Pu: number | undefined, Pd: number, area: number, Cd: number, choked = true): N2OInjectorResult {
   const up = upstreamState(T, Pu)
   const f = n2oFlux(up, Pd, choked)
   return { ...f, mdotSPI: Cd * area * f.spi, mdotHEM: Cd * area * f.hem, mdotDyer: Cd * area * f.dyer, area, up }
 }
 
-/** Area (m²) necessaria per ottenere la portata `mdot` (kg/s) secondo Dyer. */
+/** Area (m²) needed to obtain the flow `mdot` (kg/s) according to Dyer. */
 export function n2oRequiredArea(T: number, Pu: number | undefined, Pd: number, mdot: number, Cd: number, choked = true): number {
   const f = n2oFlux(upstreamState(T, Pu), Pd, choked)
   return f.dyer > 0 ? mdot / (Cd * f.dyer) : Infinity

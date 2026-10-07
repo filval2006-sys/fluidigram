@@ -15,12 +15,12 @@ export class UnionFind {
 
 export const portKey = (c: string, p: string): string => `${c}:${p}`
 
-/** Componenti le cui porte sono tutte lo stesso punto fluidico (il fluido passa liberamente). */
+/** Components whose ports are all the same fluid point (the fluid passes freely). */
 export const JOIN_ALL = new Set([
   'fitting.junction', 'fitting.filter', 'fitting.orifice', 'fitting.reducer', 'fitting.flange', 'fitting.hose', 'fitting.qd', 'engine.injector',
 ])
 
-/** Valvole di cui ha senso indicare lo stato per fase (le valvole di non ritorno e di sicurezza lavorano da sole). */
+/** Valves for which it makes sense to state the per-phase state (check and relief valves work on their own). */
 function isPhaseValve(c: Component): boolean {
   const def = getSymbol(c.symbol)
   return def.category === 'valves' && !def.id.startsWith('valve.check') && def.id !== 'valve.relief'

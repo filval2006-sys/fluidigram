@@ -4,5 +4,5 @@ declare module 'dejavu-fonts-ttf/ttf/*.ttf?url' {
   export default url
 }
 
-/** Versione dell'app, da package.json. */
+/** App version, from package.json. */
 declare const __APP_VERSION__: string

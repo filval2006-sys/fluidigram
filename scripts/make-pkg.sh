@@ -1,6 +1,6 @@
 #!/bin/bash
-# Crea l'installer guidato di macOS (.pkg) a partire da Fluidigram.app.
-# Uso: scripts/make-pkg.sh <percorso/Fluidigram.app> <versione> <file-di-uscita.pkg>
+# Creates the guided macOS installer (.pkg) from Fluidigram.app.
+# Usage: scripts/make-pkg.sh <path/Fluidigram.app> <version> <output-file.pkg>
 set -euo pipefail
 APP="$1"; VERSION="$2"; OUT="$3"
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -13,7 +13,7 @@ ID="it.fluidigram.app"
 mkdir -p "$WORK/root/Applications"
 cp -R "$APP" "$WORK/root/Applications/Fluidigram.app"
 
-# componente: non «rilocabile», altrimenti l'installer aggiornerebbe una copia dell'app trovata altrove
+# component: not "relocatable", otherwise the installer would update a copy of the app found elsewhere
 pkgbuild --analyze --root "$WORK/root" "$WORK/components.plist" >/dev/null
 for key in BundleIsRelocatable BundleIsVersionChecked; do
   /usr/libexec/PlistBuddy -c "Set :0:$key false" "$WORK/components.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :0:$key bool false" "$WORK/components.plist"

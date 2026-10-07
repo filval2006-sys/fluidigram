@@ -1,12 +1,12 @@
-/** Apertura di file `.fluidigram` richiesta dal sistema (doppio clic, "Apri con", trascinamento sull'icona). Solo nell'app nativa. */
+/** Opening of `.fluidigram` files requested by the system (double click, "Open with", drop on the icon). Native app only. */
 
 const inTauri = (): boolean => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
 export interface SystemFile { path: string; text: string }
 
 /**
- * Registra `onFile` per i file aperti dal sistema, compresi quelli arrivati prima che l'interfaccia fosse pronta.
- * Restituisce la funzione per annullare la registrazione.
+ * Registers `onFile` for files opened by the system, including those that arrived before the interface was ready.
+ * Returns the function that unregisters it.
  */
 export async function listenForSystemFiles(onFile: (f: SystemFile | { path: string; error: string }) => void): Promise<() => void> {
   if (!inTauri()) return () => {}
@@ -22,12 +22,12 @@ export async function listenForSystemFiles(onFile: (f: SystemFile | { path: stri
     }
   }
   const unlisten = await listen<string[]>('open-files', (e) => void handle(e.payload))
-  // i file con cui l'app è stata aperta si leggono prima di restituire il controllo: così la pagina iniziale non compare per un attimo
+  // the files the app was launched with are read before returning, so the home page does not flash up first
   await handle(await invoke<string[]>('take_pending_files'))
   return unlisten
 }
 
-/** Legge il testo di un progetto a un percorso già noto (per i file recenti). Solo nell'app nativa. */
+/** Reads the text of a project at a known path (for recent files). Native app only. */
 export async function readProjectText(path: string): Promise<string> {
   const { invoke } = await import('@tauri-apps/api/core')
   return invoke<string>('read_project_file', { path })

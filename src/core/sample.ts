@@ -1,6 +1,6 @@
 import type { FluidDocument } from './types'
 
-/** Impianto di esempio: pressurizzazione N₂ di un serbatoio ossidante con linea di scarico. */
+/** Sample plant: N₂ pressurization of an oxidizer tank with a vent line. */
 export const SAMPLE_DOCUMENT: FluidDocument = {
   version: 2,
   bom: { overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] },

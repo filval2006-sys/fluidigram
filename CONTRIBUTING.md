@@ -23,7 +23,9 @@ CI runs the same checks on every push and pull request.
 
 ## Conventions
 
-- **Language:** code, comments, tests, commit messages and documentation are in English. The app interface is currently Italian; exported drawings are available in Italian and English (every user-visible string in a drawing is an `{ it, en }` pair).
+- **Language:** code, comments, tests, commit messages and documentation are in English.
+- **Interface translations:** the app is available in English and Italian. Source strings in the code are English and go through `t('…')` from `src/i18n`; the Italian text lives in `src/i18n/it.ts` (English string → Italian). Plurals use `tp(n, 'one', 'other')`, constants use `N_('…')` and are translated with `t()` where they are shown. `src/i18n/i18n.test.ts` fails if a string has no Italian entry or an entry is unused. To add a language, add a dictionary and extend `UiLang`.
+- **Drawings:** exported drawings have their own language, independent of the interface: every text a drawing shows is an `{ it, en }` pair.
 - **Architecture:** `core ← state ← ui ← App`. `core` is pure (no React, no browser APIs); optional modules live in `src/modules` and are imported only by `src/App.tsx`. `src/architecture.test.ts` enforces this.
 - **Documents:** `.fluidigram` files are versioned JSON validated with zod. A new field needs a default so old files keep opening, and a test.
 - **Tests:** put tests next to the code (`*.test.ts`). Anything that touches the model, routing, export or checks needs one.

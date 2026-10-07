@@ -3,19 +3,20 @@ import { ChevronLeft, ChevronRight, FileImage, FileText, FileType, Loader2, Plus
 import { PAGE, describePlan, planExport, renderAllPages, renderPhasePages, type ExportMode, type Lang, type SheetFormat } from '../core'
 import { svgPagesToPdf, svgToPng } from '../platform/exporters'
 import { saveFiles, type OutFile } from '../platform/files'
+import { N_, t, tp, uiLanguage } from '../i18n'
 import { useActiveTab, useStore } from '../state/store'
 import { Field, Section, TextField } from './Fields'
 import type { Notify } from './projectActions'
 
-const slug = (s: string) => s.trim().replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '') || 'progetto'
+const slug = (s: string) => s.trim().replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '') || t('project')
 
 const MODES: { id: ExportMode; label: string; hint: string }[] = [
-  { id: 'auto', label: 'Automatica', hint: 'Scala 1:1 se ci sta, altrimenti riduce un po\' e, se serve, divide in più fogli.' },
-  { id: 'fit', label: 'Un solo foglio', hint: 'Riduce tutto per farlo stare su un foglio.' },
-  { id: 'split', label: 'Più fogli 1:1', hint: 'Mantiene la scala 1:1 e divide in più fogli con frecce di continuazione.' },
+  { id: 'auto', label: N_('Automatic'), hint: N_('Scale 1:1 if it fits, otherwise shrinks a little and, if needed, splits over several sheets.') },
+  { id: 'fit', label: N_('One sheet'), hint: N_('Shrinks everything to fit on one sheet.') },
+  { id: 'split', label: N_('Several sheets 1:1'), hint: N_('Keeps the 1:1 scale and splits over several sheets with continuation arrows.') },
 ]
 
-/** `design`: il disegno (schema, distinta, tabella stati); `phases`: il documento delle fasi di funzionamento. */
+/** `design`: the drawing (diagram, bill of materials, states table); `phases`: the operating phases document. */
 export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: () => void; notify: Notify; kind?: 'design' | 'phases' }) {
   const phasesDoc = kind === 'phases'
   const tab = useActiveTab()
@@ -60,9 +61,9 @@ export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: ()
         for (let i = 0; i < pages.length; i++) files.push({ name: `${base}${pages.length > 1 ? `_f${i + 1}` : ''}.png`, data: await svgToPng(pages[i], 200), mime: 'image/png' })
       }
       const saved = await saveFiles(files, kind, kind.toUpperCase())
-      if (saved) { notify(files.length > 1 ? `Esportati ${files.length} file ${kind.toUpperCase()}` : `Esportato in ${kind.toUpperCase()}`); onClose() }
+      if (saved) { notify(files.length > 1 ? t('Exported {n} {kind} files', { n: files.length, kind: kind.toUpperCase() }) : t('Exported as {kind}', { kind: kind.toUpperCase() })); onClose() }
     } catch (e) {
-      notify(`Esportazione non riuscita: ${e instanceof Error ? e.message : String(e)}`, 'err')
+      notify(t('Export failed: {error}', { error: e instanceof Error ? e.message : String(e) }), 'err')
     } finally {
       setBusy(null)
     }
@@ -72,68 +73,68 @@ export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: ()
 
   return (
     <div className="modal-bg" onMouseDown={() => { if (!busy) onClose() }}>
-      <div className="export" role="dialog" aria-modal aria-label="Esporta" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="export" role="dialog" aria-modal aria-label={t('Export')} onMouseDown={(e) => e.stopPropagation()}>
         <header className="export-head">
-          <h2>{phasesDoc ? 'Esporta fasi di funzionamento' : 'Esporta disegno'}</h2>
-          <span className="export-summary">{phasesDoc ? `${pages.length} ${pages.length === 1 ? 'foglio' : 'fogli'}: una pagina per fase e la tabella riassuntiva` : describePlan(plan, 'it')}</span>
+          <h2>{phasesDoc ? t('Export operating phases') : t('Export drawing')}</h2>
+          <span className="export-summary">{phasesDoc ? t('{sheets}: one page per phase and the summary table', { sheets: tp(pages.length, '{n} sheet', '{n} sheets') }) : describePlan(plan, uiLanguage())}</span>
           <div className="spacer" />
-          <button className="icon-btn" aria-label="Chiudi" onClick={onClose} disabled={!!busy}><X size={18} /></button>
+          <button className="icon-btn" aria-label={t('Close')} onClick={onClose} disabled={!!busy}><X size={18} /></button>
         </header>
 
         <div className="export-body">
           <div className="export-side">
-            <Section title="Documento">
-              <Field label="Lingua del disegno">
+            <Section title={t('Document')}>
+              <Field label={t('Drawing language')}>
                 <div className="seg wide" role="group">
                   <button className={ex.lang === 'it' ? 'on' : ''} onClick={() => setEx({ lang: 'it' })}>Italiano</button>
                   <button className={ex.lang === 'en' ? 'on' : ''} onClick={() => setEx({ lang: 'en' })}>English</button>
                 </div>
               </Field>
-              <Field label="Formato foglio">
+              <Field label={t('Sheet format')}>
                 <select value={ex.format} onChange={(e) => setEx({ format: e.target.value as SheetFormat })}>
                   {(['A4', 'A3', 'A2'] as const).map((f) => <option key={f} value={f}>{f} ({fmtDims(f)})</option>)}
                 </select>
               </Field>
-              {!phasesDoc && <Field label="Impaginazione">
+              {!phasesDoc && <Field label={t('Layout')}>
                 <div className="radios">
                   {MODES.map((m) => (
                     <label key={m.id} className={'radio' + (ex.mode === m.id ? ' on' : '')}>
                       <input type="radio" name="mode" checked={ex.mode === m.id} onChange={() => setEx({ mode: m.id })} />
-                      <span><b>{m.label}</b><small>{m.hint}</small></span>
+                      <span><b>{t(m.label)}</b><small>{t(m.hint)}</small></span>
                     </label>
                   ))}
                 </div>
               </Field>}
               <div className="checks">
-                <label><input type="checkbox" checked={ex.color} onChange={(e) => setEx({ color: e.target.checked })} />{phasesDoc ? 'A colori (stati verde e rosso; altrimenti bianco e nero)' : 'Linee a colori (altrimenti bianco e nero)'}</label>
-                {!phasesDoc && <><label><input type="checkbox" checked={ex.legend} onChange={(e) => setEx({ legend: e.target.checked })} />Legenda</label>
-                <label><input type="checkbox" checked={ex.bom} onChange={(e) => setEx({ bom: e.target.checked })} />Distinta componenti</label>
-                {doc.phases.length > 0 && <label><input type="checkbox" checked={ex.states} onChange={(e) => setEx({ states: e.target.checked })} />Tabella stati delle valvole per fase</label>}</>}
+                <label><input type="checkbox" checked={ex.color} onChange={(e) => setEx({ color: e.target.checked })} />{phasesDoc ? t('In color (green and red states; otherwise black and white)') : t('Colored lines (otherwise black and white)')}</label>
+                {!phasesDoc && <><label><input type="checkbox" checked={ex.legend} onChange={(e) => setEx({ legend: e.target.checked })} />{t('Legend')}</label>
+                <label><input type="checkbox" checked={ex.bom} onChange={(e) => setEx({ bom: e.target.checked })} />{t('Bill of materials')}</label>
+                {doc.phases.length > 0 && <label><input type="checkbox" checked={ex.states} onChange={(e) => setEx({ states: e.target.checked })} />{t('Valve states table per phase')}</label>}</>}
               </div>
             </Section>
 
-            <Section title="Cartiglio">
-              <Field label="Titolo (IT)"><TextField value={doc.meta.title.it} onCommit={(v) => l10n('title', 'it', v)} /></Field>
-              <Field label="Title (EN)"><TextField value={doc.meta.title.en} onCommit={(v) => l10n('title', 'en', v)} /></Field>
-              <Field label="Sottotitolo (IT)"><TextField value={doc.meta.subtitle?.it ?? ''} onCommit={(v) => l10n('subtitle', 'it', v)} /></Field>
-              <Field label="Subtitle (EN)"><TextField value={doc.meta.subtitle?.en ?? ''} onCommit={(v) => l10n('subtitle', 'en', v)} /></Field>
-              <Field label="Azienda / progetto"><TextField value={doc.meta.company} onCommit={text('company')} /></Field>
+            <Section title={t('Title block')}>
+              <Field label={t('Title (IT)')}><TextField value={doc.meta.title.it} onCommit={(v) => l10n('title', 'it', v)} /></Field>
+              <Field label={t('Title (EN)')}><TextField value={doc.meta.title.en} onCommit={(v) => l10n('title', 'en', v)} /></Field>
+              <Field label={t('Subtitle (IT)')}><TextField value={doc.meta.subtitle?.it ?? ''} onCommit={(v) => l10n('subtitle', 'it', v)} /></Field>
+              <Field label={t('Subtitle (EN)')}><TextField value={doc.meta.subtitle?.en ?? ''} onCommit={(v) => l10n('subtitle', 'en', v)} /></Field>
+              <Field label={t('Company / project')}><TextField value={doc.meta.company} onCommit={text('company')} /></Field>
               <div className="two">
-                <Field label="N. disegno"><TextField value={doc.meta.drawingNo} onCommit={text('drawingNo')} /></Field>
-                <Field label="Revisione"><TextField value={doc.meta.revision} onCommit={text('revision')} /></Field>
+                <Field label={t('Drawing No.')}><TextField value={doc.meta.drawingNo} onCommit={text('drawingNo')} /></Field>
+                <Field label={t('Revision')}><TextField value={doc.meta.revision} onCommit={text('revision')} /></Field>
               </div>
               <div className="two">
-                <Field label="Data"><TextField value={doc.meta.date} onCommit={text('date')} /></Field>
+                <Field label={t('Date')}><TextField value={doc.meta.date} onCommit={text('date')} /></Field>
                 <span />
               </div>
               <div className="two">
-                <Field label="Disegnato da"><TextField value={doc.meta.drawnBy} onCommit={text('drawnBy')} /></Field>
-                <Field label="Verificato da"><TextField value={doc.meta.checkedBy} onCommit={text('checkedBy')} /></Field>
+                <Field label={t('Drawn by')}><TextField value={doc.meta.drawnBy} onCommit={text('drawnBy')} /></Field>
+                <Field label={t('Checked by')}><TextField value={doc.meta.checkedBy} onCommit={text('checkedBy')} /></Field>
               </div>
             </Section>
 
-            <Section title="Revisioni" action={
-              <button className="icon-btn" aria-label="Aggiungi revisione" onClick={() => edit((d) => {
+            <Section title={t('Revisions')} action={
+              <button className="icon-btn" aria-label={t('Add revision')} onClick={() => edit((d) => {
                 const next = String.fromCharCode((d.revisions.at(-1)?.rev.charCodeAt(0) ?? 64) + 1)
                 d.revisions.push({ rev: next, date: new Date().toISOString().slice(0, 10), description: { it: '', en: '' }, author: d.meta.drawnBy })
                 d.meta.revision = next
@@ -142,10 +143,10 @@ export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: ()
               {doc.revisions.map((r, idx) => (
                 <div className="rev" key={idx}>
                   <TextField value={r.rev} ariaLabel="Rev" onCommit={(v) => edit((d) => { d.revisions[idx].rev = v })} />
-                  <TextField value={r.date} ariaLabel="Data revisione" onCommit={(v) => edit((d) => { d.revisions[idx].date = v })} />
-                  <TextField value={r.description.it} ariaLabel="Descrizione IT" placeholder="Descrizione IT" onCommit={(v) => edit((d) => { d.revisions[idx].description.it = v })} />
-                  <TextField value={r.description.en} ariaLabel="Description EN" placeholder="Description EN" onCommit={(v) => edit((d) => { d.revisions[idx].description.en = v })} />
-                  <button className="icon-btn" aria-label="Elimina revisione" onClick={() => edit((d) => { d.revisions.splice(idx, 1) })}><Trash2 size={13} /></button>
+                  <TextField value={r.date} ariaLabel={t('Revision date')} onCommit={(v) => edit((d) => { d.revisions[idx].date = v })} />
+                  <TextField value={r.description.it} ariaLabel={t('Description IT')} placeholder={t('Description IT')} onCommit={(v) => edit((d) => { d.revisions[idx].description.it = v })} />
+                  <TextField value={r.description.en} ariaLabel={t('Description EN')} placeholder={t('Description EN')} onCommit={(v) => edit((d) => { d.revisions[idx].description.en = v })} />
+                  <button className="icon-btn" aria-label={t('Delete revision')} onClick={() => edit((d) => { d.revisions.splice(idx, 1) })}><Trash2 size={13} /></button>
                 </div>
               ))}
             </Section>
@@ -156,14 +157,14 @@ export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: ()
               <div className="preview-page" dangerouslySetInnerHTML={{ __html: pages[cur - 1] }} />
             </div>
             <div className="preview-nav">
-              <button className="icon-btn" aria-label="Foglio precedente" disabled={cur <= 1} onClick={() => setPage(cur - 1)}><ChevronLeft size={18} /></button>
-              <span>Foglio {cur} di {pages.length}{phasesDoc ? '' : cur > plan.tiles.length + plan.bomPages ? ' · stati valvole' : cur > plan.tiles.length ? ' · distinta' : ''}</span>
-              <button className="icon-btn" aria-label="Foglio successivo" disabled={cur >= pages.length} onClick={() => setPage(cur + 1)}><ChevronRight size={18} /></button>
+              <button className="icon-btn" aria-label={t('Previous sheet')} disabled={cur <= 1} onClick={() => setPage(cur - 1)}><ChevronLeft size={18} /></button>
+              <span>{t('Sheet {cur} of {total}', { cur, total: pages.length })}{phasesDoc ? '' : cur > plan.tiles.length + plan.bomPages ? ' · ' + t('valve states') : cur > plan.tiles.length ? ' · ' + t('bill of materials') : ''}</span>
+              <button className="icon-btn" aria-label={t('Next sheet')} disabled={cur >= pages.length} onClick={() => setPage(cur + 1)}><ChevronRight size={18} /></button>
             </div>
             {pages.length > 1 && (
               <div className="thumbs">
                 {pages.map((p, i) => (
-                  <button key={i} className={'thumb' + (i + 1 === cur ? ' on' : '')} onClick={() => setPage(i + 1)} aria-label={`Foglio ${i + 1}`}>
+                  <button key={i} className={'thumb' + (i + 1 === cur ? ' on' : '')} onClick={() => setPage(i + 1)} aria-label={t('Sheet {n}', { n: i + 1 })}>
                     <span dangerouslySetInnerHTML={{ __html: p }} /><i>{i + 1}</i>
                   </button>
                 ))}
@@ -173,9 +174,9 @@ export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: ()
         </div>
 
         <footer className="export-foot">
-          <span className="muted">{busy ? `Creo ${busy}…` : 'Il disegno originale non cambia: l\'impaginazione si calcola a ogni esportazione.'}</span>
+          <span className="muted">{busy ? t('Creating {kind}…', { kind: busy }) : t('The original drawing does not change: the layout is calculated at each export.')}</span>
           <div className="spacer" />
-          <button onClick={onClose} disabled={!!busy}>Annulla</button>
+          <button onClick={onClose} disabled={!!busy}>{t('Cancel')}</button>
           <button onClick={() => run('png')} disabled={!!busy}><FileImage size={15} />PNG</button>
           <button onClick={() => run('svg')} disabled={!!busy}><FileType size={15} />SVG</button>
           <button className="primary" onClick={() => run('pdf')} disabled={!!busy}>{busy === 'PDF' ? <Loader2 size={15} className="spin" /> : <FileText size={15} />}PDF</button>

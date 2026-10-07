@@ -1,6 +1,6 @@
 import type { Lang } from './types'
 
-/** Testi fissi del disegno esportato (cartiglio, legenda, tabelle). */
+/** Fixed texts of the exported drawing (title block, legend, tables). */
 const EXPORT_TEXT = {
   title: { it: 'TITOLO', en: 'TITLE' },
   drawingNo: { it: 'N. DISEGNO', en: 'DRAWING No.' },

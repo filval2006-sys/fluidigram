@@ -7,19 +7,20 @@ import {
   type Component, type Dir, type Point, type PortRef,
 } from '../core'
 import { useActiveTab, useShownPhase, useStore, type View } from '../state/store'
+import { t, uiLanguage } from '../i18n'
 import { isTyping, runEditCommand } from './commands'
 import { DrawBar } from './DrawBar'
 import { SYMBOL_DRAG_TYPE } from './Library'
 
 const isAnn = (id: string) => id.startsWith('ann.')
-/** Crea un componente o un'annotazione a seconda dell'id dell'elemento in libreria. Restituisce l'id creato. */
+/** Creates a component or an annotation depending on the id of the library item. Returns the created id. */
 function placeItem(itemId: string, x: number, y: number): string {
   let id = ''
   useStore.getState().edit((d) => {
     if (isAnn(itemId)) { id = addAnnotation(d, itemId === 'ann.box' ? 'box' : 'text', x, y).id; return }
     const c = addComponent(d, itemId, x, y)
     id = c.id
-    mountInstrument(d.drawing, c, useStore.getState().draw.fluid) // un sensore posato accanto a un attacco libero si monta direttamente
+    mountInstrument(d.drawing, c, useStore.getState().draw.fluid) // a sensor placed next to a free connection mounts directly
   })
   return id
 }
@@ -43,7 +44,7 @@ const Html = memo(function Html({ html, ...rest }: { html: string; 'data-kind': 
   return <g {...rest} dangerouslySetInnerHTML={{ __html: html }} />
 })
 
-/** Inquadra tutto il disegno (o l'origine se è vuoto). */
+/** Frames the whole drawing (or the origin if empty). */
 function fitView(w: number, h: number, bounds: { x: number; y: number; w: number; h: number } | null): View {
   const b = bounds ?? { x: -20, y: -15, w: 200, h: 130 }
   const k = Math.max(MIN_K, Math.min(MAX_K, Math.min((w - 120) / b.w, (h - 160) / b.h), 6))
@@ -57,7 +58,7 @@ export function Canvas() {
   const tab = useActiveTab()
   const { draw, placing, inspectorTab, focusRequest } = useStore()
   const activePhase = useShownPhase()
-  // nel passo «Funzionamento» lo schema è da guardare: niente spostamenti, collegamenti o cancellazioni; le valvole si cliccano per cambiarne lo stato
+  // in the Operation step the diagram is for viewing: no moving, connecting or deleting; valves are clicked to change their state
   const locked = useStore((s) => s.step === 'operation')
   const store = useStore
   const sheet = tab.doc.drawing
@@ -98,7 +99,7 @@ export function Canvas() {
     store.getState().setView({ k, x: cx - (cx - v.x) * f, y: cy - (cy - v.y) * f })
   }, [store])
 
-  // inquadra gli elementi richiesti (clic su un controllo o su una valvola della tabella fasi)
+  // frames the requested elements (click on a check or on a valve in the phases table)
   useEffect(() => {
     if (!focusRequest || !size.w) return
     const d = store.getState().tabs.find((t) => t.id === store.getState().activeId)?.doc.drawing
@@ -120,7 +121,7 @@ export function Canvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest])
 
-  // rotella: pan; ctrl/cmd + rotella o pizzico: zoom sul puntatore
+  // wheel: pan; ctrl/cmd + wheel or pinch: zoom at the pointer
   useEffect(() => {
     const el = svgRef.current
     if (!el) return
@@ -145,7 +146,7 @@ export function Canvas() {
       const mod = e.metaKey || e.ctrlKey
       const sel = new Set(st.tabs.find((t) => t.id === st.activeId)?.selection ?? [])
       if (e.code === 'Space') { setSpace(true); e.preventDefault(); return }
-      // stessi comandi del menu (se arrivano due volte, il secondo viene ignorato)
+      // same commands as the menu (if they arrive twice, the second is ignored)
       if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); runEditCommand(e.shiftKey ? 'redo' : 'undo'); return }
       if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); runEditCommand('redo'); return }
       if (mod && e.key.toLowerCase() === 'a') { e.preventDefault(); runEditCommand('select-all'); return }
@@ -153,7 +154,7 @@ export function Canvas() {
       if (e.key === '0' && !mod) { if (wrapRef.current) { const t = st.tabs.find((x) => x.id === st.activeId)!; st.setView(fitView(wrapRef.current.clientWidth, wrapRef.current.clientHeight, drawingBounds(t.doc.drawing))) } return }
       if ((e.key === '+' || e.key === '=') && !mod) { zoomAt(1.25, size.w / 2, size.h / 2); return }
       if (e.key === '-' && !mod) { zoomAt(0.8, size.w / 2, size.h / 2); return }
-      if (st.step === 'operation') return // nel passo «Funzionamento» lo schema non si modifica
+      if (st.step === 'operation') return // in the Operation step the diagram is not edited
       if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); runEditCommand('paste'); return }
       if (!sel.size) return
       if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); runEditCommand('copy'); return }
@@ -178,7 +179,7 @@ export function Canvas() {
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
   }, [store, zoomAt, size])
 
-  // copia/taglia/incolla del sistema (voci di menu, o tastiera quando il menu le intercetta): agiscono sul disegno se non si sta scrivendo
+  // system copy/cut/paste (menu entries, or keyboard when the menu intercepts them): they act on the drawing unless typing
   useEffect(() => {
     const handler = (id: 'copy' | 'cut' | 'paste') => (e: ClipboardEvent) => {
       if (isTyping(e.target) || document.querySelector('.modal-bg')) return
@@ -190,7 +191,7 @@ export function Canvas() {
     return () => { document.removeEventListener('copy', copy); document.removeEventListener('cut', cut); document.removeEventListener('paste', paste) }
   }, [])
 
-  // zoom richiesto dal menu Visualizza
+  // zoom requested by the View menu
   const viewRequest = useStore((s) => s.viewRequest)
   useEffect(() => {
     if (!viewRequest || !size.w) return
@@ -199,8 +200,8 @@ export function Canvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewRequest])
 
-  // ---- contenuti statici e per elemento ----
-  // posizione di tag ed etichette: dipende da tutto il disegno (linee, vicini, note)
+  // ---- static contents and per-element ----
+  // position of tags and labels: depends on the whole drawing (lines, neighbors, notes)
   const labels = useMemo(() => planLabels(sheet), [sheet])
   const compHtml = useMemo(
     () => sheet.components.map((c) => [c, renderComponent(c, { state: activePhase ? c.states?.[activePhase] : undefined, label: labels.tags.get(c.id) }), worldExtent(c)] as const),
@@ -237,7 +238,7 @@ export function Canvas() {
     return exclude ? pickPortToward(best.cands, exclude.p) : best.cands[0]
   }
 
-  /** Linea sotto il cursore (entro ~2,5 mm) con il punto di derivazione agganciato alla griglia. */
+  /** Line under the cursor (within ~2.5 mm) with the branch point snapped to the grid. */
   const lineAt = (w: Point): { lineId: string; point: Point } | undefined => {
     let best: { lineId: string; point: Point; dist: number } | undefined
     for (const [l, , pts] of lineHtml) {
@@ -255,7 +256,7 @@ export function Canvas() {
     return best && { lineId: best.lineId, point: best.point }
   }
 
-  // maniglie della linea selezionata
+  // handles of the selected line
   const selectedLine = tab.selection.length === 1 ? sheet.lines.find((l) => l.id === tab.selection[0]) : undefined
   const lineHandles = useMemo(() => {
     if (!selectedLine || locked) return null
@@ -427,7 +428,7 @@ export function Canvas() {
       const ref: PortRef = { componentId: d.hover.comp.id, portId: d.hover.id }
       st.edit((doc) => { reconnectLine(doc.drawing, d.lineId, d.end, ref) })
     } else if (d.t === 'move' && d.moved) {
-      // sensori trascinati contro un attacco libero: si montano direttamente (stesso passo di annullamento dello spostamento)
+      // sensors dragged against a free connection: they mount directly (same undo step as the move)
       st.editTransient((doc) => {
         for (const c of doc.drawing.components) if (d.origins.has(c.id)) mountInstrument(doc.drawing, c, draw.fluid)
       })
@@ -445,7 +446,7 @@ export function Canvas() {
     st.setSelection([placeItem(symbolId, w.x, w.y)])
   }
 
-  // ---- sovrapposizioni ----
+  // ---- overlays ----
   const portHandles = useMemo(() => {
     const out: { key: string; comp: string; pos: Point; used: boolean }[] = []
     for (const c of sheet.components) {
@@ -482,7 +483,7 @@ export function Canvas() {
   })()
 
   const connecting = (drag?.t === 'connect' && !!drag.from) || drag?.t === 'reconnect'
-  // zona sensibile delle porte: piccola a zoom alto (per poter afferrare il pezzo), più larga ad ingrandimento ridotto
+  // sensitive area of the ports: small at high zoom (so the part can be grabbed), wider when zoomed out
   const portR = Math.min(2.4, Math.max(1.1, 6 / view.k))
   const fluid = FLUIDS[draw.fluid]
   const cls = ['canvas-svg', placing ? 'placing' : '', drag?.t === 'pan' || space ? 'panning' : ''].join(' ')
@@ -589,19 +590,19 @@ export function Canvas() {
 
       {activePhase && (
         <div className="phase-badge">
-          <span>Fase mostrata: <b>{tab.doc.phases.find((p) => p.id === activePhase)?.name.it ?? '—'}</b></span>
-          <small>valvole chiuse piene · linee senza alimentazione attenuate</small>
+          <span>{t('Phase shown:')} <b>{tab.doc.phases.find((p) => p.id === activePhase)?.name[uiLanguage()] ?? '—'}</b></span>
+          <small>{t('closed valves filled · unsupplied lines faded')}</small>
         </div>
       )}
 
       <div className="zoom">
-        <button className="icon-btn" aria-label="Riduci" onClick={() => zoomAt(0.8, size.w / 2, size.h / 2)}><Minus size={15} /></button>
+        <button className="icon-btn" aria-label={t('Zoom out')} onClick={() => zoomAt(0.8, size.w / 2, size.h / 2)}><Minus size={15} /></button>
         <span>{Math.round((view.k / 3.78) * 100)}%</span>
-        <button className="icon-btn" aria-label="Ingrandisci" onClick={() => zoomAt(1.25, size.w / 2, size.h / 2)}><Plus size={15} /></button>
-        <button className="icon-btn" aria-label="Inquadra tutto" title="Inquadra tutto (0)" onClick={() => store.getState().setView(fitView(size.w, size.h, drawingBounds(sheet)))}><Maximize size={15} /></button>
+        <button className="icon-btn" aria-label={t('Zoom in')} onClick={() => zoomAt(1.25, size.w / 2, size.h / 2)}><Plus size={15} /></button>
+        <button className="icon-btn" aria-label={t('Fit all')} title={t('Fit all (0)')} onClick={() => store.getState().setView(fitView(size.w, size.h, drawingBounds(sheet)))}><Maximize size={15} /></button>
       </div>
     </div>
   )
 }
 
-/** Fluido e diametro usati per le nuove linee. */
+/** Fluid and size used for new lines. */

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { produce } from 'immer'
+import { resolveLanguage, setUiLanguage, t, uiLanguage, type LanguagePref } from '../i18n'
 import { MAX_RECENTS, isPristineTab, mergeRecoverable, pushRecent, worthRecovering, type RecentFile, type Recoverable } from './session'
 import {
   DEFAULT_PIPE_SIZE, checkIntegrity, copyItems, pruneBom, createEmptyDocument, deleteItems, newId, pasteItems, readDocument,
@@ -14,7 +15,7 @@ export interface Tab {
   savedDoc: FluidDocument
   past: FluidDocument[]
   future: FluidDocument[]
-  /** null → da adattare al foglio al primo rendering */
+  /** null → to be fitted to the sheet on first render */
   view: View | null
   selection: string[]
   filePath?: string
@@ -24,42 +25,45 @@ export const isDirty = (t: Tab): boolean => t.doc !== t.savedDoc
 
 export type InspectorTab = 'props' | 'checks'
 
-/** Passi del lavoro: prima si disegna lo schema, poi si descrive come funziona (fasi e stato delle valvole). */
+/** Work steps: first the diagram is drawn, then how it works is described (phases and valve states). */
 type Step = 'design' | 'operation'
 
 interface Store {
   tabs: Tab[]
   activeId: string
   theme: Theme
+  /** interface language preference: follow the system or force Italian/English */
+  language: LanguagePref
+  setLanguage: (l: LanguagePref) => void
   /** moduli opzionali attivi (id → true) */
   modules: Record<string, boolean>
-  /** valori usati per le nuove linee */
+  /** values used for new lines */
   draw: { fluid: FluidId; size: string }
   /** simbolo in posa (click libreria → click canvas) */
   placing: string | null
   inspectorTab: InspectorTab
-  /** fase mostrata sul disegno (valvole chiuse piene) */
+  /** phase shown on the drawing (closed valves filled) */
   activePhase: string | null
-  /** richiesta di inquadrare degli elementi (la gestisce il canvas) */
+  /** request to frame some elements (handled by the canvas) */
   focusRequest: { ids: string[]; n: number } | null
-  /** zoom richiesto dal menu: la tela lo esegue (conosce le sue dimensioni) */
+  /** zoom requested by the menu: the canvas performs it (it knows its own size) */
   viewRequest: { kind: 'in' | 'out' | 'fit'; n: number } | null
-  /** schermata principale: lo schema o la distinta (stessa scheda di progetto) */
+  /** main screen: the diagram or the bill of materials (same project tab) */
   stageView: 'schema' | 'bom'
   setStageView: (v: 'schema' | 'bom') => void
-  /** passo del lavoro in corso */
+  /** work step in progress */
   step: Step
   setStep: (s: Step) => void
   requestView: (kind: 'in' | 'out' | 'fit') => void
   clipboard: Clip | null
   pasteCount: number
-  /** pagina iniziale visibile (all'avvio, o dal pulsante «Home») */
+  /** home page visible (at startup, or from the Home button) */
   home: boolean
   setHome: (h: boolean) => void
   recents: RecentFile[]
   removeRecent: (path: string) => void
   clearRecents: () => void
-  /** lavoro rimasto non salvato dall'ultima sessione */
+  /** work left unsaved from the last session */
   recoverable: Recoverable[]
   recover: (id: string) => void
   discardRecoverable: (id?: string) => void
@@ -82,9 +86,9 @@ interface Store {
   setActive: (id: string) => void
   markSaved: (filePath?: string) => void
 
-  /** Modifica il documento attivo con annulla/ripeti (immer). */
+  /** Edits the active document with undo/redo (immer). */
   edit: (fn: (doc: FluidDocument) => void) => void
-  /** Come edit, ma senza nuovo punto di annullamento (per trascinamenti: chiamare prima checkpoint). */
+  /** Like edit, but without a new undo point (for drags: call checkpoint first). */
   editTransient: (fn: (doc: FluidDocument) => void) => void
   checkpoint: () => void
   undo: () => void
@@ -110,6 +114,7 @@ export const STORAGE_KEY = 'fluidigram.workspace.v1'
 const REJECTED_KEY = 'fluidigram.workspace.rejected'
 const THEME_KEY = 'fluidigram.theme'
 const MODULES_KEY = 'fluidigram.modules'
+const LANGUAGE_KEY = 'fluidigram.language'
 
 export type Theme = 'system' | 'light' | 'dark'
 
@@ -118,6 +123,13 @@ function loadModules(): Record<string, boolean> {
     const v = JSON.parse(localStorage.getItem(MODULES_KEY) ?? '{}') as Record<string, unknown>
     return Object.fromEntries(Object.entries(v).filter(([, on]) => on === true).map(([id]) => [id, true] as const))
   } catch { return {} }
+}
+
+function loadLanguage(): LanguagePref {
+  try {
+    const v = localStorage.getItem(LANGUAGE_KEY)
+    return v === 'it' || v === 'en' ? v : 'auto'
+  } catch { return 'auto' }
 }
 
 function loadTheme(): Theme {
@@ -136,9 +148,9 @@ function loadRecents(): RecentFile[] {
     return v.filter((r) => typeof r?.path === 'string' && typeof r?.name === 'string').slice(0, MAX_RECENTS)
   } catch { return [] }
 }
-const saveRecents = (list: RecentFile[]) => { try { localStorage.setItem(RECENTS_KEY, JSON.stringify(list)) } catch { /* storage non disponibile */ } }
+const saveRecents = (list: RecentFile[]) => { try { localStorage.setItem(RECENTS_KEY, JSON.stringify(list)) } catch { /* storage unavailable */ } }
 
-/** Legge e controlla un documento salvato; lancia se è illeggibile o fa riferimento a simboli/collegamenti che non esistono più. */
+/** Reads and checks a saved document; throws if it is unreadable or refers to symbols/connections that no longer exist. */
 function parseSaved(raw: unknown): FluidDocument {
   const doc = readDocument(raw)
   const broken = checkIntegrity(doc).filter((i) => !i.message.startsWith('tag duplicato'))
@@ -150,16 +162,16 @@ function loadRecoverable(): Recoverable[] {
   try {
     const out: Recoverable[] = []
     for (const r of JSON.parse(localStorage.getItem(RECOVERY_KEY) ?? '[]') as Recoverable[]) {
-      try { out.push({ ...r, doc: parseSaved(r.doc) }) } catch { /* voce illeggibile: si salta */ }
+      try { out.push({ ...r, doc: parseSaved(r.doc) }) } catch { /* unreadable entry: skipped */ }
     }
     return out
   } catch { return [] }
 }
-const saveRecoverable = (list: Recoverable[]) => { try { localStorage.setItem(RECOVERY_KEY, JSON.stringify(list)) } catch { /* storage non disponibile */ } }
+const saveRecoverable = (list: Recoverable[]) => { try { localStorage.setItem(RECOVERY_KEY, JSON.stringify(list)) } catch { /* storage unavailable */ } }
 
 /**
- * Le schede dell'ultima sessione non si riaprono più da sole. Quelle con lavoro non salvato (modifiche, o progetti nuovi con del
- * contenuto) vengono messe da parte e offerte nella pagina iniziale; il resto è nei file o nei recenti.
+ * The tabs of the last session no longer reopen by themselves. Those with unsaved work (edits, or new projects with
+ * content) are set aside and offered on the home page; the rest is in files or in the recents.
  */
 function takePreviousSession(): Recoverable[] {
   let fresh: Recoverable[] = []
@@ -173,11 +185,11 @@ function takePreviousSession(): Recoverable[] {
           const doc = parseSaved(t.doc)
           if (worthRecovering(t, doc)) fresh.push({ id: t.id, filePath: t.filePath, doc, savedAt: now })
         } catch {
-          // scheda illeggibile (es. dopo un aggiornamento): messa da parte, non buttata
+          // unreadable tab (e.g. after an update): set aside, not thrown away
           try {
             const kept = JSON.parse(localStorage.getItem(REJECTED_KEY) ?? '[]') as unknown[]
             localStorage.setItem(REJECTED_KEY, JSON.stringify([...kept, t.doc].slice(-5)))
-          } catch { /* storage non disponibile */ }
+          } catch { /* storage unavailable */ }
         }
       }
       localStorage.removeItem(STORAGE_KEY)
@@ -191,8 +203,8 @@ function takePreviousSession(): Recoverable[] {
 const previousSession = takePreviousSession()
 
 /**
- * Aggiunge una scheda. Aprire un file (o recuperare un lavoro) sostituisce la scheda attiva se è vuota e mai usata;
- * «Nuovo» lo fa solo partendo dalla pagina iniziale con la sola scheda bianca di partenza, altrimenti ne aggiunge una.
+ * Adds a tab. Opening a file (or recovering work) replaces the active tab if it is pristine and never used;
+ * "New" does so only from the home page with just the starting blank tab, otherwise it adds one.
  */
 function withNewTab(s: Store, t: Tab, opening: boolean): Pick<Store, 'tabs' | 'activeId'> {
   const active = s.tabs.find((x) => x.id === s.activeId)
@@ -203,6 +215,9 @@ function withNewTab(s: Store, t: Tab, opening: boolean): Pick<Store, 'tabs' | 'a
   return { tabs: [...s.tabs, t], activeId: t.id }
 }
 
+const initialLanguage = loadLanguage()
+setUiLanguage(resolveLanguage(initialLanguage))
+
 export const useStore = create<Store>((set, get) => ({
   tabs: [first],
   activeId: first.id,
@@ -210,6 +225,7 @@ export const useStore = create<Store>((set, get) => ({
   recents: loadRecents(),
   recoverable: previousSession,
   theme: loadTheme(),
+  language: initialLanguage,
   modules: loadModules(),
   draw: { fluid: 'oxidizer', size: DEFAULT_PIPE_SIZE },
   placing: null,
@@ -230,11 +246,16 @@ export const useStore = create<Store>((set, get) => ({
       const modules = { ...s.modules }
       if (on) modules[id] = true
       else delete modules[id]
-      try { localStorage.setItem(MODULES_KEY, JSON.stringify(modules)) } catch { /* storage non disponibile */ }
+      try { localStorage.setItem(MODULES_KEY, JSON.stringify(modules)) } catch { /* storage unavailable */ }
       return { modules }
     }),
+  setLanguage: (language) => {
+    try { localStorage.setItem(LANGUAGE_KEY, language) } catch { /* storage unavailable */ }
+    setUiLanguage(resolveLanguage(language))
+    set({ language })
+  },
   setTheme: (theme) => {
-    try { localStorage.setItem(THEME_KEY, theme) } catch { /* storage non disponibile */ }
+    try { localStorage.setItem(THEME_KEY, theme) } catch { /* storage unavailable */ }
     set({ theme })
   },
   setDraw: (d) => set((s) => ({ draw: { ...s.draw, ...d } })),
@@ -278,7 +299,7 @@ export const useStore = create<Store>((set, get) => ({
       const r = s.recoverable.find((x) => x.id === id)
       if (!r) return s
       const t = makeTab(r.doc, r.filePath)
-      // segnata come modificata: chiudendola l'app avvisa che c'è lavoro da salvare
+      // marked as modified: closing it, the app warns that there is work to save
       t.savedDoc = readDocument(JSON.parse(JSON.stringify(r.doc)))
       const recoverable = s.recoverable.filter((x) => x.id !== id)
       saveRecoverable(recoverable)
@@ -307,7 +328,7 @@ export const useStore = create<Store>((set, get) => ({
     set((s) => {
       const rest = s.tabs.filter((t) => t.id !== id)
       if (!rest.length) {
-        // chiusa l'ultima scheda si torna alla pagina iniziale
+        // after the last tab is closed we return to the home page
         const t = makeTab(createEmptyDocument())
         return { tabs: [t], activeId: t.id, home: true }
       }
@@ -354,33 +375,37 @@ export const useStore = create<Store>((set, get) => ({
 
 export const useActiveTab = (): Tab => useStore((s) => s.tabs.find((t) => t.id === s.activeId) ?? s.tabs[0])
 
-/** Fase mostrata sul disegno: vale solo se esiste nella scheda attiva (cambiando scheda o annullando può sparire). */
+/** Phase shown on the drawing: valid only if it exists in the active tab (switching tab or undoing can make it vanish). */
 export const useShownPhase = (): string | null =>
   useStore((s) => {
     const t = s.tabs.find((x) => x.id === s.activeId) ?? s.tabs[0]
-    // il disegno mostra le fasi solo nel passo «Funzionamento»; lì, se non ne hai scelta una, si parte dalla prima
+    // the drawing shows phases only in the Operation step; there, if none is chosen, the first one is used
     if (s.step !== 'operation') return null
     return t.doc.phases.find((p) => p.id === s.activePhase)?.id ?? t.doc.phases[0]?.id ?? null
   })
 
-/** Nome mostrato nella scheda. */
-export const tabName = (t: Tab): string => t.doc.meta.title.it || t.doc.meta.title.en || 'Senza nome'
+/** Name shown in the tab. */
+export const tabName = (tab: Tab): string => {
+  const title = tab.doc.meta.title
+  const own = uiLanguage()
+  return title[own] || title[own === 'it' ? 'en' : 'it'] || t('Untitled')
+}
 
-// salvataggio automatico dell'area di lavoro (le schede si ritrovano alla riapertura)
+// automatic saving of the workspace (tabs are found again when reopening)
 function persistWorkspace(s: Store) {
   try {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ activeId: s.activeId, tabs: s.tabs.map((t) => ({ id: t.id, doc: t.doc, filePath: t.filePath, dirty: isDirty(t) })) }),
     )
-  } catch { /* quota o storage non disponibile: si ignora */ }
+  } catch { /* quota exceeded or storage unavailable: ignored */ }
 }
 let timer: ReturnType<typeof setTimeout> | undefined
 useStore.subscribe((s) => {
   clearTimeout(timer)
   timer = setTimeout(() => persistWorkspace(s), 400)
 })
-// chiudendo la finestra (o nascondendola) si salva subito, senza aspettare la pausa: l'ultima modifica non va persa
+// closing (or hiding) the window saves immediately, without waiting for the pause: the last edit is not lost
 if (typeof window !== 'undefined') {
   const flush = () => { clearTimeout(timer); persistWorkspace(useStore.getState()) }
   window.addEventListener('pagehide', flush)

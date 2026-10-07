@@ -1,16 +1,18 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import { Calculator, type LucideIcon } from 'lucide-react'
+import { N_ } from '../i18n'
 
 /**
- * Moduli opzionali dell'app. NON fanno parte dello schema fluidico: sono spenti di default,
- * si attivano da Impostazioni e vengono caricati solo quando servono.
- * Regola di dipendenza (verificata da un test): `core`, `state` e `ui` non importano mai da qui; solo `App.tsx` lo fa.
+ * Optional app modules. They are NOT part of the fluid diagram: they are off by default,
+ * are switched on in Settings and are loaded only when needed.
+ * Dependency rule (checked by a test): `core`, `state` and `ui` never import from here; only `App.tsx` does.
  */
+/** `name`, `description` and `toolLabel` are English source strings: translate them with `t()` when showing them. */
 export interface ModuleDef {
   id: string
   name: string
   description: string
-  /** etichetta del pulsante nella barra degli strumenti */
+  /** label of the toolbar button */
   toolLabel: string
   Icon: LucideIcon
   Dialog: LazyExoticComponent<ComponentType<{ onClose: () => void }>>
@@ -19,9 +21,9 @@ export interface ModuleDef {
 export const MODULES: readonly ModuleDef[] = [
   {
     id: 'calc',
-    name: 'Strumenti di calcolo',
-    description: 'Dimensionamento di iniettori N₂O (SPI, HEM, Dyer), orifizi per gas, perdite di carico e Cv. Sono calcolatori a parte: non cambiano lo schema.',
-    toolLabel: 'Calcoli',
+    name: N_('Calculation tools'),
+    description: N_('Sizing of N₂O injectors (SPI, HEM, Dyer), gas orifices, pressure drops and Cv. They are separate calculators: they do not change the diagram.'),
+    toolLabel: N_('Calculations'),
     Icon: Calculator,
     Dialog: lazy(() => import('./calc/CalcDialog')),
   },

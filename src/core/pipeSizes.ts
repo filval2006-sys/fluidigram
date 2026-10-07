@@ -17,10 +17,10 @@ const PIPE_SIZE_GROUPS: PipeSizeGroup[] = [
   { id: 'dn', label: { it: 'Diametro nominale DN', en: 'Nominal diameter DN' }, options: [6, 8, 10, 15, 20, 25, 32, 40, 50].map((d) => `DN${d}`) },
 ]
 
-/** Normalizza per la ricerca: ignora maiuscole, spazi, virgolette, trattini e il simbolo Ø. */
+/** Normalizes for searching: ignores case, spaces, quotes, dashes and the Ø symbol. */
 const normalizeSize = (s: string): string => s.toLowerCase().replace(/[\s"'″”Ø-]/gi, '').replace(/ø/g, '')
 
-/** Gruppi filtrati dalla stringa cercata (vuota → tutto). */
+/** Groups filtered by the search string (empty → everything). */
 export function filterPipeSizes(query: string): PipeSizeGroup[] {
   const q = normalizeSize(query)
   if (!q) return PIPE_SIZE_GROUPS

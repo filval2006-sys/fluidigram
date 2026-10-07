@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Search, SquareDashed, Type, X } from 'lucide-react'
 import { CATEGORY_NAMES, searchSymbols, symbolThumbnail, type SymbolCategory, type SymbolDef } from '../core'
+import { N_, uiLanguage, t } from '../i18n'
 import { useStore } from '../state/store'
 
 export const SYMBOL_DRAG_TYPE = 'application/x-fluidigram-symbol'
 
-/** Elementi di annotazione (non fanno parte dell'impianto). */
+/** Annotation items (they are not part of the plant). */
 const ANNOTATION_ITEMS = [
-  { id: 'ann.text', label: 'Testo libero', hint: 'nota, didascalia', Icon: Type, words: 'testo nota didascalia commento annotazione text note' },
-  { id: 'ann.box', label: 'Riquadro di zona', hint: 'es. lato volo, GSE', Icon: SquareDashed, words: 'riquadro zona area confine gruppo box lato volo gse zone boundary' },
+  { id: 'ann.text', label: N_('Free text'), hint: N_('note, caption'), Icon: Type, words: 'testo nota didascalia commento annotazione text note caption comment' },
+  { id: 'ann.box', label: N_('Zone box'), hint: N_('e.g. flight side, GSE'), Icon: SquareDashed, words: 'riquadro zona area confine gruppo box lato volo gse zone boundary group' },
 ] as const
 
 function Thumb({ def }: { def: SymbolDef }) {
@@ -20,11 +21,11 @@ export function Library() {
   const [query, setQuery] = useState('')
   const placing = useStore((s) => s.placing)
   const setPlacing = useStore((s) => s.setPlacing)
-  const lang = 'it' as const
+  const lang = uiLanguage()
 
   const annItems = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-    return ANNOTATION_ITEMS.filter((a) => words.every((w) => (a.label + ' ' + a.words).toLowerCase().includes(w)))
+    return ANNOTATION_ITEMS.filter((a) => words.every((w) => (t(a.label) + ' ' + a.words).toLowerCase().includes(w)))
   }, [query])
 
   const grouped = useMemo(() => {
@@ -37,8 +38,8 @@ export function Library() {
     <aside className="library">
       <div className="search">
         <Search size={14} aria-hidden />
-        <input placeholder="Cerca simbolo…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Cerca simbolo" />
-        {query && <button className="icon-btn" onClick={() => setQuery('')} aria-label="Cancella ricerca"><X size={14} /></button>}
+        <input placeholder={t('Search symbol…')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t('Search symbol')} />
+        {query && <button className="icon-btn" onClick={() => setQuery('')} aria-label={t('Clear search')}><X size={14} /></button>}
       </div>
       <div className="library-scroll">
         {grouped.map(([cat, list]) => (
@@ -63,27 +64,27 @@ export function Library() {
         ))}
         {annItems.length > 0 && (
           <div>
-            <div className="lib-cat">Annotazioni</div>
+            <div className="lib-cat">{t('Annotations')}</div>
             <div className="lib-grid">
               {annItems.map(({ id, label, hint, Icon }) => (
                 <button
                   key={id}
                   className={'lib-item' + (placing === id ? ' on' : '')}
                   draggable
-                  title={`${label} (${hint})`}
+                  title={`${t(label)} (${t(hint)})`}
                   onDragStart={(e) => { e.dataTransfer.setData(SYMBOL_DRAG_TYPE, id); e.dataTransfer.effectAllowed = 'copy'; setPlacing(null) }}
                   onClick={() => setPlacing(placing === id ? null : id)}
                 >
                   <Icon size={26} strokeWidth={1.5} />
-                  <span>{label}</span>
+                  <span>{t(label)}</span>
                 </button>
               ))}
             </div>
           </div>
         )}
-        {!grouped.length && !annItems.length && <p className="empty">Nessun simbolo trovato per «{query}».</p>}
+        {!grouped.length && !annItems.length && <p className="empty">{t('No symbol found for “{query}”.', { query })}</p>}
       </div>
-      <p className="hint">Trascina sul foglio, oppure clicca e poi clicca dove posizionarlo.</p>
+      <p className="hint">{t('Drag onto the sheet, or click and then click where to place it.')}</p>
     </aside>
   )
 }
