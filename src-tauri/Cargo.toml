@@ -1,10 +1,10 @@
 [package]
 name = "app"
 version = "0.3.0"
-description = "Schemi fluidici (P&ID) per il razzomodellismo"
+description = "Fluid system (P&ID) diagrams for model rocketry"
 authors = ["Filippo Valentini"]
-license = ""
-repository = ""
+license-file = "../LICENSE"
+repository = "https://github.com/filval2006-sys/fluidigram"
 edition = "2024"
 rust-version = "1.90"
 

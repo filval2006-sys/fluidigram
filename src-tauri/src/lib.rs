@@ -16,7 +16,8 @@ const MAX_PROJECT_BYTES: u64 = 50 * 1024 * 1024;
 /// Un file che il sistema ci passa all'avvio: si guarda il file, non il nome. Una copia rinominata dal Finder o da Esplora
 /// risorse (estensione persa o cambiata) si apre comunque; se il contenuto non è un progetto lo dirà l'interfaccia.
 fn is_project(path: &str) -> bool {
-    !path.starts_with('-') && std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.len() <= MAX_PROJECT_BYTES)
+    !path.starts_with('-')
+        && std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.len() <= MAX_PROJECT_BYTES)
 }
 
 fn deliver(app: &tauri::AppHandle, paths: Vec<String>) {
@@ -93,7 +94,6 @@ fn write_checked(path: &str, data: &[u8]) -> Result<(), String> {
     })
 }
 
-
 /// Voci personalizzate del menu: (id, testo, scorciatoia). Le scorciatoie con tasto semplice (R, M, Canc) restano all'interfaccia,
 /// perché un menu le intercetterebbe anche mentre si scrive in un campo di testo.
 const COMMANDS: &[(&str, &str, Option<&str>)] = &[
@@ -113,7 +113,11 @@ const COMMANDS: &[(&str, &str, Option<&str>)] = &[
     ("mirror", "Specchia (M)", None),
     ("delete", "Elimina (Canc)", None),
     ("view-schema", "Disegno: schema", Some("CmdOrCtrl+1")),
-    ("view-bom", "Disegno: distinta componenti", Some("CmdOrCtrl+2")),
+    (
+        "view-bom",
+        "Disegno: distinta componenti",
+        Some("CmdOrCtrl+2"),
+    ),
     ("view-ops", "Funzionamento (fasi)", Some("CmdOrCtrl+3")),
     ("zoom-in", "Ingrandisci", Some("CmdOrCtrl+=")),
     ("zoom-out", "Riduci", Some("CmdOrCtrl+-")),
@@ -127,10 +131,12 @@ const COMMANDS: &[(&str, &str, Option<&str>)] = &[
 ];
 
 fn cmd<R: Runtime, M: Manager<R>>(app: &M, id: &str) -> tauri::Result<MenuItem<R>> {
-    let (_, text, accel) = COMMANDS.iter().find(|c| c.0 == id).unwrap_or_else(|| panic!("voce di menu sconosciuta: {id}"));
+    let (_, text, accel) = COMMANDS
+        .iter()
+        .find(|c| c.0 == id)
+        .unwrap_or_else(|| panic!("voce di menu sconosciuta: {id}"));
     MenuItem::with_id(app, id, *text, true, *accel)
 }
-
 
 /// Barra dei menu in italiano. Le voci personalizzate non fanno nulla da sole: mandano all'interfaccia l'evento `menu`
 /// con il loro id, e l'interfaccia esegue il comando (stesso codice delle scorciatoie da tastiera).
@@ -195,7 +201,12 @@ fn build_menu<R: Runtime, M: Manager<R>>(app: &M) -> tauri::Result<Menu<R>> {
         .maximize_with_text("Zoom")
         .build()?;
 
-    let help = Submenu::with_items(app, "Aiuto", true, &[&cmd(app, "shortcuts")?, &cmd(app, "about")?])?;
+    let help = Submenu::with_items(
+        app,
+        "Aiuto",
+        true,
+        &[&cmd(app, "shortcuts")?, &cmd(app, "about")?],
+    )?;
 
     #[cfg(target_os = "macos")]
     {
@@ -241,7 +252,11 @@ pub fn run() {
                 let _ = app.emit("menu", event.id().as_ref());
             }
         })
-        .invoke_handler(tauri::generate_handler![take_pending_files, read_project_file, write_output_file])
+        .invoke_handler(tauri::generate_handler![
+            take_pending_files,
+            read_project_file,
+            write_output_file
+        ])
         .setup(|app| {
             // se la barra personalizzata non si costruisse, resta quella di sistema: l'app si avvia comunque
             match build_menu(app) {
@@ -288,7 +303,8 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for (id, _, accel) in COMMANDS {
             if let Some(a) = accel {
-                let parsed = muda::accelerator::Accelerator::from_str(a).unwrap_or_else(|e| panic!("{id}: scorciatoia non valida {a}: {e}"));
+                let parsed = muda::accelerator::Accelerator::from_str(a)
+                    .unwrap_or_else(|e| panic!("{id}: scorciatoia non valida {a}: {e}"));
                 assert!(seen.insert(parsed.id()), "scorciatoia duplicata: {a}");
             }
         }
@@ -323,7 +339,10 @@ mod tests {
         let renamed = dir.join("progetto copia"); // estensione persa
         std::fs::write(&renamed, "{}").unwrap();
         assert!(is_project(renamed.to_str().unwrap()));
-        assert_eq!(read_project_file(renamed.to_str().unwrap().into()).unwrap(), "{}");
+        assert_eq!(
+            read_project_file(renamed.to_str().unwrap().into()).unwrap(),
+            "{}"
+        );
         assert!(!is_project(dir.to_str().unwrap())); // una cartella no
         assert!(!is_project("--flag"));
         assert!(!is_project(dir.join("manca.fluidigram").to_str().unwrap()));
@@ -333,9 +352,14 @@ mod tests {
     #[test]
     fn refuses_other_file_types_and_missing_folders() {
         let file = std::env::temp_dir().join("fluidigram-nope.sh");
-        assert_eq!(write_checked(file.to_str().unwrap(), b"x"), Err("Tipo di file non consentito".into()));
+        assert_eq!(
+            write_checked(file.to_str().unwrap(), b"x"),
+            Err("Tipo di file non consentito".into())
+        );
         assert!(!file.exists());
-        let missing = std::env::temp_dir().join("fluidigram-non-esiste").join("a.pdf");
+        let missing = std::env::temp_dir()
+            .join("fluidigram-non-esiste")
+            .join("a.pdf");
         assert!(write_checked(missing.to_str().unwrap(), b"x").is_err());
     }
 }

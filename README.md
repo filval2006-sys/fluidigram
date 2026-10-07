@@ -26,39 +26,51 @@ Questa è l'avviso normale per un'app non firmata, non indica un virus. Su Mac: 
 
 The interface is currently in Italian; exported drawings can be in Italian or English.
 
-## Informazioni (IT)
+## About
 
-App desktop (macOS e Windows, Tauri) per disegnare **schemi fluidici** in stile P&ID, pensata per il razzomodellismo:
-simboli e collegamenti, controlli sullo schema, stati delle valvole per fase, ed esportazione professionale
-(PDF/SVG/PNG con cartiglio, legenda, distinta e impaginazione automatica su più fogli, in italiano e inglese).
+Desktop app (macOS and Windows, built with [Tauri](https://tauri.app/)) for drawing **fluid diagrams** in P&ID style, made for model rocketry:
+symbols and lines, checks on the schematic, valve states per operating phase, and professional export
+(PDF/SVG/PNG with title block, legend, bill of materials and automatic multi-sheet layout, in Italian and English).
 
-L'app **fa schemi fluidici e basta**. Tutto il resto è un modulo opzionale, spento di default.
+The app **draws fluid diagrams and nothing else**. Everything else is an optional module, off by default.
 
-## Struttura (e regole di dipendenza)
+*Italiano: app desktop per disegnare schemi fluidici in stile P&ID, con controlli sullo schema, stati delle valvole per fase di funzionamento ed esportazione professionale in PDF, SVG e PNG.*
+
+## Project structure
 
 ```
 src/
-  core/      modello dello schema, simboli, instradamento, controlli, impaginazione ed esportazione (puro, senza React)
-  state/     stato dell'app: schede dei progetti, annulla/ripeti, impostazioni
-  ui/        editor: canvas, libreria, pannello proprietà, esportazione, impostazioni
-  modules/   MODULI OPZIONALI, indipendenti dallo schema
-    calc/      calcolatori: iniettore N₂O (SPI/HEM/Dyer), orifizi gas, perdite di carico, Cv
-  App.tsx    unico punto che conosce i moduli
+  core/      diagram model, symbols, routing, checks, layout and export (pure, no React)
+  state/     app state: project tabs, undo/redo, session and settings
+  ui/        editor: canvas, library, inspector, steps, export, settings
+  modules/   OPTIONAL MODULES, independent from the diagram
+    calc/      calculators: N₂O injector (SPI/HEM/Dyer), gas orifices, pressure drop, Cv
+  platform/  desktop integration (files, menu, exporters)
+  App.tsx    the only place that knows about the modules
+src-tauri/   native shell (Rust): file association, native menu, installers
+docs/        distribution and release notes for maintainers
+scripts/     icon, installer art, version and packaging scripts
 ```
 
-`core ← state ← ui ← App`; i moduli possono usare `core`, `state` e `ui`, ma **nessuno dipende da loro tranne `App.tsx`**.
-Il test `src/architecture.test.ts` lo verifica a ogni esecuzione. Senza la cartella `modules` lo schema funziona identico:
-i moduli si accendono da Impostazioni, si caricano solo quando servono e non cambiano i file `.fluidigram`.
+Dependency rule: `core ← state ← ui ← App`. Modules may use `core`, `state` and `ui`, but **nothing depends on them except `App.tsx`**.
+`src/architecture.test.ts` checks it on every run. Without the `modules` folder the diagram works the same: modules are
+switched on in Settings, load only when needed and never change `.fluidigram` files.
 
-## Comandi
+## Development
 
-| Comando | Cosa fa |
+Requirements: Node.js 22 (see `.nvmrc`) and, for the native app, [Rust](https://rustup.rs/) and the [Tauri prerequisites](https://tauri.app/start/prerequisites/).
+
+| Command | What it does |
 |---|---|
-| `npm run tauri dev` | app nativa in sviluppo |
-| `npm run dev` | solo nel browser, su http://localhost:5173 |
-| `npm test` | test (modello, instradamento, esportazione, controlli, architettura) |
-| `npm run tauri build` | app installabile (`src-tauri/target/release/bundle`) |
+| `npm ci` | install dependencies |
+| `npm run dev` | browser only, at http://localhost:5173 |
+| `npm run tauri dev` | native app in development |
+| `npm test` | tests (model, routing, export, checks, architecture) |
+| `npx tsc -b` | type check (the root `tsc --noEmit` checks nothing: it uses project references) |
+| `npm run lint` | lint |
+| `npm run tauri build` | installable app (`src-tauri/target/release/bundle`) |
 
-Su macOS, `Aggiorna Fluidigram.command` ricompila e reinstalla l'app in `~/Applications` con un doppio clic.
+On macOS, `scripts/update-local-app.command` rebuilds and reinstalls the app in `/Applications` with a double click.
 
-Per costruire e pubblicare gli installer (macOS e Windows) vedi [DISTRIBUZIONE.md](DISTRIBUZIONE.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, [CHANGELOG.md](CHANGELOG.md) for release notes and
+[docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) for building and publishing the installers.

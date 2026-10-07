@@ -2,7 +2,16 @@
   "name": "fluidigram",
   "private": true,
   "author": "Filippo Valentini",
-  "description": "Fluid system (P&ID) diagrams for model rocketry",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://github.com/filval2006-sys/fluidigram",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/filval2006-sys/fluidigram.git"
+  },
+  "bugs": {
+    "url": "https://github.com/filval2006-sys/fluidigram/issues"
+  },
+  "description": "Schemi fluidici (P&ID) per il razzomodellismo",
   "version": "0.3.0",
   "type": "module",
   "scripts": {
@@ -43,5 +52,14 @@
     "vite": "^8.3.0",
     "vitest": "^5.0.3"
   },
-  "description": "Schemi fluidici (P&ID) per il razzomodellismo"
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "p&id",
+    "fluid-diagram",
+    "rocketry",
+    "tauri",
+    "react"
+  ]
 }

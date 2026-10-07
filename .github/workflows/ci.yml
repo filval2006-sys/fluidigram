@@ -1,4 +1,4 @@
-# Controlli automatici a ogni push e pull request: tipi, test (compresa la separazione schema/moduli) e build dell'interfaccia.
+# Automatic checks on every push and pull request: types, lint, tests (including the core/modules separation), UI build and Rust formatting.
 name: CI
 
 on:
@@ -17,5 +17,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx tsc -b
+      - run: npm run lint
       - run: npm test
       - run: npm run build
+      - name: Rust formatting
+        run: cargo fmt --check
+        working-directory: src-tauri
