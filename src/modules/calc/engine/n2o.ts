@@ -12,8 +12,6 @@ export interface N2OSat {
 }
 
 export { N2O_T_MIN, N2O_T_MAX }
-export const N2O_T_CRIT = 309.52
-export const N2O_P_CRIT = 7.245e6
 
 /** Interpolazione cubica di Catmull–Rom su nodi equidistanti di 1 K. */
 function interp(arr: readonly number[], T: number): number {
@@ -38,8 +36,8 @@ export function satAtT(T: number): N2OSat {
   }
 }
 
-export const N2O_P_MIN = N2O_P[0]
-export const N2O_P_MAX = N2O_P[N2O_P.length - 1]
+const N2O_P_MIN = N2O_P[0]
+const N2O_P_MAX = N2O_P[N2O_P.length - 1]
 
 /** Temperatura di saturazione alla pressione data (bisezione sulla pressione di vapore). */
 export function satTempAtP(P: number): number {

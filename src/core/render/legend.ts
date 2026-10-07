@@ -6,7 +6,7 @@ import type { Component, FluidId, Lang, Line } from '../types'
 import type { PageLayout } from './layout'
 import { INK, lineEl, n, rectEl, symbolThumbnail, textEl, wrapText } from './svg'
 
-export interface LegendSymbol { def: SymbolDef; props: Record<string, string>; name: { it: string; en: string } }
+interface LegendSymbol { def: SymbolDef; props: Record<string, string>; name: { it: string; en: string } }
 export interface LegendItems { symbols: LegendSymbol[]; fluids: FluidId[] }
 
 /** Simboli (con legenda attiva, uno per variante di azionamento) e fluidi effettivamente usati, in ordine stabile. */

@@ -32,7 +32,6 @@ export function portEnds(c: Component): PortEnd[] {
   return out
 }
 
-export const endOf = (c: Component, portId: string): PortEnd | undefined => portEnds(c).find((e) => e.portId === portId)
 
 /** Imposta (o toglie, con kind vuoto) l'estremità di una porta. Muta il componente. */
 export function setPortEnd(c: Component, portId: string, kind: EndKind | '', label = ''): void {

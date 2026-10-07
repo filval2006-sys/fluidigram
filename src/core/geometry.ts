@@ -1,6 +1,6 @@
 export interface Point { x: number; y: number }
 export type Dir = 'N' | 'E' | 'S' | 'W'
-export type Rotation = 0 | 90 | 180 | 270
+type Rotation = 0 | 90 | 180 | 270
 
 /** Passo della griglia in mm: tutte le porte e i centri stanno su questa griglia. */
 export const GRID = 5
@@ -14,11 +14,11 @@ export const DIR_VEC: Record<Dir, Point> = {
 
 const CLOCKWISE: Dir[] = ['N', 'E', 'S', 'W']
 
-export function rotateDir(d: Dir, rot: Rotation): Dir {
+function rotateDir(d: Dir, rot: Rotation): Dir {
   return CLOCKWISE[(CLOCKWISE.indexOf(d) + rot / 90) % 4]
 }
 
-export function mirrorDir(d: Dir): Dir {
+function mirrorDir(d: Dir): Dir {
   return d === 'E' ? 'W' : d === 'W' ? 'E' : d
 }
 

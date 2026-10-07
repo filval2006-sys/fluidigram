@@ -21,7 +21,7 @@ export function createEmptyDocument(): FluidDocument {
 interface V1Sheet { format?: string; components?: { y: number }[]; lines?: { route?: { y: number }[] }[] }
 
 /** Simboli rinominati o accorpati: il vecchio id si legge come il nuovo, così i file già salvati continuano ad aprirsi. */
-export const LEGACY_SYMBOLS: Record<string, string> = {
+const LEGACY_SYMBOLS: Record<string, string> = {
   'instr.pta': 'instr.pt', // trasduttore analogico: ora è il PT con la scelta del segnale di uscita
 }
 
@@ -33,7 +33,7 @@ function renameLegacySymbols(raw: unknown): unknown {
 }
 
 /** Porta i file delle versioni precedenti al formato corrente (v1: più fogli → un unico disegno). */
-export function migrateDocument(raw: unknown): unknown {
+function migrateDocument(raw: unknown): unknown {
   const r = raw as { version?: number; sheets?: V1Sheet[]; meta?: unknown; revisions?: unknown } | null
   if (!r || r.version !== 1 || !Array.isArray(r.sheets)) return renameLegacySymbols(raw)
   const components: unknown[] = []

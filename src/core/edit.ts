@@ -32,7 +32,7 @@ export function addComponent(doc: FluidDocument, symbolId: string, x: number, y:
   return c
 }
 
-export function isPortFree(sheet: Drawing, ref: PortRef): boolean {
+function isPortFree(sheet: Drawing, ref: PortRef): boolean {
   return !sheet.lines.some((l) =>
     (l.from.componentId === ref.componentId && l.from.portId === ref.portId) ||
     (l.to.componentId === ref.componentId && l.to.portId === ref.portId))
@@ -196,7 +196,7 @@ export function addAnnotation(doc: FluidDocument, kind: AnnotationKind, x: numbe
 
 
 /** Distanza massima (mm) a cui un sensore si aggancia a un attacco libero di un altro componente. */
-export const MOUNT_SNAP = 7.5
+const MOUNT_SNAP = 7.5
 
 /**
  * Montaggio diretto: un sensore vicino a un attacco libero (di un serbatoio, di un raccordo...) con la porta rivolta

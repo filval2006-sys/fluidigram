@@ -13,7 +13,7 @@ const logo = (fg, accent, bg) => `
   <path d="M30 40 V70 L50 55 Z M70 40 V70 L50 55 Z" fill="${fg}" stroke="${fg}" stroke-width="3" stroke-linejoin="round"/>
   <circle cx="50" cy="55" r="4.6" fill="${bg}" stroke="${accent}" stroke-width="2.2"/>`
 
-const render = (svg, w, h) => new Resvg(svg, { fitTo: { mode: 'width', value: w }, font: { loadSystemFonts: true } }).render()
+const render = (svg, w) => new Resvg(svg, { fitTo: { mode: 'width', value: w }, font: { loadSystemFonts: true } }).render()
 
 /** BMP non compresso a 24 bit (quello che chiede NSIS), righe dal basso, colori su sfondo opaco. */
 function bmp24({ width, height, pixels }) {

@@ -1,14 +1,14 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
 import { Maximize, Minus, Plus } from 'lucide-react'
 import {
-  FLUIDS, FLUID_IDS, addAnnotation, addComponent, annotationBounds, autoRoute, renderAnnotation, branchFromLine, runChecks, traceFlow, componentPorts, connectPorts, deleteItems,
-  filterPipeSizes, freePorts, drawingBounds, lineRoute, mirrorComponents, moveSegment, nearestOnRoute, obstaclesOf, pickPortToward,
+  FLUIDS, addAnnotation, addComponent, annotationBounds, autoRoute, renderAnnotation, branchFromLine, runChecks, traceFlow, componentPorts, connectPorts, deleteItems,
+  freePorts, drawingBounds, lineRoute, mirrorComponents, moveSegment, nearestOnRoute, obstaclesOf, pickPortToward,
   mountInstrument, phaseValves, cycleValveState, planLabels, reconnectLine, renderComponent, renderLine, resolvePort, rotateComponents, routeLine, snap, worldExtent,
   type Component, type Dir, type Point, type PortRef,
 } from '../core'
 import { useActiveTab, useShownPhase, useStore, type View } from '../state/store'
 import { isTyping, runEditCommand } from './commands'
-import { Combobox } from './Combobox'
+import { DrawBar } from './DrawBar'
 import { SYMBOL_DRAG_TYPE } from './Library'
 
 const isAnn = (id: string) => id.startsWith('ann.')
@@ -153,7 +153,7 @@ export function Canvas() {
       if (e.key === '0' && !mod) { if (wrapRef.current) { const t = st.tabs.find((x) => x.id === st.activeId)!; st.setView(fitView(wrapRef.current.clientWidth, wrapRef.current.clientHeight, drawingBounds(t.doc.drawing))) } return }
       if ((e.key === '+' || e.key === '=') && !mod) { zoomAt(1.25, size.w / 2, size.h / 2); return }
       if (e.key === '-' && !mod) { zoomAt(0.8, size.w / 2, size.h / 2); return }
-      if (locked) return
+      if (st.step === 'operation') return // nel passo «Funzionamento» lo schema non si modifica
       if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); runEditCommand('paste'); return }
       if (!sel.size) return
       if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); runEditCommand('copy'); return }
@@ -605,21 +605,3 @@ export function Canvas() {
 }
 
 /** Fluido e diametro usati per le nuove linee. */
-function DrawBar() {
-  const draw = useStore((s) => s.draw)
-  const setDraw = useStore((s) => s.setDraw)
-  const getGroups = useCallback((q: string) => filterPipeSizes(q).map((g) => ({ id: g.id, label: g.label.it, options: g.options })), [])
-  return (
-    <div className="drawbar">
-      <span className="drawbar-label">Nuove linee</span>
-      <div className="chips">
-        {FLUID_IDS.map((id) => (
-          <button key={id} className={'chip' + (draw.fluid === id ? ' on' : '')} onClick={() => setDraw({ fluid: id })} title={FLUIDS[id].name.it}>
-            <i style={{ background: FLUIDS[id].color }} />{FLUIDS[id].code}
-          </button>
-        ))}
-      </div>
-      <div className="drawbar-size"><Combobox ariaLabel="Diametro nuove linee" value={draw.size} onCommit={(v) => setDraw({ size: v })} getGroups={getGroups} placeholder="Diametro" /></div>
-    </div>
-  )
-}

@@ -25,7 +25,7 @@ export const isDirty = (t: Tab): boolean => t.doc !== t.savedDoc
 export type InspectorTab = 'props' | 'checks'
 
 /** Passi del lavoro: prima si disegna lo schema, poi si descrive come funziona (fasi e stato delle valvole). */
-export type Step = 'design' | 'operation'
+type Step = 'design' | 'operation'
 
 interface Store {
   tabs: Tab[]

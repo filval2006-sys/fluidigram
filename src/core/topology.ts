@@ -21,7 +21,7 @@ export const JOIN_ALL = new Set([
 ])
 
 /** Valvole di cui ha senso indicare lo stato per fase (le valvole di non ritorno e di sicurezza lavorano da sole). */
-export function isPhaseValve(c: Component): boolean {
+function isPhaseValve(c: Component): boolean {
   const def = getSymbol(c.symbol)
   return def.category === 'valves' && !def.id.startsWith('valve.check') && def.id !== 'valve.relief'
 }

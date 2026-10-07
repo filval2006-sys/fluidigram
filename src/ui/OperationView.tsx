@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react'
 import { checkReport, getSymbol, newId, phaseValves, setPhaseForAll, setValveState, cycleValveState, type ValveState } from '../core'
 import { useActiveTab, useShownPhase, useStore } from '../state/store'
 import { Field, Section, TextField } from './Fields'
-import { ChecksPanel } from './Inspector'
+import { ChecksPanel } from './ChecksPanel'
 import { Canvas } from './Canvas'
 
 const DEFAULT_PHASES = [

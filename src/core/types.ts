@@ -1,22 +1,22 @@
 import { z } from 'zod'
 
 /** Testo bilingue: l'interfaccia è italiana, ma ogni testo esportato esiste in IT e EN. */
-export const L10nSchema = z.object({ it: z.string(), en: z.string() })
+const L10nSchema = z.object({ it: z.string(), en: z.string() })
 export type L10n = z.infer<typeof L10nSchema>
 export type Lang = keyof L10n
 
 export const FLUID_IDS = ['oxidizer', 'fuel', 'pressurant', 'vent', 'pneumatic', 'signal'] as const
-export const FluidIdSchema = z.enum(FLUID_IDS)
+const FluidIdSchema = z.enum(FLUID_IDS)
 export type FluidId = z.infer<typeof FluidIdSchema>
 
-export const RotationSchema = z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
+const RotationSchema = z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
 
-export const PointSchema = z.object({ x: z.number(), y: z.number() })
+const PointSchema = z.object({ x: z.number(), y: z.number() })
 
-export const PortRefSchema = z.object({ componentId: z.string(), portId: z.string() })
+const PortRefSchema = z.object({ componentId: z.string(), portId: z.string() })
 export type PortRef = z.infer<typeof PortRefSchema>
 
-export const ComponentSchema = z.object({
+const ComponentSchema = z.object({
   id: z.string(),
   /** id del simbolo in libreria */
   symbol: z.string(),
@@ -35,7 +35,7 @@ export const ComponentSchema = z.object({
 })
 export type Component = z.infer<typeof ComponentSchema>
 
-export const LineSchema = z.object({
+const LineSchema = z.object({
   id: z.string(),
   fluid: FluidIdSchema,
   from: PortRefSchema,
@@ -49,14 +49,14 @@ export const LineSchema = z.object({
 })
 export type Line = z.infer<typeof LineSchema>
 
-export const SheetFormatSchema = z.enum(['A4', 'A3', 'A2'])
+const SheetFormatSchema = z.enum(['A4', 'A3', 'A2'])
 export type SheetFormat = z.infer<typeof SheetFormatSchema>
 
 export const TONES = ['neutral', 'blue', 'amber', 'green', 'red'] as const
 export type Tone = (typeof TONES)[number]
 
 /** Testi liberi e riquadri di zona (es. «lato volo», «GSE»): documentano lo schema senza far parte dell'impianto. */
-export const AnnotationSchema = z.object({
+const AnnotationSchema = z.object({
   id: z.string(),
   kind: z.enum(['text', 'box']),
   /** angolo in alto a sinistra, mm */
@@ -75,17 +75,17 @@ export const AnnotationSchema = z.object({
 export type Annotation = z.infer<typeof AnnotationSchema>
 
 /** Il disegno vive su un canvas infinito: l'impaginazione esiste solo in esportazione. */
-export const DrawingSchema = z.object({
+const DrawingSchema = z.object({
   components: z.array(ComponentSchema).default([]),
   lines: z.array(LineSchema).default([]),
   annotations: z.array(AnnotationSchema).default([]),
 })
 export type Drawing = z.infer<typeof DrawingSchema>
 
-export const ExportModeSchema = z.enum(['auto', 'fit', 'split'])
+const ExportModeSchema = z.enum(['auto', 'fit', 'split'])
 export type ExportMode = z.infer<typeof ExportModeSchema>
 
-export const ExportSettingsSchema = z.object({
+const ExportSettingsSchema = z.object({
   format: SheetFormatSchema.default('A3'),
   /** auto: 1:1 se ci sta, poi riduce fino a un limite leggibile, altrimenti divide in più fogli */
   mode: ExportModeSchema.default('auto'),
@@ -98,14 +98,14 @@ export const ExportSettingsSchema = z.object({
 })
 export type ExportSettings = z.infer<typeof ExportSettingsSchema>
 
-export const RevisionSchema = z.object({
+const RevisionSchema = z.object({
   rev: z.string(),
   date: z.string(),
   description: L10nSchema,
   author: z.string().default(''),
 })
 
-export const MetaSchema = z.object({
+const MetaSchema = z.object({
   title: L10nSchema,
   subtitle: L10nSchema.optional(),
   company: z.string().default(''),
@@ -116,12 +116,12 @@ export const MetaSchema = z.object({
   checkedBy: z.string().default(''),
 })
 
-export const PhaseSchema = z.object({ id: z.string(), name: L10nSchema })
+const PhaseSchema = z.object({ id: z.string(), name: L10nSchema })
 export type Phase = z.infer<typeof PhaseSchema>
 export type ValveState = 'open' | 'closed'
 
 /** Modifiche manuali alla distinta: i campi presenti sostituiscono quelli generati dal disegno. */
-export const BomOverrideSchema = z.object({
+const BomOverrideSchema = z.object({
   description: L10nSchema.partial().optional(),
   type: L10nSchema.partial().optional(),
   note: L10nSchema.partial().optional(),
@@ -133,7 +133,7 @@ export const BomOverrideSchema = z.object({
 export type BomOverride = z.infer<typeof BomOverrideSchema>
 
 /** Riga aggiunta a mano (materiale che non è un componente del disegno: tubi, raccordi, viti…). */
-export const BomExtraSchema = z.object({
+const BomExtraSchema = z.object({
   id: z.string(),
   tag: z.string().default(''),
   description: L10nSchema.default({ it: '', en: '' }),
@@ -144,9 +144,8 @@ export const BomExtraSchema = z.object({
   /** id del gruppo; di base «Altro» */
   group: z.string().default('misc'),
 })
-export type BomExtra = z.infer<typeof BomExtraSchema>
 
-export const BomSchema = z.object({
+const BomSchema = z.object({
   /** per id componente */
   overrides: z.record(z.string(), BomOverrideSchema).default({}),
   /** componenti esclusi dalla distinta */
@@ -164,11 +163,10 @@ export const BomSchema = z.object({
 export type BomConfig = z.infer<typeof BomSchema>
 
 /** Controlli dello schema: i suggerimenti (volumi chiudibili, diametri) sono spenti finché non li accendi; gli avvisi che ignori restano ignorati. */
-export const ChecksSchema = z.object({
+const ChecksSchema = z.object({
   hints: z.boolean().default(false),
   dismissed: z.array(z.string()).default([]),
 })
-export type ChecksConfig = z.infer<typeof ChecksSchema>
 
 export const DocumentSchema = z.object({
   version: z.literal(2),

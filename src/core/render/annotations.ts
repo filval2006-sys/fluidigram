@@ -2,7 +2,7 @@ import type { Annotation, Lang, Tone } from '../types'
 import { INK, esc, FONT, n } from './svg'
 
 /** Colori fissi per i toni (leggibili su fondo chiaro e scuro, stampabili). */
-export const TONE_COLOR: Record<Tone, string> = { neutral: INK, blue: '#2f6fed', amber: '#b87500', green: '#2b8a3e', red: '#d6342c' }
+const TONE_COLOR: Record<Tone, string> = { neutral: INK, blue: '#2f6fed', amber: '#b87500', green: '#2b8a3e', red: '#d6342c' }
 
 export const annotationText = (a: Annotation, lang: Lang): string => a.text[lang] || a.text[lang === 'it' ? 'en' : 'it'] || ''
 

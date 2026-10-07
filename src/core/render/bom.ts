@@ -60,7 +60,7 @@ export function applyOverride(row: BomRow, bom: BomConfig, id: string, lang: Lan
   }
 }
 
-export function extraBomRow(x: BomConfig['extra'][number], lang: Lang): BomRow {
+function extraBomRow(x: BomConfig['extra'][number], lang: Lang): BomRow {
   return {
     key: `x:${x.id}`, tag: x.tag,
     description: x.description[lang] || x.description[other(lang)], type: x.type[lang] || x.type[other(lang)],
@@ -102,7 +102,7 @@ export function bomGroups(bom: BomConfig, lang: Lang): BomGroupInfo[] {
 }
 
 /** Gruppo di un componente: quello scelto a mano (se esiste ancora) o quello del suo tipo. */
-export function componentGroup(c: Component, bom: BomConfig): string {
+function componentGroup(c: Component, bom: BomConfig): string {
   const chosen = bom.overrides[c.id]?.group
   if (chosen && (chosen === MISC_GROUP || chosen.startsWith('cat:') || bom.groups.some((g) => g.id === chosen))) return chosen
   return `cat:${getSymbol(c.symbol).category}`

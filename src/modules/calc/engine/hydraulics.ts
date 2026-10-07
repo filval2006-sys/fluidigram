@@ -51,7 +51,7 @@ export function pipeDrop(mdot: number, D: number, L: number, rho: number, mu: nu
 }
 
 /** Kv (m³/h per √bar) = 0.865·Cv (Cv in US gpm per √psi). */
-export const KV_PER_CV = 0.865
+const KV_PER_CV = 0.865
 
 /** Portata massica (kg/s) di un liquido attraverso una valvola con coefficiente Cv. */
 export function liquidFlowFromCv(Cv: number, dpPa: number, rho: number): number {

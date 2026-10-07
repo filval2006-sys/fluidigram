@@ -6,7 +6,7 @@ import { useStore } from '../state/store'
 export const SYMBOL_DRAG_TYPE = 'application/x-fluidigram-symbol'
 
 /** Elementi di annotazione (non fanno parte dell'impianto). */
-export const ANNOTATION_ITEMS = [
+const ANNOTATION_ITEMS = [
   { id: 'ann.text', label: 'Testo libero', hint: 'nota, didascalia', Icon: Type, words: 'testo nota didascalia commento annotazione text note' },
   { id: 'ann.box', label: 'Riquadro di zona', hint: 'es. lato volo, GSE', Icon: SquareDashed, words: 'riquadro zona area confine gruppo box lato volo gse zone boundary' },
 ] as const

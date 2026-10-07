@@ -8,7 +8,7 @@ function toBase64(buf: ArrayBuffer): string {
 }
 
 /** Dimensioni in mm lette dal viewBox della pagina. */
-export function pageSizeOf(svg: string): { w: number; h: number } {
+function pageSizeOf(svg: string): { w: number; h: number } {
   const m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg)
   return m ? { w: Number(m[1]), h: Number(m[2]) } : { w: 420, h: 297 }
 }

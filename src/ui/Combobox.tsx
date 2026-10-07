@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 
-export interface ComboGroup { id: string; label: string; options: string[] }
+interface ComboGroup { id: string; label: string; options: string[] }
 
 interface Props {
   value: string

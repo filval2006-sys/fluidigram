@@ -1,4 +1,4 @@
-import { DIR_VEC, add, scale, type Dir, type Point } from './geometry'
+import { DIR_VEC, add, scale, type Point } from './geometry'
 import { simplify, type Endpoint } from './routing'
 
 /** Rettangolo d'ingombro (stesso formato di worldExtent). */
@@ -11,7 +11,6 @@ const TURN = 2.5 // penalità per ogni curva (preferisce percorsi con meno gomit
 const NEAR = 0.35 // piccola penalità per i nodi adiacenti a un ostacolo
 const MAX_EXPANSIONS = 60_000
 
-const DIRS: Dir[] = ['N', 'E', 'S', 'W']
 const DI = { N: 0, E: 1, S: 2, W: 3 } as const
 const OPP = [2, 3, 0, 1]
 const STEP = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }]
@@ -162,5 +161,3 @@ export function autoRoute(a: Endpoint, b: Endpoint, obstacles: Box[]): Point[] |
   return result ? result.map((p) => ({ ...p })) : null
 }
 
-export function clearRouteCache(): void { cache.clear() }
-export { DIRS }

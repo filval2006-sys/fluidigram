@@ -5,7 +5,7 @@ import { svgPagesToPdf, svgToPng } from '../platform/exporters'
 import { saveFiles, type OutFile } from '../platform/files'
 import { useActiveTab, useStore } from '../state/store'
 import { Field, Section, TextField } from './Fields'
-import type { Notify } from './TopBar'
+import type { Notify } from './projectActions'
 
 const slug = (s: string) => s.trim().replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '') || 'progetto'
 

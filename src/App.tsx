@@ -17,7 +17,8 @@ import { StepBar } from './ui/StepBar'
 import { MODULES } from './modules'
 import { SettingsDialog } from './ui/SettingsDialog'
 import { ExportDialog } from './ui/ExportDialog'
-import { TabBar, Toolbar, openProject, saveActive, type ExtraTool } from './ui/TopBar'
+import { openProject, saveActive } from './ui/projectActions'
+import { TabBar, Toolbar, type ExtraTool } from './ui/TopBar'
 
 interface Toast { id: number; msg: string; kind: 'ok' | 'err' }
 

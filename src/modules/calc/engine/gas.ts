@@ -1,7 +1,7 @@
 /** Gas ideali comuni per la pressurizzazione. R specifica = R/M. */
 export interface Gas { id: string; name: { it: string; en: string }; gamma: number; M: number }
 
-export const R_UNIVERSAL = 8.314462618
+const R_UNIVERSAL = 8.314462618
 
 export const GASES: readonly Gas[] = [
   { id: 'n2', name: { it: 'Azoto (N₂)', en: 'Nitrogen (N₂)' }, gamma: 1.4, M: 0.0280134 },

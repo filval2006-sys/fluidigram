@@ -3,7 +3,7 @@ import { getSymbol } from './symbols/library'
 import { JOIN_ALL, UnionFind, portKey } from './topology'
 import type { FluidDocument, FluidId } from './types'
 
-export interface FlowGroup {
+interface FlowGroup {
   fluids: Set<FluidId>
   lineIds: Set<string>
   componentIds: Set<string>

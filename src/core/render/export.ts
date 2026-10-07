@@ -13,11 +13,11 @@ import { n, rectEl, textEl } from './svg'
 import { renderRevisionTable, renderTitleBlock } from './titleblock'
 
 /** Sotto questa scala il disegno diventa poco leggibile: in modalità automatica si divide in più fogli. */
-export const MIN_FIT_SCALE = 0.6
+const MIN_FIT_SCALE = 0.6
 const GRID = 5
 const CONTENT_PAD = 10
 
-export interface PageTile { col: number; row: number; region: Rect; number: number }
+interface PageTile { col: number; row: number; region: Rect; number: number }
 
 export interface ExportPlan {
   settings: ExportSettings

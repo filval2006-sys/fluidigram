@@ -1,7 +1,7 @@
 import type { Lang } from './types'
 
 /** Testi fissi del disegno esportato (cartiglio, legenda, tabelle). */
-export const EXPORT_TEXT = {
+const EXPORT_TEXT = {
   title: { it: 'TITOLO', en: 'TITLE' },
   drawingNo: { it: 'N. DISEGNO', en: 'DRAWING No.' },
   company: { it: 'AZIENDA / PROGETTO', en: 'COMPANY / PROJECT' },

@@ -7,7 +7,7 @@ export interface RecentFile { path: string; name: string; openedAt: number }
 export interface Recoverable { id: string; filePath?: string; doc: FluidDocument; savedAt: number }
 
 export const MAX_RECENTS = 12
-export const MAX_RECOVERABLE = 10
+const MAX_RECOVERABLE = 10
 
 /** Nome mostrato per un percorso: il nome del file senza estensione. */
 export function fileLabel(path: string): string {

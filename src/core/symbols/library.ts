@@ -110,7 +110,7 @@ export interface ResolvedSymbol {
   actuator: ActuatorId | null
 }
 
-export const isActuatorId = (v: string | undefined): v is ActuatorId => !!v && ACT.has(v as ActuatorId)
+const isActuatorId = (v: string | undefined): v is ActuatorId => !!v && ACT.has(v as ActuatorId)
 
 /** Simbolo + opzioni del componente (azionamento, stato a riposo) → disegno effettivo. */
 export function resolveSymbol(def: SymbolDef, props: Record<string, string> = {}): ResolvedSymbol {

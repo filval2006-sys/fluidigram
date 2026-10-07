@@ -6,7 +6,7 @@ import { componentPorts } from './scene'
 import { getSymbol, resolveSymbol } from './symbols/library'
 import type { Component, Drawing, FluidDocument, FluidId } from './types'
 
-export type Severity = 'error' | 'warning' | 'info'
+type Severity = 'error' | 'warning' | 'info'
 
 export interface CheckIssue {
   /** stabile tra un'esecuzione e l'altra (serve a React) */
@@ -20,7 +20,7 @@ export interface CheckIssue {
   scope: CheckScope
 }
 
-export type CheckScope = 'design' | 'operation'
+type CheckScope = 'design' | 'operation'
 /** Segnalazioni che riguardano le fasi di funzionamento. */
 const OPERATION_CODES = new Set(['phase-contamination', 'phase-incomplete'])
 
@@ -46,7 +46,7 @@ const num = (s: string | undefined): number | null => {
 const fluidCode = (f: FluidId) => FLUIDS[f].code
 
 /** Segnalazioni facoltative: utili a volte, ma non sono mancanze. Si vedono solo se le accendi. */
-export const HINT_CODES = new Set(['trapped', 'size-mismatch', 'no-size'])
+const HINT_CODES = new Set(['trapped', 'size-mismatch', 'no-size'])
 
 export interface CheckReport {
   /** quello che si mostra: senza suggerimenti spenti e senza avvisi ignorati */
