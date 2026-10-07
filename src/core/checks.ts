@@ -27,7 +27,7 @@ const isBlocker = (c: Component): boolean => {
 const PROTECTIVE_INLINE = new Set(['fitting.burst'])
 const SINKS = new Set(['fitting.vent', 'engine.chamber'])
 /** Componenti che possono legittimamente collegare fluidi diversi. */
-const MIXES_FLUIDS = new Set(['valve.ball3', 'valve.solenoid3', 'valve.relief', 'valve.pyro'])
+const MIXES_FLUIDS = new Set(['valve.ball3', 'valve.solenoid3', 'valve.servo3', 'valve.relief', 'valve.pyro'])
 /** Componenti che cambiano diametro per costruzione. */
 const CHANGES_SIZE = new Set(['fitting.reducer', 'fitting.orifice', 'valve.regulator', 'valve.relief', 'fitting.burst', 'fitting.qd', 'fitting.hose', 'fitting.flange'])
 
@@ -73,7 +73,7 @@ export function runChecks(doc: FluidDocument): CheckIssue[] {
     for (const p of ports) {
       if (connected.has(portKey(c.id, p.id)) || ends.has(p.id)) continue
       // scarichi e uscite di sfogo restano volutamente aperti
-      if ((def.id === 'valve.relief' && p.id === 'out') || (def.id === 'valve.solenoid3' && p.id === 'c')) continue
+      if ((def.id === 'valve.relief' && p.id === 'out') || ((def.id === 'valve.solenoid3' || def.id === 'valve.servo3') && p.id === 'c')) continue
       add('warning', 'open-port', `${c.tag}: la porta «${p.id}» non è collegata.`, [c.id], `:${p.id}`)
     }
   }
@@ -176,7 +176,7 @@ export function runChecks(doc: FluidDocument): CheckIssue[] {
   for (const c of d.components) {
     const def = getSymbol(c.symbol)
     const act = resolveSymbol(def, c.props).actuator
-    const electric = def.id.startsWith('valve.solenoid') || act === 'solenoid' || act === 'pneumatic'
+    const electric = def.id.startsWith('valve.solenoid') || def.id.startsWith('valve.servo') || act === 'solenoid' || act === 'servo' || act === 'pneumatic'
     if (electric && !c.props.normal) add('warning', 'no-normal-state', `${c.tag}: manca lo stato a riposo (NC/NA), importante per la sicurezza in caso di mancanza di alimentazione.`, [c.id])
   }
 

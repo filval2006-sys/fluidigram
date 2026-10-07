@@ -3,6 +3,7 @@ import type { FluidDocument } from './types'
 /** Impianto di esempio: pressurizzazione N₂ di un serbatoio ossidante con linea di scarico. */
 export const SAMPLE_DOCUMENT: FluidDocument = {
   version: 2,
+  bom: { overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] },
   meta: {
     title: { it: 'Impianto di alimentazione ossidante', en: 'Oxidizer feed system' },
     subtitle: { it: 'Banco prova motore ibrido', en: 'Hybrid motor test stand' },
@@ -19,15 +20,15 @@ export const SAMPLE_DOCUMENT: FluidDocument = {
   drawing: {
     annotations: [],
     components: [
-      { id: 'c1', symbol: 'vessel.tank', tag: 'TK-102', x: 50, y: 50, rotation: 0, mirror: false, props: {} },
-      { id: 'c2', symbol: 'valve.ball', tag: 'BV-101', x: 80, y: 50, rotation: 0, mirror: false, props: {} },
-      { id: 'c3', symbol: 'fitting.junction', tag: 'J-101', x: 100, y: 50, rotation: 0, mirror: false, props: {} },
-      { id: 'c4', symbol: 'instr.pt', tag: 'PT-101', x: 100, y: 30, rotation: 0, mirror: false, props: {} },
-      { id: 'c5', symbol: 'valve.solenoid2', tag: 'SV-101', x: 120, y: 50, rotation: 0, mirror: false, props: {} },
-      { id: 'c6', symbol: 'valve.check', tag: 'CV-101', x: 140, y: 50, rotation: 0, mirror: false, props: {} },
-      { id: 'c7', symbol: 'vessel.tank', tag: 'TK-101', x: 170, y: 100, rotation: 0, mirror: false, props: {} },
-      { id: 'c8', symbol: 'valve.ball', tag: 'BV-102', x: 170, y: 140, rotation: 90, mirror: false, props: {} },
-      { id: 'c9', symbol: 'valve.solenoid2', tag: 'SV-102', x: 170, y: 165, rotation: 90, mirror: false, props: {} },
+      { id: 'c1', symbol: 'vessel.tank', tag: 'TK-2', x: 50, y: 50, rotation: 0, mirror: false, props: {} },
+      { id: 'c2', symbol: 'valve.ball', tag: 'BV-1', x: 80, y: 50, rotation: 0, mirror: false, props: {} },
+      { id: 'c3', symbol: 'fitting.junction', tag: 'J-1', x: 100, y: 50, rotation: 0, mirror: false, props: {} },
+      { id: 'c4', symbol: 'instr.pt', tag: 'PT-1', x: 100, y: 30, rotation: 0, mirror: false, props: {} },
+      { id: 'c5', symbol: 'valve.solenoid2', tag: 'EV-1', x: 120, y: 50, rotation: 0, mirror: false, props: {} },
+      { id: 'c6', symbol: 'valve.check', tag: 'CV-1', x: 140, y: 50, rotation: 0, mirror: false, props: {} },
+      { id: 'c7', symbol: 'vessel.tank', tag: 'TK-1', x: 170, y: 100, rotation: 0, mirror: false, props: {} },
+      { id: 'c8', symbol: 'valve.ball', tag: 'BV-2', x: 170, y: 140, rotation: 90, mirror: false, props: {} },
+      { id: 'c9', symbol: 'valve.solenoid2', tag: 'EV-2', x: 170, y: 165, rotation: 90, mirror: false, props: {} },
     ],
     lines: [
       { id: 'l1', fluid: 'pressurant', size: '1/4"', from: { componentId: 'c1', portId: 'right' }, to: { componentId: 'c2', portId: 'a' } },

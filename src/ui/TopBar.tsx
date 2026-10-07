@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { Download, FilePlus2, FolderOpen, Monitor, Moon, Plus, Redo2, Save, Settings, Sun, Undo2, X } from 'lucide-react'
+import { Download, FilePlus2, FolderOpen, Monitor, Moon, Plus, Redo2, Save, Settings, Sun, Table2, Undo2, Workflow, X } from 'lucide-react'
 import { openTextFile, saveTextFile } from '../platform/files'
+import { flushFocusedField } from './flush'
 import { isDirty, tabName, useActiveTab, useStore } from '../state/store'
 import { parseDocument } from '../core'
 
@@ -11,6 +12,7 @@ const slug = (s: string) => s.trim().replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(
 
 /** Salva la scheda attiva. Restituisce true solo se il file è stato scritto (false se annullato o in errore). */
 export async function saveActive(notify: Notify, forceDialog = false): Promise<boolean> {
+  flushFocusedField()
   const st = useStore.getState()
   const tab = st.tabs.find((t) => t.id === st.activeId)!
   const name = `${slug(tab.doc.meta.drawingNo || tab.doc.meta.title.it)}.fluidigram`
@@ -46,7 +48,7 @@ export function TabBar({ onClose }: { onClose: (id: string) => void }) {
     <div className="tabbar" role="tablist">
       {tabs.map((t) => (
         <div key={t.id} role="tab" aria-selected={t.id === activeId} className={'tab' + (t.id === activeId ? ' on' : '')}
-          onClick={() => setActive(t.id)} onDoubleClick={() => { setActive(t.id); setRenaming(t.id) }} title="Doppio clic per rinominare">
+          onClick={() => { flushFocusedField(); setActive(t.id) }} onDoubleClick={() => { setActive(t.id); setRenaming(t.id) }} title="Doppio clic per rinominare">
           {renaming === t.id ? (
             <input autoFocus defaultValue={t.doc.meta.title.it} onFocus={(e) => e.target.select()} onClick={(e) => e.stopPropagation()}
               onBlur={(e) => { const v = e.target.value.trim(); if (v) edit((d) => { d.meta.title.it = v }); setRenaming(null) }}
@@ -78,6 +80,8 @@ export function Toolbar({ notify, onExport, onSettings, tools }: { notify: Notif
   const setTheme = useStore((s) => s.setTheme)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
+  const stageView = useStore((s) => s.stageView)
+  const setStageView = useStore((s) => s.setStageView)
   const next = THEMES[(THEMES.findIndex((t) => t.id === theme) + 1) % THEMES.length]
   const Cur = THEMES.find((t) => t.id === theme)!.Icon
 
@@ -91,6 +95,10 @@ export function Toolbar({ notify, onExport, onSettings, tools }: { notify: Notif
       <div className="group">
         <button className="icon-btn" aria-label="Annulla" title="Annulla (⌘Z)" disabled={!tab.past.length} onClick={undo}><Undo2 size={16} /></button>
         <button className="icon-btn" aria-label="Ripeti" title="Ripeti (⇧⌘Z)" disabled={!tab.future.length} onClick={redo}><Redo2 size={16} /></button>
+      </div>
+      <div className="seg" role="tablist" aria-label="Schermata">
+        <button role="tab" aria-selected={stageView === 'schema'} className={stageView === 'schema' ? 'on' : ''} onClick={() => { flushFocusedField(); setStageView('schema') }} title="Schema (⌘1)"><Workflow size={14} />Schema</button>
+        <button role="tab" aria-selected={stageView === 'bom'} className={stageView === 'bom' ? 'on' : ''} onClick={() => { flushFocusedField(); setStageView('bom') }} title="Distinta componenti (⌘2)"><Table2 size={14} />Distinta</button>
       </div>
       <div className="spacer" />
       {tools.map(({ id, label, title, Icon, onClick }) => <button key={id} onClick={onClick} title={title}><Icon size={15} />{label}</button>)}

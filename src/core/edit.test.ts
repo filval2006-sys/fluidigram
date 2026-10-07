@@ -8,14 +8,14 @@ import { filterPipeSizes } from './pipeSizes'
 
 describe('operazioni di modifica', () => {
   it('nextTag continua la numerazione', () => {
-    expect(nextTag(SAMPLE_DOCUMENT, 'BV')).toBe('BV-103')
-    expect(nextTag(SAMPLE_DOCUMENT, 'XX')).toBe('XX-101')
+    expect(nextTag(SAMPLE_DOCUMENT, 'BV')).toBe('BV-3')
+    expect(nextTag(SAMPLE_DOCUMENT, 'XX')).toBe('XX-1')
   })
   it('addComponent aggancia alla griglia e dà un tag nuovo', () => {
     const doc = produce(SAMPLE_DOCUMENT, (d) => { addComponent(d, 'valve.ball', 92, 118) })
     const c = doc.drawing.components.at(-1)!
     expect([c.x, c.y]).toEqual([90, 120])
-    expect(c.tag).toBe('BV-103')
+    expect(c.tag).toBe('BV-3')
     expect(checkIntegrity(doc)).toEqual([])
   })
   it('connectPorts rifiuta porte occupate o uguali', () => {
@@ -77,7 +77,12 @@ describe('azionamenti delle valvole', () => {
     const r = resolveSymbol(getSymbol('valve.ball'), { actuator: 'solenoid' })
     expect(r.extent.y).toBe(-5)
     expect(r.avoidSides).toContain('N')
-    expect(r.prims.some((p) => p.k === 'text' && p.s === 'S')).toBe(true)
+    expect(r.prims.some((p) => p.k === 'text' && p.s === 'EV')).toBe(true)
+    // il servoazionamento è un cerchio con SV, non il riquadro dell'elettrovalvola
+    const sv = resolveSymbol(getSymbol('valve.ball'), { actuator: 'servo' })
+    expect(sv.prims.some((p) => p.k === 'text' && p.s === 'SV')).toBe(true)
+    expect(sv.prims.some((p) => p.k === 'circle')).toBe(true)
+    expect(sv.prims.some((p) => p.k === 'rect')).toBe(false)
   })
   it('lo stato a riposo compare come testo', () => {
     const r = resolveSymbol(getSymbol('valve.ball'), { actuator: 'pneumatic', normal: 'NC' })

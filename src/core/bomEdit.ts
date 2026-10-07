@@ -1,0 +1,141 @@
+import { newId } from './edit'
+import { MISC_GROUP, bomEditorSections, bomGroups } from './render/bom'
+import { getSymbol } from './symbols/library'
+import { autoBomRow } from './render/bom'
+import type { BomOverride, FluidDocument, Lang } from './types'
+
+export type BomField = 'description' | 'type' | 'note' | 'size' | 'pmax' | 'tag'
+const TEXT_FIELDS = new Set<BomField>(['description', 'type', 'note'])
+
+/** Modifica una cella della distinta (funzioni che mutano: da usare dentro store.edit). */
+export function setBomCell(doc: FluidDocument, id: string, extra: boolean, field: BomField, lang: Lang, value: string): void {
+  const bom = doc.bom
+  if (extra) {
+    const x = bom.extra.find((e) => e.id === id)
+    if (!x) return
+    if (field === 'tag' || field === 'size' || field === 'pmax') x[field] = value
+    else x[field][lang] = value
+    return
+  }
+  const c = doc.drawing.components.find((k) => k.id === id)
+  if (!c || field === 'tag') return
+  const auto = autoBomRow(c, lang)
+  const o: BomOverride = bom.overrides[id] ?? {}
+  if (TEXT_FIELDS.has(field)) {
+    const key = field as 'description' | 'type' | 'note'
+    const same = value === auto[key]
+    const cur = { ...(o[key] ?? {}) }
+    // lo stesso valore del generato non è una modifica: si toglie, e la riga torna a seguire il disegno
+    if (same) delete cur[lang]
+    else cur[lang] = value
+    if (Object.keys(cur).length) o[key] = cur
+    else delete o[key]
+  } else {
+    if (value === auto[field]) delete o[field]
+    else o[field] = value
+  }
+  if (Object.keys(o).length) bom.overrides[id] = o
+  else delete bom.overrides[id]
+}
+
+/** Toglie tutte le modifiche manuali di una riga: torna ai valori del disegno. */
+export function resetBomRow(doc: FluidDocument, id: string): void {
+  delete doc.bom.overrides[id]
+}
+
+export function setBomHidden(doc: FluidDocument, id: string, hidden: boolean): void {
+  const set = new Set(doc.bom.hidden)
+  if (hidden) set.add(id)
+  else set.delete(id)
+  doc.bom.hidden = [...set]
+}
+
+export function addBomExtra(doc: FluidDocument, group = 'misc'): string {
+  const id = newId('x')
+  doc.bom.extra.push({ id, tag: '', description: { it: '', en: '' }, type: { it: '', en: '' }, size: '', pmax: '', note: { it: '', en: '' }, group })
+  return id
+}
+
+export function removeBomExtra(doc: FluidDocument, id: string): void {
+  doc.bom.extra = doc.bom.extra.filter((x) => x.id !== id)
+}
+
+/** Ripristina la distinta automatica: via modifiche, nascosti e righe aggiunte. */
+export function resetBom(doc: FluidDocument): void {
+  doc.bom = { overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] }
+}
+
+/** Dimentica le modifiche dei componenti che non esistono più. */
+export function pruneBom(doc: FluidDocument): void {
+  const alive = new Set(doc.drawing.components.map((c) => c.id))
+  for (const id of Object.keys(doc.bom.overrides)) if (!alive.has(id)) delete doc.bom.overrides[id]
+  if (doc.bom.hidden.some((id) => !alive.has(id))) doc.bom.hidden = doc.bom.hidden.filter((id) => alive.has(id))
+}
+
+// ---- gruppi ----
+
+export function setBomGrouped(doc: FluidDocument, grouped: boolean): void {
+  doc.bom.grouped = grouped
+}
+
+/** Rinomina un gruppo (predefinito o proprio) nella lingua indicata; un nome vuoto torna a quello predefinito. */
+export function renameBomGroup(doc: FluidDocument, id: string, lang: Lang, name: string): void {
+  const custom = doc.bom.groups.find((g) => g.id === id)
+  if (custom) { custom.name[lang] = name; return }
+  const cur = { ...(doc.bom.renames[id] ?? {}) }
+  if (name.trim()) cur[lang] = name
+  else delete cur[lang]
+  if (Object.keys(cur).length) doc.bom.renames[id] = cur
+  else delete doc.bom.renames[id]
+}
+
+export function addBomGroup(doc: FluidDocument): string {
+  const id = newId('g')
+  const n = doc.bom.groups.length + 1
+  doc.bom.groups.push({ id, name: { it: `Nuovo gruppo ${n}`, en: `New group ${n}` } })
+  return id
+}
+
+/** Elimina un gruppo proprio: le sue righe tornano al gruppo del loro tipo (o «Altro» se aggiunte a mano). */
+export function removeBomGroup(doc: FluidDocument, id: string): void {
+  if (!doc.bom.groups.some((g) => g.id === id)) return
+  doc.bom.groups = doc.bom.groups.filter((g) => g.id !== id)
+  doc.bom.order = doc.bom.order.filter((x) => x !== id)
+  for (const [cid, o] of Object.entries(doc.bom.overrides)) {
+    if (o.group === id) {
+      delete o.group
+      if (!Object.keys(o).length) delete doc.bom.overrides[cid]
+    }
+  }
+  for (const x of doc.bom.extra) if (x.group === id) x.group = MISC_GROUP
+}
+
+/**
+ * Sposta un gruppo su (-1) o giù (+1) rispetto ai gruppi che si vedono (quelli vuoti non contano), e salva l'ordine.
+ */
+export function moveBomGroup(doc: FluidDocument, id: string, delta: -1 | 1): void {
+  const visible = bomEditorSections(doc.drawing, 'it', doc.bom).map((s) => s.group.id).filter(Boolean)
+  const i = visible.indexOf(id)
+  const target = visible[i + delta]
+  if (i < 0 || target === undefined) return
+  const ids = bomGroups(doc.bom, 'it').map((g) => g.id).filter((x) => x !== id)
+  const at = ids.indexOf(target)
+  ids.splice(delta < 0 ? at : at + 1, 0, id)
+  doc.bom.order = ids
+}
+
+/** Mette una riga in un gruppo; il gruppo del tipo di componente non richiede di salvare nulla. */
+export function setBomRowGroup(doc: FluidDocument, id: string, extra: boolean, group: string): void {
+  if (extra) {
+    const x = doc.bom.extra.find((e) => e.id === id)
+    if (x) x.group = group
+    return
+  }
+  const c = doc.drawing.components.find((k) => k.id === id)
+  if (!c) return
+  const o: BomOverride = doc.bom.overrides[id] ?? {}
+  if (group === `cat:${getSymbol(c.symbol).category}`) delete o.group
+  else o.group = group
+  if (Object.keys(o).length) doc.bom.overrides[id] = o
+  else delete doc.bom.overrides[id]
+}

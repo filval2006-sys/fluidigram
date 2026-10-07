@@ -120,6 +120,49 @@ export const PhaseSchema = z.object({ id: z.string(), name: L10nSchema })
 export type Phase = z.infer<typeof PhaseSchema>
 export type ValveState = 'open' | 'closed'
 
+/** Modifiche manuali alla distinta: i campi presenti sostituiscono quelli generati dal disegno. */
+export const BomOverrideSchema = z.object({
+  description: L10nSchema.partial().optional(),
+  type: L10nSchema.partial().optional(),
+  note: L10nSchema.partial().optional(),
+  size: z.string().optional(),
+  pmax: z.string().optional(),
+  /** gruppo scelto a mano (id); senza, vale quello del tipo di componente */
+  group: z.string().optional(),
+})
+export type BomOverride = z.infer<typeof BomOverrideSchema>
+
+/** Riga aggiunta a mano (materiale che non è un componente del disegno: tubi, raccordi, viti…). */
+export const BomExtraSchema = z.object({
+  id: z.string(),
+  tag: z.string().default(''),
+  description: L10nSchema.default({ it: '', en: '' }),
+  type: L10nSchema.default({ it: '', en: '' }),
+  size: z.string().default(''),
+  pmax: z.string().default(''),
+  note: L10nSchema.default({ it: '', en: '' }),
+  /** id del gruppo; di base «Altro» */
+  group: z.string().default('misc'),
+})
+export type BomExtra = z.infer<typeof BomExtraSchema>
+
+export const BomSchema = z.object({
+  /** per id componente */
+  overrides: z.record(z.string(), BomOverrideSchema).default({}),
+  /** componenti esclusi dalla distinta */
+  hidden: z.array(z.string()).default([]),
+  extra: z.array(BomExtraSchema).default([]),
+  /** distinta divisa in gruppi con intestazione (nello schermo e nel PDF) */
+  grouped: z.boolean().default(true),
+  /** gruppi creati a mano; quelli per tipo di componente (cat:valves, …) e «misc» esistono già */
+  groups: z.array(z.object({ id: z.string(), name: L10nSchema })).default([]),
+  /** nomi cambiati ai gruppi predefiniti */
+  renames: z.record(z.string(), L10nSchema.partial()).default({}),
+  /** ordine dei gruppi (id); quelli non elencati seguono l'ordine predefinito */
+  order: z.array(z.string()).default([]),
+})
+export type BomConfig = z.infer<typeof BomSchema>
+
 export const DocumentSchema = z.object({
   version: z.literal(2),
   meta: MetaSchema,
@@ -127,5 +170,6 @@ export const DocumentSchema = z.object({
   drawing: DrawingSchema,
   phases: z.array(PhaseSchema).default([]),
   export: ExportSettingsSchema.prefault({}),
+  bom: BomSchema.prefault({}),
 })
 export type FluidDocument = z.infer<typeof DocumentSchema>

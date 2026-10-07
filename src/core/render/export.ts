@@ -2,7 +2,7 @@ import { t } from '../i18n'
 import { lineRoute, worldExtent } from '../scene'
 import type { Drawing, ExportSettings, FluidDocument, Lang } from '../types'
 import type { Point } from '../geometry'
-import { bomRows, bomRowsPerPage, renderBomPage, renderStatesPage, stateRows } from './bom'
+import { bomItems, bomRowsPerPage, paginateBom, renderBomPage, renderStatesPage, stateRows } from './bom'
 import { layoutFor, type PageLayout, type Rect } from './layout'
 import { renderLegend, usedIn } from './legend'
 import { annotationBounds, renderAnnotationBox, renderAnnotationText } from './annotations'
@@ -149,8 +149,7 @@ export function planExport(doc: FluidDocument, settings: ExportSettings = doc.ex
   }
   if (!tiles.length) tiles.push({ col: 0, row: 0, region: { x: xCuts[0], y: yCuts[0], w: xCuts[1] - xCuts[0], h: yCuts[1] - yCuts[0] }, number: 1 })
 
-  const rows = bomRows(d, settings.lang).length
-  const bomPages = settings.bom && rows > 0 ? Math.ceil(rows / bomRowsPerPage(layout)) : 0
+  const bomPages = settings.bom ? paginateBom(bomItems(d, settings.lang, doc.bom), bomRowsPerPage(layout)).length : 0
   const stRows = settings.states && doc.phases.length ? stateRows(d, doc.phases, settings.lang).length : 0
   const statesPages = stRows > 0 ? Math.ceil(stRows / bomRowsPerPage(layout)) : 0
   return { settings, layout, scale, bounds: b, xCuts, yCuts, tiles, bomPages, statesPages, totalPages: tiles.length + bomPages + statesPages }
@@ -229,11 +228,10 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
       renderTitleBlock(doc, layout, lang, { index: pageNumber, total: plan.totalPages, scaleText: '—', subtitle: t('stateTable', lang) }))
   }
   if (pageNumber > plan.tiles.length) {
-    const all = bomRows(doc.drawing, lang)
-    const per = bomRowsPerPage(layout)
+    const pages = paginateBom(bomItems(doc.drawing, lang, doc.bom), bomRowsPerPage(layout))
     const idx = pageNumber - plan.tiles.length - 1
     return pageShell(plan,
-      frame + renderBomPage(all.slice(idx * per, (idx + 1) * per), doc, layout, lang) +
+      frame + renderBomPage(pages[idx] ?? [], doc, layout, lang) +
       renderRevisionTable(doc, layout, lang) +
       renderTitleBlock(doc, layout, lang, { index: pageNumber, total: plan.totalPages, scaleText: '—', subtitle: t('bom', lang) }))
   }

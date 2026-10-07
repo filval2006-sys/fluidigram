@@ -69,11 +69,17 @@ jobs:
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseName: 'Fluidigram ${{ github.ref_name }}'
           releaseBody: |
-            ## Installazione
-            **macOS** — scarica il file `.dmg`, aprilo e trascina Fluidigram in Applicazioni. La prima volta fai clic destro sull'app → *Apri* (l'app non è ancora firmata da Apple).
-            **Windows** — scarica il file `-setup.exe` ed eseguilo (non servono permessi di amministratore). Se compare «Windows ha protetto il PC», premi *Ulteriori informazioni* → *Esegui comunque*.
+            ## Download
+            **macOS** (Apple Silicon and Intel) — download the `.dmg`, open it and drag Fluidigram to Applications. The first time, right-click the app → *Open* (the app is not code-signed yet). If macOS says it is damaged, run `xattr -cr /Applications/Fluidigram.app` in Terminal.
+            **Windows 10/11** — download the `-setup.exe` and run it (no administrator rights needed). If "Windows protected your PC" appears, press *More info* → *Run anyway*.
 
-            L'app funziona completamente offline.
+            Works fully offline. The interface is in Italian; exported drawings can be in Italian or English.
+
+            ## Installazione
+            **macOS** — scarica il `.dmg`, aprilo e trascina Fluidigram in Applicazioni. La prima volta fai clic destro sull'app → *Apri* (non è ancora firmata da Apple).
+            **Windows** — scarica il `-setup.exe` ed eseguilo. Se compare «Windows ha protetto il PC»: *Ulteriori informazioni* → *Esegui comunque*.
+
+            Created by Filippo Valentini.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

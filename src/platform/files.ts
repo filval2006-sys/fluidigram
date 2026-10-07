@@ -8,14 +8,14 @@ export async function openTextFile(extensions: string[]): Promise<OpenedFile | n
   if (inTauri()) {
     const { open } = await import('@tauri-apps/plugin-dialog')
     const { readTextFile } = await import('@tauri-apps/plugin-fs')
-    const path = await open({ multiple: false, filters: [{ name: 'Fluidigram', extensions }] })
+    // "Tutti i file": una copia a cui il sistema ha cambiato o tolto l'estensione si apre lo stesso
+    const path = await open({ multiple: false, filters: [{ name: 'Fluidigram', extensions }, { name: 'Tutti i file', extensions: ['*'] }] })
     if (!path || Array.isArray(path)) return null
     return { name: path.split(/[\\/]/).pop() ?? path, path, text: await readTextFile(path) }
   }
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = extensions.map((e) => '.' + e).join(',')
     input.onchange = async () => {
       const f = input.files?.[0]
       resolve(f ? { name: f.name, text: await f.text() } : null)
@@ -53,8 +53,10 @@ export async function saveFiles(files: OutFile[], extension: string, filterName:
   if (inTauri()) {
     const { save } = await import('@tauri-apps/plugin-dialog')
     const { invoke } = await import('@tauri-apps/api/core')
-    const target = path ?? (await save({ defaultPath: files[0].name, filters: [{ name: filterName, extensions: [extension] }] }))
-    if (!target) return null
+    const chosen = path ?? (await save({ defaultPath: files[0].name, filters: [{ name: filterName, extensions: [extension] }] }))
+    if (!chosen) return null
+    // il nome scelto deve finire con l'estensione giusta, altrimenti il file diventa "sconosciuto"
+    const target = chosen.toLowerCase().endsWith('.' + extension) ? chosen : `${chosen}.${extension}`
     const { dir } = splitPath(target)
     for (let i = 0; i < files.length; i++) {
       const f = files[i]

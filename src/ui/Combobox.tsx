@@ -22,6 +22,13 @@ export function Combobox({ value, onCommit, getGroups, placeholder, allowCustom 
   const [active, setActive] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
   const skipBlur = useRef(false)
+  const pending = useRef({ typed, text, value, open, allowCustom, onCommit })
+  pending.current = { typed, text, value, open, allowCustom, onCommit }
+  // se il campo sparisce mentre si sta scrivendo un valore (cambio di schermata), il valore scritto si conferma come all'uscita dal campo
+  useEffect(() => () => {
+    const p = pending.current
+    if (!skipBlur.current && p.open && p.typed && p.allowCustom && p.text.trim() && p.text.trim() !== p.value) p.onCommit(p.text.trim())
+  }, [])
 
   useEffect(() => { if (!open) { setText(value); setTyped(false) } }, [value, open])
 

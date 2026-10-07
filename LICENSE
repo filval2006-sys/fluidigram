@@ -1,0 +1,19 @@
+Fluidigram
+Copyright (c) 2026 Filippo Valentini. All rights reserved.
+
+Permission is granted to download and use the Fluidigram application free of charge,
+for personal and non-commercial purposes, and to share the unmodified installers.
+
+The source code is published for reading and transparency only. Copying, modifying,
+redistributing modified versions, or using the source code or the name "Fluidigram" in
+other products requires prior written permission from the copyright holder.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. Fluidigram draws diagrams
+and runs simple schematic checks; it is not an engineering approval. Check every design
+yourself before building or testing hardware: the author accepts no liability for damage
+or injury resulting from its use.
+
+---
+
+Uso gratuito per scopi personali e non commerciali; il codice è visibile ma non riutilizzabile
+senza permesso scritto. I controlli sullo schema sono un aiuto, non una verifica ingegneristica.

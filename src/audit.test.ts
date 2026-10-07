@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ALL_SYMBOLS, FLUID_IDS, mountInstrument, portEnds, setPortEnd, planLabels, renderLine, addComponent, bomRows, checkIntegrity, componentPorts, connectPorts, copyItems, createEmptyDocument,
+  ALL_SYMBOLS, FLUID_IDS, getSymbol, renumberTags, addBomGroup, bomItems, moveBomGroup, paginateBom, removeBomGroup, renameBomGroup, setBomGrouped, setBomRowGroup, addBomExtra, bomEditorRows, pruneBom, removeBomExtra, resetBom, setBomCell, setBomHidden, replaceComponents, mountInstrument, portEnds, setPortEnd, planLabels, renderLine, addComponent, bomRows, checkIntegrity, componentPorts, connectPorts, copyItems, createEmptyDocument,
   deleteItems, freePorts, lineRoute, mirrorComponents, parseDocument, pasteItems, planExport, readDocument, renderAllPages,
   renderComponent, rotateComponents, runChecks, traceFlow, type FluidDocument,
 } from './core'
@@ -274,5 +274,297 @@ describe('estremità dichiarate', () => {
     const extra = addComponent(doc, 'valve.ball', -30, 0)
     connectPorts(doc.drawing, { componentId: qd.id, portId: free }, { componentId: extra.id, portId: 'b' }, 'oxidizer')
     expect(portEnds(doc.drawing.components.find((c) => c.id === qd.id)!)).toHaveLength(0)
+  })
+})
+
+describe('strumenti riconoscibili', () => {
+  it('ogni strumento ha un disegno diverso: quadrante per gli analogici, sigla fissa per gli altri', () => {
+    const instr = ALL_SYMBOLS.filter((s) => s.category === 'instruments')
+    expect(new Set(instr.map((s) => JSON.stringify(s.prims))).size).toBe(instr.length)
+    const texts = (id: string) => instr.find((s) => s.id === id)!.prims.flatMap((p) => (p.k === 'text' ? [p.s] : []))
+    expect(texts('instr.pt')).toContain('PT')
+    expect(texts('instr.tt')).toContain('TC')
+    expect(instr.find((s) => s.id === 'instr.tt')!.tagPrefix).toBe('TC')
+    for (const id of ['instr.pi', 'instr.ti']) expect(instr.find((s) => s.id === id)!.prims.some((p) => p.k === 'path' && p.d.includes('L6.9,3.1'))).toBe(true) // lancetta
+    // il tag sta fuori dal simbolo
+    expect(instr.every((s) => !s.labelInside)).toBe(true)
+    expect(instr.find((s) => s.id === 'instr.pt')!.options!.map((o) => o.key)).toEqual(['signal', 'range'])
+  })
+})
+
+describe('compatibilità dei file', () => {
+  it('un trasduttore analogico di una versione precedente si legge come PT', () => {
+    const doc = randomDoc(31, 6, 200)
+    const raw = JSON.parse(JSON.stringify(doc))
+    raw.drawing.components[0].symbol = 'instr.pta'
+    raw.drawing.lines = []
+    const back = parseDocument(raw)
+    expect(back.drawing.components[0].symbol).toBe('instr.pt')
+  })
+})
+
+describe('camera di combustione', () => {
+  it('ha prese per i sensori e i sensori vi si montano direttamente', () => {
+    const doc = createEmptyDocument()
+    const cc = addComponent(doc, 'engine.chamber', 0, 0) // box 40×20 centrato: parete alta a y=-10
+    const ports = componentPorts(cc)
+    expect(ports.filter((p) => p.dir === 'N')).toHaveLength(3)
+    expect(ports.filter((p) => p.dir === 'S')).toHaveLength(3)
+    expect(ports.some((p) => p.id === 'in')).toBe(true)
+    const up = addComponent(doc, 'instr.pt', -15, -20) // porta bassa del sensore a y=-15, presa a y=-10: una cella
+    const down = addComponent(doc, 'instr.tt', -5, 20)
+    expect(mountInstrument(doc.drawing, up, 'pressurant')).toBe(true)
+    expect(mountInstrument(doc.drawing, down, 'pressurant')).toBe(true)
+    expect(doc.drawing.lines).toHaveLength(2)
+    expect(runChecks(doc).filter((i) => i.code === 'open-port' || i.code === 'isolated')).toEqual([])
+  })
+})
+
+describe('sostituzione di componenti', () => {
+  const chain = () => {
+    const doc = createEmptyDocument()
+    const a = addComponent(doc, 'valve.ball', 0, 0)
+    const b = addComponent(doc, 'valve.ball', 30, 0)
+    const c = addComponent(doc, 'valve.ball', 60, 0)
+    connectPorts(doc.drawing, { componentId: a.id, portId: 'b' }, { componentId: b.id, portId: 'a' }, 'oxidizer', '1/4" OD')
+    connectPorts(doc.drawing, { componentId: b.id, portId: 'b' }, { componentId: c.id, portId: 'a' }, 'oxidizer', '1/4" OD')
+    return { doc, a, b, c }
+  }
+
+  it('sostituisce una valvola tenendo posizione, rotazione e collegamenti, e rinumera il tag', () => {
+    const { doc, b } = chain()
+    b.rotation = 0
+    b.props.size = '1/4" OD'
+    b.props.actuator = 'manual'
+    const r = replaceComponents(doc, new Set([b.id]), 'valve.check')
+    expect(r.replaced).toEqual([b.id])
+    const nb = doc.drawing.components.find((x) => x.id === b.id)!
+    expect(nb.symbol).toBe('valve.check')
+    expect(nb.x).toBe(30)
+    expect(nb.props.size).toBe('1/4" OD')
+    expect(nb.props.actuator).toBeUndefined() // la valvola di ritegno non ha azionamento
+    expect(nb.tag).not.toMatch(/^BV-/)
+    expect(doc.drawing.lines).toHaveLength(2)
+    expect(checkIntegrity(doc)).toEqual([])
+  })
+
+  it('in gruppo: tutte le valvole selezionate, azionamento mantenuto se il nuovo simbolo lo ammette', () => {
+    const { doc, a, b, c } = chain()
+    a.props.actuator = 'solenoid'; b.props.actuator = 'manual'
+    const r = replaceComponents(doc, new Set([a.id, b.id, c.id]), 'valve.globe')
+    expect(r.replaced).toHaveLength(3)
+    expect(doc.drawing.components.every((x) => x.symbol === 'valve.globe')).toBe(true)
+    expect(doc.drawing.components.find((x) => x.id === a.id)!.props.actuator).toBe('solenoid')
+    expect(new Set(doc.drawing.components.map((x) => x.tag)).size).toBe(3)
+    expect(checkIntegrity(doc)).toEqual([])
+  })
+
+  it('un tag scelto a mano non cambia; un pezzo incompatibile resta com\'era e viene segnalato', () => {
+    const { doc, b } = chain()
+    b.tag = 'MAIN'
+    replaceComponents(doc, new Set([b.id]), 'valve.solenoid2')
+    expect(doc.drawing.components.find((x) => x.id === b.id)!.tag).toBe('MAIN')
+
+    const tank = addComponent(doc, 'vessel.tank', 100, 0)
+    const sensor = addComponent(doc, 'instr.pt', 130, 0)
+    connectPorts(doc.drawing, { componentId: tank.id, portId: 'top' }, { componentId: sensor.id, portId: 'left' }, 'pressurant')
+    const r = replaceComponents(doc, new Set([tank.id]), 'valve.ball')
+    expect(r.replaced).toEqual([])
+    expect(r.skipped[0].id).toBe(tank.id)
+    expect(doc.drawing.components.find((x) => x.id === tank.id)!.symbol).toBe('vessel.tank')
+    expect(checkIntegrity(doc)).toEqual([])
+  })
+
+  it('sostituzioni casuali tra valvole non rompono mai il disegno', () => {
+    const valves = ALL_SYMBOLS.filter((s) => s.category === 'valves').map((s) => s.id)
+    for (const seed of [41, 42, 43]) {
+      const doc = randomDoc(seed, 25, 300)
+      const r = rng(seed)
+      for (let i = 0; i < 40; i++) {
+        const comp = doc.drawing.components[Math.floor(r() * doc.drawing.components.length)]
+        replaceComponents(doc, new Set([comp.id]), valves[Math.floor(r() * valves.length)])
+        expect(checkIntegrity(doc), `seed ${seed} giro ${i}`).toEqual([])
+      }
+      expect(() => parseDocument(JSON.parse(JSON.stringify(doc)))).not.toThrow()
+      renderAllPages(doc, planExport(doc))
+    }
+  })
+})
+
+describe('distinta modificabile', () => {
+  const setup = () => {
+    const doc = createEmptyDocument()
+    const a = addComponent(doc, 'valve.ball', 0, 0)
+    const b = addComponent(doc, 'valve.ball', 30, 0)
+    a.description = { it: 'Intercettazione', en: 'Shutoff' }
+    return { doc, a, b }
+  }
+
+  it('una modifica a mano vince sul disegno, per lingua, e tornare al valore del disegno la toglie', () => {
+    const { doc, a } = setup()
+    setBomCell(doc, a.id, false, 'description', 'it', 'Mia descrizione')
+    setBomCell(doc, a.id, false, 'size', 'it', '6 mm')
+    expect(bomRows(doc.drawing, 'it', doc.bom).find((r) => r.tag === a.tag)!.description).toBe('Mia descrizione')
+    expect(bomRows(doc.drawing, 'en', doc.bom).find((r) => r.tag === a.tag)!.description).toBe('Shutoff') // l'inglese non cambia
+    expect(bomRows(doc.drawing, 'en', doc.bom).find((r) => r.tag === a.tag)!.size).toBe('6 mm')
+    // si può anche svuotare un campo
+    setBomCell(doc, a.id, false, 'description', 'it', '')
+    expect(bomRows(doc.drawing, 'it', doc.bom).find((r) => r.tag === a.tag)!.description).toBe('')
+    // riscrivere il valore generato = nessuna modifica
+    setBomCell(doc, a.id, false, 'description', 'it', 'Intercettazione')
+    setBomCell(doc, a.id, false, 'size', 'it', '')
+    expect(doc.bom.overrides[a.id]).toBeUndefined()
+  })
+
+  it('righe nascoste e righe aggiunte, nel PDF e nel conteggio dei fogli', () => {
+    const { doc, a, b } = setup()
+    setBomHidden(doc, b.id, true)
+    const x = addBomExtra(doc)
+    setBomCell(doc, x, true, 'tag', 'it', 'TB-1')
+    setBomCell(doc, x, true, 'description', 'it', 'Tubo inox 1/4"')
+    setBomCell(doc, x, true, 'description', 'en', 'SS tube 1/4"')
+    const it = bomRows(doc.drawing, 'it', doc.bom)
+    expect(it.map((r) => r.tag)).toEqual([a.tag, 'TB-1'])
+    expect(bomRows(doc.drawing, 'en', doc.bom)[1].description).toBe('SS tube 1/4"')
+    const pages = renderAllPages(doc, planExport(doc))
+    const bomPage = pages.at(-1)!
+    expect(bomPage).toContain('TB-1')
+    expect(bomPage).toContain(`>${a.tag}<`)
+    expect(bomPage).not.toContain(`>${b.tag}<`) // nascosta dalla distinta, ma resta nel disegno
+    expect(pages[0]).toContain(`>${b.tag}<`)
+    expect(bomEditorRows(doc.drawing, 'it', doc.bom).find((r) => r.id === b.id)!.hidden).toBe(true)
+    removeBomExtra(doc, x)
+    resetBom(doc)
+    expect(bomRows(doc.drawing, 'it', doc.bom)).toHaveLength(2)
+  })
+
+  it('un testo lungo va a capo nel PDF e il file si rilegge identico', () => {
+    const { doc, a } = setup()
+    setBomCell(doc, a.id, false, 'note', 'it', 'Verificare la tenuta a 150 bar prima di ogni campagna di prove a freddo')
+    const svg = renderAllPages(doc, planExport(doc)).join('')
+    expect(svg).toContain('Verificare')
+    expect(JSON.parse(JSON.stringify(parseDocument(JSON.parse(JSON.stringify(doc)))))).toEqual(JSON.parse(JSON.stringify(doc)))
+  })
+
+  it('eliminare un componente toglie le sue modifiche dalla distinta', () => {
+    const { doc, a } = setup()
+    setBomCell(doc, a.id, false, 'note', 'it', 'x')
+    setBomHidden(doc, a.id, true)
+    deleteItems(doc.drawing, new Set([a.id]))
+    pruneBom(doc)
+    expect(doc.bom.overrides).toEqual({})
+    expect(doc.bom.hidden).toEqual([])
+  })
+
+  it('i file vecchi senza distinta modificabile si aprono', () => {
+    const raw = JSON.parse(JSON.stringify(createEmptyDocument()))
+    delete raw.bom
+    expect(parseDocument(raw).bom).toEqual({ overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] })
+  })
+})
+
+describe('distinta a gruppi', () => {
+  const setup = () => {
+    const doc = createEmptyDocument()
+    const tank = addComponent(doc, 'vessel.tank', 0, 0)
+    const v1 = addComponent(doc, 'valve.ball', 40, 0)
+    const v2 = addComponent(doc, 'valve.ball', 80, 0)
+    const pt = addComponent(doc, 'instr.pt', 120, 0)
+    return { doc, tank, v1, v2, pt }
+  }
+  const names = (doc: ReturnType<typeof createEmptyDocument>, lang: 'it' | 'en' = 'it') => bomItems(doc.drawing, lang, doc.bom).map((i) => (i.kind === 'group' ? `# ${i.name}` : i.row.tag))
+
+  it('di base le righe sono divise per tipo di componente, nell\'ordine serbatoi, valvole, strumenti', () => {
+    const { doc, tank, v1, v2, pt } = setup()
+    expect(names(doc)).toEqual(['# Serbatoi', tank.tag, '# Valvole', v1.tag, v2.tag, '# Strumenti', pt.tag])
+    expect(names(doc, 'en')[0]).toBe('# Vessels')
+    setBomGrouped(doc, false)
+    // senza gruppi: un elenco solo, per tag in ordine naturale
+    expect(names(doc)).toEqual([tank.tag, v1.tag, v2.tag, pt.tag].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })))
+  })
+
+  it('si possono rinominare, creare, riordinare i gruppi e spostare le righe', () => {
+    const { doc, v1, v2, pt } = setup()
+    renameBomGroup(doc, 'cat:valves', 'it', 'Intercettazione')
+    expect(names(doc)).toContain('# Intercettazione')
+    expect(names(doc, 'en')).toContain('# Valves') // l\'inglese non cambia
+    const g = addBomGroup(doc)
+    renameBomGroup(doc, g, 'it', 'Linea ossidante')
+    setBomRowGroup(doc, v2.id, false, g)
+    setBomRowGroup(doc, pt.id, false, g)
+    const n = names(doc)
+    expect(n.slice(n.indexOf('# Linea ossidante'))).toEqual(['# Linea ossidante', v2.tag, pt.tag])
+    expect(n).toContain(v1.tag)
+    // sposta in alto il gruppo proprio
+    moveBomGroup(doc, g, -1); moveBomGroup(doc, g, -1); moveBomGroup(doc, g, -1)
+    expect(names(doc)[0]).toBe('# Linea ossidante')
+    // riportare una riga nel gruppo del suo tipo non lascia tracce
+    setBomRowGroup(doc, v2.id, false, 'cat:valves')
+    expect(doc.bom.overrides[v2.id]).toBeUndefined()
+    // eliminare il gruppo riporta le righe al loro tipo
+    removeBomGroup(doc, g)
+    expect(names(doc)).toEqual(expect.not.arrayContaining(['# Linea ossidante']))
+    expect(doc.bom.overrides[pt.id]).toBeUndefined()
+    expect(names(doc)).toContain('# Strumenti')
+  })
+
+  it('il PDF mostra i gruppi, mai un\'intestazione sola in fondo alla pagina, e conta le pagine giuste', () => {
+    const items = Array.from({ length: 7 }, (_, i) => (i % 3 === 0 && i < 6 ? { kind: 'group' as const, name: `G${i}`, count: 2 } : { kind: 'row' as const, row: { key: `k${i}`, tag: `T${i}`, description: '', type: '', size: '', pmax: '', note: '' } }))
+    for (const per of [2, 3, 4, 5]) {
+      const pages = paginateBom(items, per)
+      expect(pages.flat()).toHaveLength(items.length)
+      for (const pg of pages) { expect(pg.length).toBeLessThanOrEqual(per); expect(pg.at(-1)!.kind).toBe('row') }
+    }
+    const { doc } = setup()
+    const svg = renderAllPages(doc, planExport(doc)).at(-1)!
+    expect(svg).toContain('SERBATOI')
+    expect(svg).toContain('VALVOLE')
+    expect(svg).toContain('STRUMENTI')
+    setBomGrouped(doc, false)
+    expect(renderAllPages(doc, planExport(doc)).at(-1)!).not.toContain('VALVOLE')
+  })
+
+  it('righe aggiunte a mano finiscono nel gruppo scelto, di base «Altro»', () => {
+    const { doc } = setup()
+    const a = addBomExtra(doc)
+    const g = addBomGroup(doc)
+    const b = addBomExtra(doc, g)
+    setBomCell(doc, a, true, 'tag', 'it', 'TB-1')
+    setBomCell(doc, b, true, 'tag', 'it', 'FT-9')
+    const n = names(doc)
+    expect(n.slice(-4)).toEqual(['# Altro', 'TB-1', '# Nuovo gruppo 1', 'FT-9'])
+    setBomRowGroup(doc, a, true, g)
+    expect(names(doc)).not.toContain('# Altro')
+  })
+})
+
+describe('numerazione e sigle', () => {
+  it('i tag nuovi partono da 1 e la cella di carico è LC', () => {
+    const doc = createEmptyDocument()
+    expect(addComponent(doc, 'valve.ball', 0, 0).tag).toBe('BV-1')
+    expect(addComponent(doc, 'valve.ball', 30, 0).tag).toBe('BV-2')
+    const lc = addComponent(doc, 'instr.wt', 60, 0)
+    expect(lc.tag).toBe('LC-1')
+    expect(getSymbol('instr.wt').prims.some((p) => p.k === 'text' && p.s === 'LC')).toBe(true)
+  })
+
+  it('rinumera da 1 i tag automatici (anche con vecchie sigle), senza toccare quelli a mano', () => {
+    const doc = createEmptyDocument()
+    const mk = (symbol: string, tag: string) => { const c = addComponent(doc, symbol, 0, 0); c.tag = tag; return c }
+    const a = mk('valve.ball', 'BV-101'), b = mk('valve.ball', 'BV-105'), hand = mk('valve.ball', 'MAIN')
+    const sv = mk('valve.solenoid2', 'SV-101'), wt = mk('instr.wt', 'WT-102'), tt = mk('instr.tt', 'TT-101')
+    expect(renumberTags(doc)).toBe(5)
+    expect([a.tag, b.tag, hand.tag, sv.tag, wt.tag, tt.tag]).toEqual(['BV-1', 'BV-2', 'MAIN', 'EV-1', 'LC-1', 'TC-1'])
+    expect(renumberTags(doc)).toBe(0) // già a posto
+    expect(checkIntegrity(doc)).toEqual([])
+  })
+
+  it('un tag a mano già uguale a un numero libero non crea doppioni', () => {
+    const doc = createEmptyDocument()
+    const a = addComponent(doc, 'valve.ball', 0, 0); a.tag = 'BV-5'
+    const b = addComponent(doc, 'valve.ball', 30, 0); b.tag = 'BV-9'
+    renumberTags(doc)
+    expect(new Set(doc.drawing.components.map((c) => c.tag)).size).toBe(2)
+    expect(doc.drawing.components.map((c) => c.tag)).toEqual(['BV-1', 'BV-2'])
   })
 })

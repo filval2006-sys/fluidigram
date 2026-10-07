@@ -210,7 +210,7 @@ describe('stati delle valvole per fase', () => {
     expect(svg).toContain('Riempimento')
     expect(svg).toContain('●')
     expect(svg).toContain('○')
-    expect(svg).toContain('BV-101')
+    expect(svg).toContain('BV-1')
   })
   it('senza fasi o con la tabella spenta non c\'è il foglio', () => {
     expect(planExport(SAMPLE_DOCUMENT).statesPages).toBe(0)

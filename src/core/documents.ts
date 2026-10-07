@@ -13,15 +13,28 @@ export function createEmptyDocument(): FluidDocument {
     drawing: { components: [], lines: [], annotations: [] },
     phases: [],
     export: { format: 'A3', mode: 'auto', lang: 'it', color: true, legend: true, bom: true, states: true },
+    bom: { overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] },
   }
 }
 
 interface V1Sheet { format?: string; components?: { y: number }[]; lines?: { route?: { y: number }[] }[] }
 
+/** Simboli rinominati o accorpati: il vecchio id si legge come il nuovo, così i file già salvati continuano ad aprirsi. */
+export const LEGACY_SYMBOLS: Record<string, string> = {
+  'instr.pta': 'instr.pt', // trasduttore analogico: ora è il PT con la scelta del segnale di uscita
+}
+
+function renameLegacySymbols(raw: unknown): unknown {
+  const doc = raw as { drawing?: { components?: { symbol?: unknown }[] } } | null
+  const comps = doc?.drawing?.components
+  if (!Array.isArray(comps)) return raw
+  return { ...doc, drawing: { ...doc!.drawing, components: comps.map((c) => (typeof c?.symbol === 'string' && LEGACY_SYMBOLS[c.symbol] ? { ...c, symbol: LEGACY_SYMBOLS[c.symbol] } : c)) } }
+}
+
 /** Porta i file delle versioni precedenti al formato corrente (v1: più fogli → un unico disegno). */
 export function migrateDocument(raw: unknown): unknown {
   const r = raw as { version?: number; sheets?: V1Sheet[]; meta?: unknown; revisions?: unknown } | null
-  if (!r || r.version !== 1 || !Array.isArray(r.sheets)) return raw
+  if (!r || r.version !== 1 || !Array.isArray(r.sheets)) return renameLegacySymbols(raw)
   const components: unknown[] = []
   const lines: unknown[] = []
   let offsetY = 0

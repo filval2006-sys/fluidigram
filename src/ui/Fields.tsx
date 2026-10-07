@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-/** Campo di testo che applica la modifica a invio o quando perde il focus (un solo passo di annullamento). */
+/** Pausa di scrittura dopo la quale il testo viene salvato da solo. */
+const AUTOSAVE_MS = 600
+
+/**
+ * Campo di testo: la modifica si applica da sola dopo una breve pausa, quando si esce dal campo, a invio e se il campo
+ * sparisce dallo schermo (cambio di schermata o di selezione). Esc annulla e torna al valore salvato.
+ */
 export function TextField({ value, onCommit, placeholder, multiline, ariaLabel }: {
   value: string
   onCommit: (v: string) => void
@@ -10,21 +16,41 @@ export function TextField({ value, onCommit, placeholder, multiline, ariaLabel }
 }) {
   const [text, setText] = useState(value)
   const cancelled = useRef(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const latest = useRef({ text, value, onCommit })
+  latest.current = { text, value, onCommit }
   useEffect(() => setText(value), [value])
-  const done = () => {
-    if (cancelled.current) { cancelled.current = false; return }
-    if (text !== value) onCommit(text)
+
+  const commit = () => {
+    clearTimeout(timer.current)
+    const { text: t, value: v, onCommit: fn } = latest.current
+    if (t !== v) fn(t)
   }
+  const done = () => {
+    if (cancelled.current) { cancelled.current = false; clearTimeout(timer.current); return }
+    commit()
+  }
+  // se il campo sparisce con del testo non ancora confermato, lo si conferma (non scatta onBlur quando un elemento viene rimosso)
+  useEffect(() => () => {
+    clearTimeout(timer.current)
+    if (!cancelled.current && latest.current.text !== latest.current.value) latest.current.onCommit(latest.current.text)
+  }, [])
+
   const common = {
     value: text,
     placeholder,
     'aria-label': ariaLabel,
-    onChange: (e: { target: { value: string } }) => setText(e.target.value),
+    onChange: (e: { target: { value: string } }) => {
+      setText(e.target.value)
+      latest.current = { ...latest.current, text: e.target.value }
+      clearTimeout(timer.current)
+      timer.current = setTimeout(commit, AUTOSAVE_MS)
+    },
     onBlur: done,
   }
   return multiline
     ? <textarea rows={2} {...common} />
-    : <input {...common} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { cancelled.current = true; setText(value); e.currentTarget.blur() } }} />
+    : <input {...common} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { cancelled.current = true; clearTimeout(timer.current); setText(value); e.currentTarget.blur() } }} />
 }
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {

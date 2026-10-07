@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { AlertOctagon, AlertTriangle, CheckCircle2, Copy, FlipHorizontal2, Info, Plus, RotateCw, Trash2 } from 'lucide-react'
 import {
-  ACTUATORS, END_KINDS, FLUIDS, FLUID_IDS, componentPorts, deleteItems, freePorts, portEnds, setPortEnd, manualRouteValid, filterPipeSizes, getSymbol, mirrorComponents, newId, rotateComponents, runChecks,
-  TONES, type Annotation, type CheckIssue, type Component, type Dir, type Drawing, type EndKind, type FluidId, type Line, type ValveState,
+  ACTUATORS, ALL_SYMBOLS, CATEGORY_NAMES, END_KINDS, FLUIDS, FLUID_IDS, componentPorts, deleteItems, freePorts, portEnds, renumberTags, replaceComponents, setPortEnd, manualRouteValid, filterPipeSizes, getSymbol, mirrorComponents, newId, rotateComponents, runChecks,
+  TONES, type Annotation, type CheckIssue, type Component, type Dir, type SymbolCategory, type Drawing, type EndKind, type FluidId, type Line, type ValveState,
 } from '../core'
 import { useActiveTab, useShownPhase, useStore, type InspectorTab } from '../state/store'
 import { Combobox } from './Combobox'
@@ -235,6 +235,7 @@ function MultiPanel({ ids, count }: { ids: string[]; count: number }) {
   const setSelection = useStore((s) => s.setSelection)
   const set = new Set(ids)
   return (
+    <>
     <Section title={`${count} elementi selezionati`}>
       <div className="btn-row">
         <button onClick={() => edit((d) => rotateComponents(d.drawing, set))}><RotateCw size={14} />Ruota</button>
@@ -242,6 +243,52 @@ function MultiPanel({ ids, count }: { ids: string[]; count: number }) {
         <button onClick={() => useStore.getState().duplicateSelection()} title="Duplica (⌘D)"><Copy size={14} />Duplica</button>
         <button className="danger" onClick={() => { edit((d) => deleteItems(d.drawing, set)); setSelection([]) }}><Trash2 size={14} />Elimina</button>
       </div>
+    </Section>
+    <ReplaceBox ids={ids} />
+    </>
+  )
+}
+
+/** Sostituzione rapida: un simbolo al posto di un altro mantenendo posizione e collegamenti, per uno o più pezzi. */
+function ReplaceBox({ ids }: { ids: string[] }) {
+  const edit = useStore((s) => s.edit)
+  const setSelection = useStore((s) => s.setSelection)
+  const doc = useActiveTab().doc
+  const [msg, setMsg] = useState('')
+  const picked = doc.drawing.components.filter((c) => ids.includes(c.id))
+  const symbols = [...new Set(picked.map((c) => c.symbol))]
+  const home = getSymbol(symbols[0] ?? 'valve.ball').category
+  const cats = (Object.keys(CATEGORY_NAMES) as SymbolCategory[]).sort((a, b) => (a === home ? -1 : b === home ? 1 : 0))
+  if (!picked.length) return null
+
+  const apply = (symbolId: string) => {
+    let res = { replaced: [] as string[], skipped: [] as { tag: string; reason: string }[] }
+    edit((d) => { res = replaceComponents(d, new Set(ids), symbolId) })
+    const name = getSymbol(symbolId).name.it
+    const ok = res.replaced.length ? `${res.replaced.length} ${res.replaced.length === 1 ? 'sostituito' : 'sostituiti'} con ${name}.` : ''
+    const no = res.skipped.length ? ` Non sostituiti: ${res.skipped.map((x) => `${x.tag} (${x.reason})`).join('; ')}.` : ''
+    setMsg((ok + no).trim() || 'Niente da sostituire: sono già di questo tipo.')
+  }
+
+  return (
+    <Section title="Sostituisci">
+      <Field label={picked.length > 1 ? `Sostituisci ${picked.length} componenti con…` : 'Sostituisci con…'}>
+        <select aria-label="Sostituisci con" value="" onChange={(e) => { if (e.target.value) apply(e.target.value) }}>
+          <option value="">Scegli il nuovo simbolo…</option>
+          {cats.map((cat) => (
+            <optgroup key={cat} label={CATEGORY_NAMES[cat].it}>
+              {ALL_SYMBOLS.filter((x) => x.category === cat && !(symbols.length === 1 && x.id === symbols[0])).map((x) => <option key={x.id} value={x.id}>{x.name.it}</option>)}
+            </optgroup>
+          ))}
+        </select>
+      </Field>
+      <div className="btn-row">
+        <button onClick={() => setSelection(doc.drawing.components.filter((c) => symbols.includes(c.symbol)).map((c) => c.id))} title="Seleziona nel disegno tutti i componenti dello stesso tipo, per sostituirli insieme">
+          Seleziona tutti dello stesso tipo
+        </button>
+      </div>
+      <p className="muted small">Posizione, rotazione e collegamenti restano; diametro, pressione e note si conservano. Si può annullare con ⌘Z.</p>
+      {msg && <p className="muted small">{msg}</p>}
     </Section>
   )
 }
@@ -324,6 +371,7 @@ function ComponentPanel({ c }: { c: Component }) {
         )}
         <Field label="Note"><TextField multiline value={c.props.note ?? ''} onCommit={(v) => setProp('note', v)} /></Field>
       </Section>
+      <ReplaceBox ids={[c.id]} />
       <EndsSection c={c} />
     </>
   )
@@ -412,6 +460,7 @@ function ProjectSummary() {
   const m = tab.doc.meta
   const fluids = [...new Set(d.lines.map((l) => l.fluid))]
   const setTitle = (l: 'it' | 'en', v: string) => edit((x) => { x.meta.title[l] = v })
+  const [renumbered, setRenumbered] = useState<number | null>(null)
 
   return (
     <>
@@ -424,6 +473,11 @@ function ProjectSummary() {
           <div><b>{fluids.length}</b><span>fluidi</span></div>
         </div>
         <p className="muted small">Cartiglio, legenda, formato e impaginazione si impostano in <b>Esporta</b>: qui disegni senza pensare al foglio.</p>
+      </Section>
+      <Section title="Numerazione">
+        <p className="muted small">I tag nuovi partono da 1 (BV-1, BV-2…). Nei progetti vecchi puoi rinumerare quelli automatici da 1, senza buchi, tenendo il loro ordine; i tag scritti da te non cambiano.</p>
+        <button className="wide-btn" onClick={() => { let n = 0; edit((x) => { n = renumberTags(x) }); setRenumbered(n) }}>Rinumera i tag da 1</button>
+        {renumbered !== null && <p className="muted small">{renumbered ? `${renumbered} ${renumbered === 1 ? 'tag cambiato' : 'tag cambiati'}. Si può annullare con ⌘Z.` : 'I tag sono già in ordine da 1.'}</p>}
       </Section>
       <Section title="Scorciatoie">
         <ul className="keys">

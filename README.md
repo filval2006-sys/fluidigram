@@ -1,5 +1,31 @@
 # Fluidigram
 
+**Fluid system (P&ID) diagrams for model rocketry** — draw valves, tanks, sensors and lines, check the schematic, and export
+professional drawings (title block, legend, bill of materials, automatic multi-sheet layout) as PDF, SVG or PNG, in Italian or English.
+Works fully offline; your projects stay on your computer.
+
+*Schemi fluidici (P&ID) per il razzomodellismo: valvole, serbatoi, strumenti e collegamenti, controlli sullo schema ed esportazione
+professionale (cartiglio, legenda, distinta, più fogli) in PDF, SVG e PNG, in italiano e inglese. Funziona offline.*
+
+Created by **Filippo Valentini**. Free to use; see [LICENSE](LICENSE).
+
+## Download
+
+Get the latest installer from the **[Releases page](../../releases/latest)**:
+
+| System | File |
+|---|---|
+| macOS 11+ (Apple Silicon and Intel) | `Fluidigram_x.y.z_universal.dmg` — open it and drag Fluidigram to Applications |
+| Windows 10/11 (64-bit) | `Fluidigram_x.y.z_x64-setup.exe` — no administrator rights needed |
+
+The app is not code-signed yet, so the first time your system asks for a confirmation:
+- **macOS:** right-click the app → *Open* → *Open*. If it says "damaged", run `xattr -cr /Applications/Fluidigram.app` in Terminal.
+- **Windows:** "Windows protected your PC" → *More info* → *Run anyway*.
+
+The interface is currently in Italian; exported drawings can be in Italian or English.
+
+## Informazioni (IT)
+
 App desktop (macOS e Windows, Tauri) per disegnare **schemi fluidici** in stile P&ID, pensata per il razzomodellismo:
 simboli e collegamenti, controlli sullo schema, stati delle valvole per fase, ed esportazione professionale
 (PDF/SVG/PNG con cartiglio, legenda, distinta e impaginazione automatica su più fogli, in italiano e inglese).

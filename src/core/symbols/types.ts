@@ -1,7 +1,7 @@
 import type { Dir } from '../geometry'
 import type { L10n } from '../types'
 
-export type ActuatorId = 'none' | 'manual' | 'solenoid' | 'pneumatic' | 'motor'
+export type ActuatorId = 'none' | 'manual' | 'solenoid' | 'servo' | 'pneumatic' | 'motor'
 
 export type Fill = 'none' | 'ink' | 'paper'
 

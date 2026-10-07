@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { produce } from 'immer'
 import {
-  DEFAULT_PIPE_SIZE, copyItems, createEmptyDocument, deleteItems, newId, pasteItems, readDocument,
+  DEFAULT_PIPE_SIZE, checkIntegrity, copyItems, pruneBom, createEmptyDocument, deleteItems, newId, pasteItems, readDocument,
   type Clip, type FluidDocument, type FluidId,
 } from '../core'
 
@@ -38,6 +38,12 @@ interface Store {
   activePhase: string | null
   /** richiesta di inquadrare degli elementi (la gestisce il canvas) */
   focusRequest: { ids: string[]; n: number } | null
+  /** zoom richiesto dal menu: la tela lo esegue (conosce le sue dimensioni) */
+  viewRequest: { kind: 'in' | 'out' | 'fit'; n: number } | null
+  /** schermata principale: lo schema o la distinta (stessa scheda di progetto) */
+  stageView: 'schema' | 'bom'
+  setStageView: (v: 'schema' | 'bom') => void
+  requestView: (kind: 'in' | 'out' | 'fit') => void
   clipboard: Clip | null
   pasteCount: number
 
@@ -84,6 +90,7 @@ function patchActive(s: Store, fn: (t: Tab) => Tab): Pick<Store, 'tabs'> {
 }
 
 export const STORAGE_KEY = 'fluidigram.workspace.v1'
+const REJECTED_KEY = 'fluidigram.workspace.rejected'
 const THEME_KEY = 'fluidigram.theme'
 const MODULES_KEY = 'fluidigram.modules'
 
@@ -112,11 +119,21 @@ function loadWorkspace(): { tabs: Tab[]; activeId: string } | null {
     const tabs: Tab[] = []
     for (const t of data.tabs) {
       try {
-        const tab: Tab = { ...makeTab(readDocument(t.doc), t.filePath), id: t.id }
+        const doc = readDocument(t.doc)
+        // simboli o collegamenti che non esistono più farebbero fallire il disegno: la scheda si mette da parte invece di bloccare l'app
+        const broken = checkIntegrity(doc).filter((i) => !i.message.startsWith('tag duplicato'))
+        if (broken.length) throw new Error(broken.map((i) => i.message).join('; '))
+        const tab: Tab = { ...makeTab(doc, t.filePath), id: t.id }
         // modifiche non salvate al momento della chiusura: restano segnalate (savedDoc è un oggetto diverso da doc)
         if (t.dirty) tab.savedDoc = readDocument(t.doc)
         tabs.push(tab)
-      } catch { /* scheda saltata */ }
+      } catch {
+        // scheda saltata, ma non buttata: resta in una chiave a parte da cui si può recuperare
+        try {
+          const kept = JSON.parse(localStorage.getItem(REJECTED_KEY) ?? '[]') as unknown[]
+          localStorage.setItem(REJECTED_KEY, JSON.stringify([...kept, t.doc].slice(-5)))
+        } catch { /* storage non disponibile */ }
+      }
     }
     if (!tabs.length) return null
     return { tabs, activeId: tabs.some((t) => t.id === data.activeId) ? data.activeId : tabs[0].id }
@@ -137,6 +154,10 @@ export const useStore = create<Store>((set, get) => ({
   inspectorTab: 'props',
   activePhase: null,
   focusRequest: null,
+  viewRequest: null,
+  stageView: 'schema',
+  setStageView: (stageView) => set({ stageView }),
+  requestView: (kind) => set((s) => ({ viewRequest: { kind, n: (s.viewRequest?.n ?? 0) + 1 } })),
   clipboard: null,
   pasteCount: 0,
 
@@ -211,7 +232,7 @@ export const useStore = create<Store>((set, get) => ({
   edit: (fn) =>
     set((s) =>
       patchActive(s, (t) => {
-        const doc = produce(t.doc, (d) => fn(d))
+        const doc = produce(t.doc, (d) => { fn(d); pruneBom(d) })
         if (doc === t.doc) return t
         return { ...t, doc, past: [...t.past, t.doc].slice(-HISTORY_LIMIT), future: [] }
       })),
@@ -251,15 +272,23 @@ export const useShownPhase = (): string | null =>
 export const tabName = (t: Tab): string => t.doc.meta.title.it || t.doc.meta.title.en || 'Senza nome'
 
 // salvataggio automatico dell'area di lavoro (le schede si ritrovano alla riapertura)
+function persistWorkspace(s: Store) {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ activeId: s.activeId, tabs: s.tabs.map((t) => ({ id: t.id, doc: t.doc, filePath: t.filePath, dirty: isDirty(t) })) }),
+    )
+  } catch { /* quota o storage non disponibile: si ignora */ }
+}
 let timer: ReturnType<typeof setTimeout> | undefined
 useStore.subscribe((s) => {
   clearTimeout(timer)
-  timer = setTimeout(() => {
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ activeId: s.activeId, tabs: s.tabs.map((t) => ({ id: t.id, doc: t.doc, filePath: t.filePath, dirty: isDirty(t) })) }),
-      )
-    } catch { /* quota o storage non disponibile: si ignora */ }
-  }, 400)
+  timer = setTimeout(() => persistWorkspace(s), 400)
 })
+// chiudendo la finestra (o nascondendola) si salva subito, senza aspettare la pausa: l'ultima modifica non va persa
+if (typeof window !== 'undefined') {
+  const flush = () => { clearTimeout(timer); persistWorkspace(useStore.getState()) }
+  window.addEventListener('pagehide', flush)
+  window.addEventListener('beforeunload', flush)
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush() })
+}

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Fluidigram",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "it.fluidigram.app",
   "build": {
     "frontendDist": "../dist",
@@ -41,8 +41,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "publisher": "Fluidigram",
-    "copyright": "© 2026 Fluidigram",
+    "publisher": "Filippo Valentini",
+    "copyright": "© 2026 Filippo Valentini",
     "category": "GraphicsAndDesign",
     "shortDescription": "Schemi fluidici (P&ID) per il razzomodellismo",
     "longDescription": "Fluidigram è un'app per disegnare schemi fluidici in stile P&ID: valvole, serbatoi, strumenti e collegamenti, con controlli sullo schema ed esportazione professionale in PDF, SVG e PNG (cartiglio, legenda, distinta, in italiano e inglese). Funziona offline.",
@@ -71,7 +71,11 @@
         "name": "Progetto Fluidigram",
         "description": "Schema fluidico Fluidigram",
         "role": "Editor",
-        "mimeType": "application/json"
+        "mimeType": "application/json",
+        "exportedType": {
+          "identifier": "it.fluidigram.project",
+          "conformsTo": ["public.json", "public.data"]
+        }
       }
     ]
   }

@@ -7,6 +7,7 @@ import {
   type Component, type Dir, type Point, type PortRef,
 } from '../core'
 import { useActiveTab, useShownPhase, useStore, type View } from '../state/store'
+import { isTyping, runEditCommand } from './commands'
 import { Combobox } from './Combobox'
 import { SYMBOL_DRAG_TYPE } from './Library'
 
@@ -51,11 +52,6 @@ function fitView(w: number, h: number, bounds: { x: number; y: number; w: number
 
 const rectsIntersect = (a: { minX: number; minY: number; maxX: number; maxY: number }, b: typeof a) =>
   a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY
-
-function isTyping(t: EventTarget | null): boolean {
-  const el = t as HTMLElement | null
-  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
-}
 
 export function Canvas() {
   const tab = useActiveTab()
@@ -147,24 +143,19 @@ export function Canvas() {
       const mod = e.metaKey || e.ctrlKey
       const sel = new Set(st.tabs.find((t) => t.id === st.activeId)?.selection ?? [])
       if (e.code === 'Space') { setSpace(true); e.preventDefault(); return }
-      if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) st.redo(); else st.undo(); return }
-      if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); st.redo(); return }
-      if (mod && e.key.toLowerCase() === 'a') {
-        e.preventDefault()
-        const t = st.tabs.find((x) => x.id === st.activeId)!
-        const sh = t.doc.drawing
-        st.setSelection([...sh.components.map((c) => c.id), ...sh.lines.map((l) => l.id), ...sh.annotations.map((a) => a.id)])
-        return
-      }
+      // stessi comandi del menu (se arrivano due volte, il secondo viene ignorato)
+      if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); runEditCommand(e.shiftKey ? 'redo' : 'undo'); return }
+      if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); runEditCommand('redo'); return }
+      if (mod && e.key.toLowerCase() === 'a') { e.preventDefault(); runEditCommand('select-all'); return }
       if (e.key === 'Escape') { st.setPlacing(null); st.setSelection([]); return }
       if (e.key === '0' && !mod) { if (wrapRef.current) { const t = st.tabs.find((x) => x.id === st.activeId)!; st.setView(fitView(wrapRef.current.clientWidth, wrapRef.current.clientHeight, drawingBounds(t.doc.drawing))) } return }
       if ((e.key === '+' || e.key === '=') && !mod) { zoomAt(1.25, size.w / 2, size.h / 2); return }
       if (e.key === '-' && !mod) { zoomAt(0.8, size.w / 2, size.h / 2); return }
-      if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); st.paste(); return }
+      if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); runEditCommand('paste'); return }
       if (!sel.size) return
-      if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); st.copySelection(); return }
-      if (mod && e.key.toLowerCase() === 'x') { e.preventDefault(); st.cutSelection(); return }
-      if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); st.duplicateSelection(); return }
+      if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); runEditCommand('copy'); return }
+      if (mod && e.key.toLowerCase() === 'x') { e.preventDefault(); runEditCommand('cut'); return }
+      if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); runEditCommand('duplicate'); return }
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); st.edit((d) => deleteItems(d.drawing, sel)); st.setSelection([]) }
       else if (e.key.toLowerCase() === 'r' && !mod) st.edit((d) => rotateComponents(d.drawing, sel))
       else if (e.key.toLowerCase() === 'm' && !mod) st.edit((d) => mirrorComponents(d.drawing, sel))
@@ -183,6 +174,27 @@ export function Canvas() {
     window.addEventListener('keyup', up)
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
   }, [store, zoomAt, size])
+
+  // copia/taglia/incolla del sistema (voci di menu, o tastiera quando il menu le intercetta): agiscono sul disegno se non si sta scrivendo
+  useEffect(() => {
+    const handler = (id: 'copy' | 'cut' | 'paste') => (e: ClipboardEvent) => {
+      if (isTyping(e.target) || document.querySelector('.modal-bg')) return
+      e.preventDefault()
+      runEditCommand(id)
+    }
+    const copy = handler('copy'), cut = handler('cut'), paste = handler('paste')
+    document.addEventListener('copy', copy); document.addEventListener('cut', cut); document.addEventListener('paste', paste)
+    return () => { document.removeEventListener('copy', copy); document.removeEventListener('cut', cut); document.removeEventListener('paste', paste) }
+  }, [])
+
+  // zoom richiesto dal menu Visualizza
+  const viewRequest = useStore((s) => s.viewRequest)
+  useEffect(() => {
+    if (!viewRequest || !size.w) return
+    if (viewRequest.kind === 'fit') store.getState().setView(fitView(size.w, size.h, drawingBounds(store.getState().tabs.find((t) => t.id === store.getState().activeId)!.doc.drawing)))
+    else zoomAt(viewRequest.kind === 'in' ? 1.25 : 0.8, size.w / 2, size.h / 2)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewRequest])
 
   // ---- contenuti statici e per elemento ----
   // posizione di tag ed etichette: dipende da tutto il disegno (linee, vicini, note)

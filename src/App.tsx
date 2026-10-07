@@ -1,8 +1,14 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { parseDocument } from './core'
+import { listenMenu } from './platform/menu'
 import { listenForSystemFiles } from './platform/openFiles'
 import { isDirty, tabName, useStore } from './state/store'
+import { APP_CREDIT, APP_NAME, APP_VERSION } from './appInfo'
+import { AboutDialog } from './ui/AboutDialog'
+import { BomView } from './ui/BomView'
 import { Canvas } from './ui/Canvas'
+import { justRan, runEditCommand } from './ui/commands'
+import { flushFocusedField } from './ui/flush'
 import { Inspector } from './ui/Inspector'
 import { Library } from './ui/Library'
 import { MODULES } from './modules'
@@ -17,8 +23,10 @@ export default function App() {
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [openModule, setOpenModule] = useState<string | null>(null)
   const enabledModules = useStore((s) => s.modules)
+  const stageView = useStore((s) => s.stageView)
   const theme = useStore((s) => s.theme)
 
   useEffect(() => {
@@ -57,19 +65,51 @@ export default function App() {
     return () => { cancelled = true; off() }
   }, [notify])
 
+  // comandi dell'app (File, Impostazioni…): li esegue chi li riceve per primo, menu o scorciatoia
+  const runCommand = useCallback((id: string): boolean => {
+    const app = ['new', 'open', 'save', 'save-as', 'export', 'close-tab', 'settings', 'shortcuts', 'view-schema', 'view-bom', 'about']
+    if (!app.includes(id)) return runEditCommand(id)
+    flushFocusedField() // il testo che si sta scrivendo entra nel progetto prima di salvare, esportare o cambiare schermata
+    if (justRan(id, 250)) return true
+    const st = useStore.getState()
+    switch (id) {
+      case 'new': st.newProject(); break
+      case 'open': void openProject(notify); break
+      case 'save': void saveActive(notify); break
+      case 'save-as': void saveActive(notify, true); break
+      case 'export': setExporting(true); break
+      case 'close-tab': requestClose(st.activeId); break
+      case 'settings': setSettingsOpen(true); break
+      case 'about': setAboutOpen(true); break
+      case 'view-schema': st.setStageView('schema'); break
+      case 'view-bom': st.setStageView('bom'); break
+      case 'shortcuts': st.setSelection([]); st.setInspectorTab('props'); notify('Le scorciatoie sono elencate nel pannello a destra'); break
+    }
+    return true
+  }, [notify, requestClose])
+
+  // voci del menu nativo
+  useEffect(() => {
+    let off = () => {}
+    let cancelled = false
+    void listenMenu((id) => runCommand(id)).then((fn) => { if (cancelled) fn(); else off = fn })
+    return () => { cancelled = true; off() }
+  }, [runCommand])
+
+  // scorciatoie da tastiera (nel browser, o dove il menu non le intercetta)
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return
       const k = e.key.toLowerCase()
-      if (k === 's') { e.preventDefault(); saveActive(notify, e.shiftKey) }
-      else if (k === 'o') { e.preventDefault(); openProject(notify) }
-      else if (k === 't') { e.preventDefault(); useStore.getState().newProject() }
-      else if (k === 'e' && e.shiftKey) { e.preventDefault(); setExporting(true) }
-      else if (k === 'w') { e.preventDefault(); requestClose(useStore.getState().activeId) }
+      const id = k === 's' ? (e.shiftKey ? 'save-as' : 'save') : k === 'o' ? 'open' : k === 't' || (k === 'n' && !e.shiftKey) ? 'new'
+        : k === 'e' && e.shiftKey ? 'export' : k === 'w' ? 'close-tab' : k === ',' ? 'settings' : k === '1' ? 'view-schema' : k === '2' ? 'view-bom' : ''
+      if (!id) return
+      e.preventDefault()
+      runCommand(id)
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [notify, requestClose])
+  }, [runCommand])
 
   const closing = useStore((s) => s.tabs.find((t) => t.id === confirmClose))
 
@@ -79,15 +119,16 @@ export default function App() {
         <div className="brand">Fluidigram</div>
         <TabBar onClose={requestClose} />
       </header>
-      <Toolbar notify={notify} onExport={() => setExporting(true)} onSettings={() => setSettingsOpen(true)} tools={tools} />
-      <div className="body">
-        <Library />
+      <Toolbar notify={notify} onExport={() => { flushFocusedField(); setExporting(true) }} onSettings={() => setSettingsOpen(true)} tools={tools} />
+      <div className={'body' + (stageView === 'bom' ? ' no-lib' : '')}>
+        {stageView !== 'bom' && <Library />}
         <main className="stage">
-          <Canvas />
+          {stageView === 'bom' ? <BomView /> : <Canvas />}
         </main>
         <Inspector />
       </div>
 
+      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
       {settingsOpen && <SettingsDialog modules={MODULES.map(({ id, name, description }) => ({ id, name, description }))} onClose={() => setSettingsOpen(false)} />}
       {MODULES.map(({ id, Dialog }) => openModule === id && enabledModules[id] && (
         <Suspense key={id} fallback={null}><Dialog onClose={() => setOpenModule(null)} /></Suspense>
@@ -112,6 +153,11 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <footer className="statusbar">
+        <button className="link" onClick={() => setAboutOpen(true)} title="About">{APP_NAME} v{APP_VERSION}</button>
+        <span>{APP_CREDIT}</span>
+      </footer>
 
       <div className="toasts">{toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.msg}</div>)}</div>
     </div>

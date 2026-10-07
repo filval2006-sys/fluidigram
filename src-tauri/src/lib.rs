@@ -1,5 +1,6 @@
 use std::sync::Mutex;
-use tauri::{Emitter, Manager};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu, SubmenuBuilder};
+use tauri::{Emitter, Manager, Runtime};
 
 /// File `.fluidigram` ricevuti dal sistema (doppio clic, "Apri con", trascinamento sull'icona).
 /// Finché l'interfaccia non è pronta si accumulano qui; dopo vengono inviati con l'evento `open-files`.
@@ -9,8 +10,13 @@ struct OpenFiles {
     ready: Mutex<bool>,
 }
 
+/// Dimensione massima di un progetto che l'app accetta di leggere (i progetti reali sono di pochi KB).
+const MAX_PROJECT_BYTES: u64 = 50 * 1024 * 1024;
+
+/// Un file che il sistema ci passa all'avvio: si guarda il file, non il nome. Una copia rinominata dal Finder o da Esplora
+/// risorse (estensione persa o cambiata) si apre comunque; se il contenuto non è un progetto lo dirà l'interfaccia.
 fn is_project(path: &str) -> bool {
-    path.to_lowercase().ends_with(".fluidigram")
+    !path.starts_with('-') && std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.len() <= MAX_PROJECT_BYTES)
 }
 
 fn deliver(app: &tauri::AppHandle, paths: Vec<String>) {
@@ -33,11 +39,11 @@ fn take_pending_files(state: tauri::State<OpenFiles>) -> Vec<String> {
     std::mem::take(&mut *state.pending.lock().unwrap())
 }
 
-/// Legge un progetto aperto dal sistema (il percorso arriva dal sistema operativo, non dall'utente).
+/// Legge un progetto aperto dal sistema (il percorso arriva dal sistema operativo, non dall'utente), qualunque ne sia l'estensione.
 #[tauri::command]
 fn read_project_file(path: String) -> Result<String, String> {
     if !is_project(&path) {
-        return Err("Non è un file .fluidigram".into());
+        return Err("Il file non esiste o è troppo grande per essere un progetto".into());
     }
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
@@ -87,6 +93,125 @@ fn write_checked(path: &str, data: &[u8]) -> Result<(), String> {
     })
 }
 
+
+/// Voci personalizzate del menu: (id, testo, scorciatoia). Le scorciatoie con tasto semplice (R, M, Canc) restano all'interfaccia,
+/// perché un menu le intercetterebbe anche mentre si scrive in un campo di testo.
+const COMMANDS: &[(&str, &str, Option<&str>)] = &[
+    ("new", "Nuovo progetto", Some("CmdOrCtrl+N")),
+    ("open", "Apri…", Some("CmdOrCtrl+O")),
+    ("save", "Salva", Some("CmdOrCtrl+S")),
+    ("save-as", "Salva con nome…", Some("CmdOrCtrl+Shift+S")),
+    ("export", "Esporta disegno…", Some("CmdOrCtrl+Shift+E")),
+    ("close-tab", "Chiudi scheda", Some("CmdOrCtrl+W")),
+    ("quit", "Esci", Some("Alt+F4")),
+    ("undo", "Annulla", Some("CmdOrCtrl+Z")),
+    ("redo", "Ripeti", Some("CmdOrCtrl+Shift+Z")),
+    ("duplicate", "Duplica", Some("CmdOrCtrl+D")),
+    ("select-all", "Seleziona tutto", Some("CmdOrCtrl+A")),
+    ("rotate", "Ruota (R)", None),
+    ("mirror", "Specchia (M)", None),
+    ("delete", "Elimina (Canc)", None),
+    ("view-schema", "Schema", Some("CmdOrCtrl+1")),
+    ("view-bom", "Distinta componenti", Some("CmdOrCtrl+2")),
+    ("zoom-in", "Ingrandisci", Some("CmdOrCtrl+=")),
+    ("zoom-out", "Riduci", Some("CmdOrCtrl+-")),
+    ("zoom-fit", "Inquadra tutto", Some("CmdOrCtrl+0")),
+    ("theme-system", "Tema automatico", None),
+    ("theme-light", "Tema chiaro", None),
+    ("theme-dark", "Tema scuro", None),
+    ("settings", "Impostazioni…", Some("CmdOrCtrl+,")),
+    ("shortcuts", "Scorciatoie da tastiera", None),
+    ("about", "Informazioni su Fluidigram", None),
+];
+
+fn cmd<R: Runtime, M: Manager<R>>(app: &M, id: &str) -> tauri::Result<MenuItem<R>> {
+    let (_, text, accel) = COMMANDS.iter().find(|c| c.0 == id).unwrap_or_else(|| panic!("voce di menu sconosciuta: {id}"));
+    MenuItem::with_id(app, id, *text, true, *accel)
+}
+
+
+/// Barra dei menu in italiano. Le voci personalizzate non fanno nulla da sole: mandano all'interfaccia l'evento `menu`
+/// con il loro id, e l'interfaccia esegue il comando (stesso codice delle scorciatoie da tastiera).
+/// Taglia/Copia/Incolla/Seleziona tutto sono voci di sistema, così funzionano nei campi di testo.
+fn build_menu<R: Runtime, M: Manager<R>>(app: &M) -> tauri::Result<Menu<R>> {
+    let file = Submenu::with_items(
+        app,
+        "File",
+        true,
+        &[
+            &cmd(app, "new")?,
+            &cmd(app, "open")?,
+            &PredefinedMenuItem::separator(app)?,
+            &cmd(app, "save")?,
+            &cmd(app, "save-as")?,
+            &PredefinedMenuItem::separator(app)?,
+            &cmd(app, "export")?,
+            &PredefinedMenuItem::separator(app)?,
+            &cmd(app, "close-tab")?,
+            #[cfg(not(target_os = "macos"))]
+            &PredefinedMenuItem::separator(app)?,
+            #[cfg(not(target_os = "macos"))]
+            &cmd(app, "quit")?,
+        ],
+    )?;
+
+    let edit = SubmenuBuilder::new(app, "Modifica")
+        .item(&cmd(app, "undo")?)
+        .item(&cmd(app, "redo")?)
+        .separator()
+        .cut_with_text("Taglia")
+        .copy_with_text("Copia")
+        .paste_with_text("Incolla")
+        .item(&cmd(app, "duplicate")?)
+        .item(&cmd(app, "select-all")?)
+        .separator()
+        .item(&cmd(app, "rotate")?)
+        .item(&cmd(app, "mirror")?)
+        .item(&cmd(app, "delete")?)
+        .build()?;
+
+    let view = SubmenuBuilder::new(app, "Visualizza")
+        .item(&cmd(app, "view-schema")?)
+        .item(&cmd(app, "view-bom")?)
+        .separator()
+        .item(&cmd(app, "zoom-in")?)
+        .item(&cmd(app, "zoom-out")?)
+        .item(&cmd(app, "zoom-fit")?)
+        .separator()
+        .item(&cmd(app, "theme-system")?)
+        .item(&cmd(app, "theme-light")?)
+        .item(&cmd(app, "theme-dark")?)
+        .separator()
+        .item(&cmd(app, "settings")?)
+        .fullscreen_with_text("Schermo intero")
+        .build()?;
+
+    let window = SubmenuBuilder::new(app, "Finestra")
+        .minimize_with_text("Riduci a icona")
+        .maximize_with_text("Zoom")
+        .build()?;
+
+    let help = Submenu::with_items(app, "Aiuto", true, &[&cmd(app, "shortcuts")?, &cmd(app, "about")?])?;
+
+    #[cfg(target_os = "macos")]
+    {
+        let application = SubmenuBuilder::new(app, "Fluidigram")
+            .item(&cmd(app, "about")?)
+            .separator()
+            .services_with_text("Servizi")
+            .separator()
+            .hide_with_text("Nascondi Fluidigram")
+            .hide_others_with_text("Nascondi altre")
+            .show_all_with_text("Mostra tutte")
+            .separator()
+            .quit_with_text("Esci da Fluidigram")
+            .build()?;
+        Menu::with_items(app, &[&application, &file, &edit, &view, &window, &help])
+    }
+    #[cfg(not(target_os = "macos"))]
+    Menu::with_items(app, &[&file, &edit, &view, &window, &help])
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -105,8 +230,22 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(OpenFiles::default())
+        .on_menu_event(|app, event| {
+            if event.id().as_ref() == "quit" {
+                app.exit(0);
+            } else {
+                let _ = app.emit("menu", event.id().as_ref());
+            }
+        })
         .invoke_handler(tauri::generate_handler![take_pending_files, read_project_file, write_output_file])
         .setup(|app| {
+            // se la barra personalizzata non si costruisse, resta quella di sistema: l'app si avvia comunque
+            match build_menu(app) {
+                Ok(menu) => {
+                    let _ = app.set_menu(menu);
+                }
+                Err(e) => eprintln!("menu non disponibile: {e}"),
+            }
             // Windows e Linux: il file da aprire arriva come argomento della riga di comando
             deliver(app.handle(), std::env::args().skip(1).collect());
             if cfg!(debug_assertions) {
@@ -140,6 +279,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn menu_shortcuts_are_valid_and_unique() {
+        use std::str::FromStr;
+        let mut seen = std::collections::HashSet::new();
+        for (id, _, accel) in COMMANDS {
+            if let Some(a) = accel {
+                let parsed = muda::accelerator::Accelerator::from_str(a).unwrap_or_else(|e| panic!("{id}: scorciatoia non valida {a}: {e}"));
+                assert!(seen.insert(parsed.id()), "scorciatoia duplicata: {a}");
+            }
+        }
+        assert!(COMMANDS.len() >= 20);
+    }
+
+    #[test]
     fn hex_roundtrip_with_accents() {
         let p = "/Users/è ü/progetto 1.fluidigram";
         let h: String = p.bytes().map(|b| format!("{b:02x}")).collect();
@@ -157,6 +309,20 @@ mod tests {
         write_checked(path, "due è".as_bytes()).unwrap();
         assert_eq!(std::fs::read_to_string(&file).unwrap(), "due è");
         assert!(!dir.join("progetto.FLUIDIGRAM.tmp").exists());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn opens_by_content_not_by_name() {
+        let dir = std::env::temp_dir().join("fluidigram-open-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let renamed = dir.join("progetto copia"); // estensione persa
+        std::fs::write(&renamed, "{}").unwrap();
+        assert!(is_project(renamed.to_str().unwrap()));
+        assert_eq!(read_project_file(renamed.to_str().unwrap().into()).unwrap(), "{}");
+        assert!(!is_project(dir.to_str().unwrap())); // una cartella no
+        assert!(!is_project("--flag"));
+        assert!(!is_project(dir.join("manca.fluidigram").to_str().unwrap()));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

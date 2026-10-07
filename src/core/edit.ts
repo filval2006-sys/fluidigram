@@ -10,9 +10,9 @@ export const snap = (v: number): number => Math.round(v / GRID) * GRID
 
 export const newId = (prefix: string): string => `${prefix}${Math.random().toString(36).slice(2, 9)}`
 
-/** Prossimo tag libero per un prefisso (BV-101, BV-102...), univoco in tutto il documento. */
+/** Prossimo tag libero per un prefisso (BV-1, BV-2...), univoco in tutto il documento. */
 export function nextTag(doc: FluidDocument, prefix: string): string {
-  let max = 100
+  let max = 0
   const re = new RegExp(`^${prefix}-(\\d+)$`)
   for (const c of doc.drawing.components) {
     const m = re.exec(c.tag)
@@ -221,4 +221,132 @@ export function mountInstrument(sheet: Drawing, c: Component, fluid: FluidId): b
   c.x += best.dx
   c.y += best.dy
   return !!connectPorts(sheet, { componentId: c.id, portId: best.mine }, best.theirs, fluid)
+}
+
+// ---- sostituzione di componenti ----------------------------------------------------------------
+
+export interface ReplaceResult {
+  replaced: string[]
+  /** componenti lasciati com'erano, con il motivo */
+  skipped: { id: string; tag: string; reason: string }[]
+}
+
+/** Distanza massima (mm) tra una porta del pezzo vecchio e quella del nuovo a cui passa il collegamento. */
+const REPLACE_REACH = 15
+
+/**
+ * Sostituisce il simbolo dei componenti indicati mantenendo posizione, rotazione, specchio e collegamenti.
+ * Ogni porta collegata passa alla porta del nuovo simbolo con lo stesso nome (se è rivolta allo stesso lato e vicina),
+ * altrimenti alla più vicina rivolta allo stesso lato. Se una porta collegata non trova posto il componente resta com'era.
+ * Proprietà generiche (diametro, pressione, note, descrizione, stati per fase) si conservano; quelle del vecchio simbolo no.
+ * Il tag si rinumera solo se era automatico e il prefisso cambia. Muta il documento.
+ */
+export function replaceComponents(doc: FluidDocument, ids: ReadonlySet<string>, symbolId: string): ReplaceResult {
+  const d = doc.drawing
+  const def = getSymbol(symbolId)
+  const result: ReplaceResult = { replaced: [], skipped: [] }
+  for (const c of d.components) {
+    if (!ids.has(c.id) || c.symbol === symbolId) continue
+    const old = getSymbol(c.symbol)
+    const probe: Component = { ...c, symbol: symbolId }
+    const oldPorts = componentPorts(c)
+    const newPorts = componentPorts(probe)
+
+    const attached = new Set<string>()
+    for (const l of d.lines) for (const r of [l.from, l.to]) if (r.componentId === c.id) attached.add(r.portId)
+    const withEnd = oldPorts.filter((p) => c.props[`end.${p.id}`]).map((p) => p.id)
+
+    // assegnazione porta vecchia → porta nuova, una sola volta per porta nuova
+    const map = new Map<string, string>()
+    const taken = new Set<string>()
+    let failed: string | undefined
+    for (const id of [...attached, ...withEnd.filter((x) => !attached.has(x))]) {
+      const from = oldPorts.find((p) => p.id === id)
+      if (!from) continue
+      const fits = newPorts
+        .filter((q) => !taken.has(q.id) && q.dir === from.dir)
+        .map((q) => ({ q, dist: Math.hypot(q.p.x - from.p.x, q.p.y - from.p.y) + (q.id === id ? -0.5 : 0) }))
+        .filter((x) => x.dist <= REPLACE_REACH)
+        .sort((a, b) => a.dist - b.dist)
+      if (!fits.length) { if (attached.has(id)) { failed = id; break } else continue }
+      map.set(id, fits[0].q.id)
+      taken.add(fits[0].q.id)
+    }
+    if (failed) {
+      result.skipped.push({ id: c.id, tag: c.tag, reason: `il collegamento sulla porta «${failed}» non ha un punto corrispondente in ${def.name.it}` })
+      continue
+    }
+
+    // proprietà: via quelle del vecchio simbolo, rimappate le estremità dichiarate
+    const props: Record<string, string> = {}
+    const own = new Set(['actuator', 'normal', ...(old.options ?? []).map((o) => o.key)])
+    for (const [k, v] of Object.entries(c.props)) {
+      if (k.startsWith('end.') || k.startsWith('endLabel.')) continue
+      if (own.has(k) && !(def.options ?? []).some((o) => o.key === k)) {
+        if (k === 'actuator' && def.actuatable) props[k] = v
+        else if (k === 'normal' && def.category === 'valves') props[k] = v
+        continue
+      }
+      props[k] = v
+    }
+    for (const [from, to] of map) {
+      if (c.props[`end.${from}`]) props[`end.${to}`] = c.props[`end.${from}`]
+      if (c.props[`endLabel.${from}`]) props[`endLabel.${to}`] = c.props[`endLabel.${from}`]
+    }
+
+    // tag: rinumerato solo se automatico e se il prefisso cambia
+    const auto = new RegExp(`^${old.tagPrefix}-\\d+$`).test(c.tag)
+    if (auto && old.tagPrefix !== def.tagPrefix) c.tag = nextTag(doc, def.tagPrefix)
+
+    for (const l of d.lines) {
+      for (const r of [l.from, l.to]) if (r.componentId === c.id && map.has(r.portId)) r.portId = map.get(r.portId)!
+    }
+    c.symbol = symbolId
+    c.props = props
+    if (c.states && !(def.category === 'valves' && !def.id.startsWith('valve.check') && def.id !== 'valve.relief')) delete c.states
+    // il tipo scritto a mano nella distinta riguardava il vecchio simbolo
+    const ov = doc.bom.overrides[c.id]
+    if (ov?.type) { delete ov.type; if (!Object.keys(ov).length) delete doc.bom.overrides[c.id] }
+    result.replaced.push(c.id)
+  }
+  return result
+}
+
+/** Prefissi usati in passato da simboli che poi hanno cambiato sigla: i tag così fatti contano come automatici. */
+const LEGACY_PREFIXES: Record<string, string[]> = {
+  'valve.solenoid2': ['SV'],
+  'valve.solenoid3': ['SV'],
+  'instr.tt': ['TT'],
+  'instr.wt': ['WT'],
+}
+
+/**
+ * Rinumera da 1 i tag automatici (PREFISSO-numero) senza buchi, tenendo l'ordine che avevano; i tag scelti a mano non si toccano.
+ * Serve per i progetti nati quando la numerazione partiva da 101. Restituisce quanti tag sono cambiati. Muta il documento.
+ */
+export function renumberTags(doc: FluidDocument): number {
+  const byPrefix = new Map<string, { c: Component; n: number }[]>()
+  for (const c of doc.drawing.components) {
+    const prefix = getSymbol(c.symbol).tagPrefix
+    const all = [prefix, ...(LEGACY_PREFIXES[c.symbol] ?? [])].join('|')
+    const m = new RegExp(`^(?:${all})-(\\d+)$`).exec(c.tag)
+    if (m) byPrefix.set(prefix, [...(byPrefix.get(prefix) ?? []), { c, n: Number(m[1]) }])
+  }
+  // per evitare collisioni con tag a mano uguali a un numero libero, si salta quello già occupato
+  const taken = new Set(doc.drawing.components.map((c) => c.tag))
+  let changed = 0
+  const plan: { c: Component; tag: string }[] = []
+  for (const [prefix, items] of byPrefix) {
+    items.sort((a, b) => a.n - b.n)
+    for (const { c } of items) taken.delete(c.tag)
+    let k = 0
+    for (const { c } of items) {
+      let tag: string
+      do { k += 1; tag = `${prefix}-${k}` } while (taken.has(tag))
+      taken.add(tag)
+      plan.push({ c, tag })
+    }
+  }
+  for (const { c, tag } of plan) if (c.tag !== tag) { c.tag = tag; changed++ }
+  return changed
 }
