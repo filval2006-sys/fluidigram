@@ -13,6 +13,7 @@
     "test": "vitest run",
     "tauri": "tauri",
     "version:set": "node scripts/set-version.mjs",
+    "installer-art": "node scripts/make-installer-art.mjs",
     "icon": "node scripts/make-icon.mjs && tauri icon scripts/icon.png"
   },
   "dependencies": {
