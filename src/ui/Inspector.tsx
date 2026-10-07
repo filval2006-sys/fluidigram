@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
-import { AlertOctagon, AlertTriangle, CheckCircle2, Copy, EyeOff, FlipHorizontal2, Info, Plus, RotateCcw, RotateCw, Trash2 } from 'lucide-react'
+import { AlertOctagon, AlertTriangle, CheckCircle2, Copy, EyeOff, FlipHorizontal2, Info, RotateCcw, RotateCw, Trash2 } from 'lucide-react'
 import {
-  ACTUATORS, ALL_SYMBOLS, CATEGORY_NAMES, END_KINDS, FLUIDS, FLUID_IDS, componentPorts, deleteItems, freePorts, portEnds, renumberTags, replaceComponents, setPortEnd, manualRouteValid, filterPipeSizes, getSymbol, mirrorComponents, newId, rotateComponents, checkReport, dismissIssue, restoreIssue, restoreAllIssues, setCheckHints,
-  TONES, type Annotation, type CheckIssue, type CheckReport, type Component, type Dir, type SymbolCategory, type Drawing, type EndKind, type FluidId, type Line, type ValveState,
+  ACTUATORS, ALL_SYMBOLS, CATEGORY_NAMES, END_KINDS, FLUIDS, FLUID_IDS, componentPorts, deleteItems, freePorts, portEnds, renumberTags, replaceComponents, setPortEnd, manualRouteValid, filterPipeSizes, getSymbol, mirrorComponents, rotateComponents, checkReport, dismissIssue, restoreIssue, restoreAllIssues, setCheckHints,
+  TONES, type Annotation, type CheckIssue, type CheckReport, type Component, type Dir, type SymbolCategory, type Drawing, type EndKind, type FluidId, type Line,
 } from '../core'
-import { useActiveTab, useShownPhase, useStore, type InspectorTab } from '../state/store'
+import { useActiveTab, useStore, type InspectorTab } from '../state/store'
 import { Combobox } from './Combobox'
 import { Field, Num, Section, TextField } from './Fields'
 
@@ -16,7 +16,7 @@ export function Inspector() {
   const tab = useActiveTab()
   const inspectorTab = useStore((s) => s.inspectorTab)
   const setInspectorTab = useStore((s) => s.setInspectorTab)
-  const report = useMemo(() => checkReport(tab.doc), [tab.doc])
+  const report = useMemo(() => checkReport(tab.doc, { scope: 'design' }), [tab.doc])
   const issues = report.issues
   const problems = issues.filter((i) => i.severity !== 'info').length
   const sheet = tab.doc.drawing
@@ -28,7 +28,6 @@ export function Inspector() {
   const tabs: { id: InspectorTab; label: string; badge?: number }[] = [
     { id: 'props', label: 'Proprietà' },
     { id: 'checks', label: 'Controlli', badge: problems },
-    { id: 'phases', label: 'Fasi' },
   ]
 
   return (
@@ -41,7 +40,6 @@ export function Inspector() {
         ))}
       </div>
       {inspectorTab === 'checks' && <ChecksPanel report={report} hints={tab.doc.checks.hints} />}
-      {inspectorTab === 'phases' && <PhasesPanel />}
       {inspectorTab === 'props' && (
         <>
           {sel.length === 0 && <ProjectSummary />}
@@ -61,7 +59,7 @@ const SEV = {
   info: { Icon: Info, label: 'Suggerimenti' },
 } as const
 
-function ChecksPanel({ report, hints }: { report: CheckReport; hints: boolean }) {
+export function ChecksPanel({ report, hints, withHints = true }: { report: CheckReport; hints: boolean; withHints?: boolean }) {
   const setSelection = useStore((s) => s.setSelection)
   const focusOn = useStore((s) => s.focusOn)
   const edit = useStore((s) => s.edit)
@@ -73,7 +71,7 @@ function ChecksPanel({ report, hints }: { report: CheckReport; hints: boolean })
       {!issues.length && (
         <Section title="Controlli">
           <p className="allgood"><CheckCircle2 size={18} /> Nessun problema rilevato.</p>
-          <p className="muted small">Si controllano collegamenti mancanti, porte lasciate libere, fluidi collegati tra loro, pressioni oltre il limite e dati mancanti.</p>
+          <p className="muted small">{withHints ? 'Si controllano collegamenti mancanti, porte lasciate libere, fluidi collegati tra loro, pressioni oltre il limite e dati mancanti.' : 'Si controlla che ogni valvola abbia uno stato in ogni fase e che ossidante e combustibile non si incontrino.'}</p>
         </Section>
       )}
       {(['error', 'warning', 'info'] as const).map((sev) => {
@@ -93,13 +91,13 @@ function ChecksPanel({ report, hints }: { report: CheckReport; hints: boolean })
           </Section>
         )
       })}
-      <Section title="Suggerimenti facoltativi">
+      {withHints && <Section title="Suggerimenti facoltativi">
         <label className="check-row">
           <input type="checkbox" checked={hints} onChange={(e) => edit((d) => setCheckHints(d, e.target.checked))} />
           <span>Mostra anche volumi chiudibili senza sfiato, diametri diversi e linee senza diametro</span>
         </label>
         {!hints && hiddenHints > 0 && <p className="muted small">{hiddenHints} {hiddenHints === 1 ? 'suggerimento nascosto' : 'suggerimenti nascosti'}.</p>}
-      </Section>
+      </Section>}
       {dismissed.length > 0 && (
         <Section title={`Ignorati (${dismissed.length})`}>
           <button className="link" onClick={() => setShowIgnored(!showIgnored)}>{showIgnored ? 'Nascondi l\'elenco' : 'Mostra l\'elenco'}</button>
@@ -121,102 +119,6 @@ function ChecksPanel({ report, hints }: { report: CheckReport; hints: boolean })
   )
 }
 
-const DEFAULT_PHASES = [
-  { it: 'Stoccaggio (safe)', en: 'Storage (safe)' },
-  { it: 'Riempimento', en: 'Filling' },
-  { it: 'Pressurizzazione', en: 'Pressurization' },
-  { it: 'Accensione', en: 'Ignition' },
-  { it: 'Combustione', en: 'Burn' },
-  { it: 'Sfiato / spegnimento', en: 'Vent / shutdown' },
-]
-const NEXT_STATE: Record<string, ValveState | undefined> = { '': 'closed', closed: 'open', open: undefined }
-
-function PhasesPanel() {
-  const tab = useActiveTab()
-  const edit = useStore((s) => s.edit)
-  const activePhase = useShownPhase()
-  const setActivePhase = useStore((s) => s.setActivePhase)
-  const setSelection = useStore((s) => s.setSelection)
-  const focusOn = useStore((s) => s.focusOn)
-  const phases = tab.doc.phases
-  const valves = tab.doc.drawing.components.filter((c) => {
-    const def = getSymbol(c.symbol)
-    return def.category === 'valves' && !def.id.startsWith('valve.check') && def.id !== 'valve.relief'
-  })
-
-  const cycle = (compId: string, phaseId: string) => edit((d) => {
-    const c = d.drawing.components.find((x) => x.id === compId)
-    if (!c) return
-    const next = NEXT_STATE[c.states?.[phaseId] ?? '']
-    if (next) { c.states = { ...c.states, [phaseId]: next } }
-    else if (c.states) { delete c.states[phaseId]; if (!Object.keys(c.states).length) c.states = undefined }
-  })
-
-  return (
-    <>
-      <Section title="Fasi di missione" action={
-        <button className="icon-btn" aria-label="Aggiungi fase" onClick={() => edit((d) => { d.phases.push({ id: newId('p'), name: { it: `Fase ${d.phases.length + 1}`, en: `Phase ${d.phases.length + 1}` } }) })}><Plus size={14} /></button>
-      }>
-        {!phases.length && (
-          <>
-            <p className="muted small">Definisci le fasi (riempimento, pressurizzazione, accensione…) e indica per ogni valvola se è aperta o chiusa. Lo schema le mostra in nero quando sono chiuse e la tabella finisce nell'esportazione.</p>
-            <button className="wide-btn" onClick={() => edit((d) => { d.phases = DEFAULT_PHASES.map((n) => ({ id: newId('p'), name: n })) })}>Usa le fasi tipiche di un razzo ibrido</button>
-          </>
-        )}
-        {phases.map((p, idx) => (
-          <div className="phase-row" key={p.id}>
-            <label className="phase-active" title="Mostra questa fase sul disegno">
-              <input type="radio" name="activePhase" checked={activePhase === p.id} onChange={() => setActivePhase(p.id)} />
-            </label>
-            <TextField value={p.name.it} ariaLabel={`Fase ${idx + 1} italiano`} onCommit={(v) => edit((d) => { d.phases[idx].name.it = v })} />
-            <TextField value={p.name.en} ariaLabel={`Phase ${idx + 1} English`} onCommit={(v) => edit((d) => { d.phases[idx].name.en = v })} />
-            <button className="icon-btn" aria-label="Elimina fase" onClick={() => {
-              edit((d) => { d.phases.splice(idx, 1); for (const c of d.drawing.components) if (c.states) { delete c.states[p.id]; if (!Object.keys(c.states).length) c.states = undefined } })
-              if (activePhase === p.id) setActivePhase(null)
-            }}><Trash2 size={13} /></button>
-          </div>
-        ))}
-        {!!phases.length && (
-          <button className="wide-btn ghost" disabled={!activePhase} onClick={() => setActivePhase(null)}>Nascondi la fase dal disegno</button>
-        )}
-      </Section>
-
-      {!!phases.length && (
-        <Section title="Stato delle valvole">
-          {!valves.length ? <p className="muted small">Aggiungi delle valvole al disegno per assegnare gli stati.</p> : (
-            <>
-              <div className="matrix-wrap">
-                <table className="matrix">
-                  <thead>
-                    <tr><th>Tag</th>{phases.map((p) => <th key={p.id} title={p.name.it} className={activePhase === p.id ? 'on' : ''}>{p.name.it.slice(0, 5)}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {valves.map((c) => (
-                      <tr key={c.id}>
-                        <th><button className="link" onClick={() => { setSelection([c.id]); focusOn([c.id]) }}>{c.tag}</button></th>
-                        {phases.map((p) => {
-                          const st = c.states?.[p.id]
-                          return (
-                            <td key={p.id} className={activePhase === p.id ? 'on' : ''}>
-                              <button className={'cell ' + (st ?? 'unset')} aria-label={`${c.tag} ${p.name.it}: ${st === 'closed' ? 'chiusa' : st === 'open' ? 'aperta' : 'non specificato'}`} onClick={() => cycle(c.id, p.id)}>
-                                {st === 'closed' ? '●' : st === 'open' ? '○' : '–'}
-                              </button>
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="muted small">Clic sulla cella per alternare: ● chiusa · ○ aperta · – non specificato.</p>
-            </>
-          )}
-        </Section>
-      )}
-    </>
-  )
-}
 
 const TONE_NAMES: Record<(typeof TONES)[number], string> = { neutral: 'Neutro (nero)', blue: 'Blu', amber: 'Ambra', green: 'Verde', red: 'Rosso' }
 

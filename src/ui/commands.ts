@@ -30,7 +30,7 @@ export function runEditCommand(id: string): boolean {
   if (document.querySelector('.modal-bg') && !typing) return true // con una finestra aperta la tela non si tocca
   // nella schermata della distinta i comandi sul disegno non si applicano (Annulla/Ripeti sì: valgono anche per la distinta)
   if (st.home && !typing && !['undo', 'redo'].includes(id)) return true
-  if (st.stageView === 'bom' && !typing && !['undo', 'redo'].includes(id)) return true
+  if ((st.stageView === 'bom' || st.step === 'operation') && !typing && !['undo', 'redo'].includes(id)) return true
 
   // dentro un campo di testo undo/redo/seleziona tutto riguardano il testo, il resto non si applica
   if (typing) {

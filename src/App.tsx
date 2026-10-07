@@ -12,6 +12,8 @@ import { justRan, runEditCommand } from './ui/commands'
 import { flushFocusedField } from './ui/flush'
 import { Inspector } from './ui/Inspector'
 import { Library } from './ui/Library'
+import { OperationPanel, OperationStage } from './ui/OperationView'
+import { StepBar } from './ui/StepBar'
 import { MODULES } from './modules'
 import { SettingsDialog } from './ui/SettingsDialog'
 import { ExportDialog } from './ui/ExportDialog'
@@ -28,6 +30,7 @@ export default function App() {
   const [openModule, setOpenModule] = useState<string | null>(null)
   const enabledModules = useStore((s) => s.modules)
   const stageView = useStore((s) => s.stageView)
+  const step = useStore((s) => s.step)
   const theme = useStore((s) => s.theme)
   const home = useStore((s) => s.home)
   // nell'app nativa si aspetta di sapere se l'app è stata aperta con un file, per non mostrare la pagina iniziale per un attimo
@@ -85,13 +88,13 @@ export default function App() {
 
   // comandi dell'app (File, Impostazioni…): li esegue chi li riceve per primo, menu o scorciatoia
   const runCommand = useCallback((id: string): boolean => {
-    const app = ['new', 'open', 'save', 'save-as', 'export', 'close-tab', 'settings', 'shortcuts', 'view-schema', 'view-bom', 'about', 'home']
+    const app = ['new', 'open', 'save', 'save-as', 'export', 'close-tab', 'settings', 'shortcuts', 'view-schema', 'view-bom', 'view-ops', 'about', 'home']
     if (!app.includes(id)) return runEditCommand(id)
     flushFocusedField() // il testo che si sta scrivendo entra nel progetto prima di salvare, esportare o cambiare schermata
     if (justRan(id, 250)) return true
     const st = useStore.getState()
     // nella pagina iniziale non c'è niente da salvare, esportare o chiudere
-    if (st.home && ['save', 'save-as', 'export', 'close-tab', 'view-schema', 'view-bom'].includes(id)) return true
+    if (st.home && ['save', 'save-as', 'export', 'close-tab', 'view-schema', 'view-bom', 'view-ops'].includes(id)) return true
     switch (id) {
       case 'home': st.setHome(true); break
       case 'new': st.newProject(); break
@@ -104,6 +107,7 @@ export default function App() {
       case 'about': setAboutOpen(true); break
       case 'view-schema': st.setStageView('schema'); break
       case 'view-bom': st.setStageView('bom'); break
+      case 'view-ops': st.setStep('operation'); break
       case 'shortcuts': st.setSelection([]); st.setInspectorTab('props'); notify('Le scorciatoie sono elencate nel pannello a destra'); break
     }
     return true
@@ -123,7 +127,7 @@ export default function App() {
       if (!(e.metaKey || e.ctrlKey)) return
       const k = e.key.toLowerCase()
       const id = k === 's' ? (e.shiftKey ? 'save-as' : 'save') : k === 'o' ? 'open' : k === 't' || (k === 'n' && !e.shiftKey) ? 'new'
-        : k === 'e' && e.shiftKey ? 'export' : k === 'w' ? 'close-tab' : k === ',' ? 'settings' : k === 'h' && e.shiftKey ? 'home' : k === '1' ? 'view-schema' : k === '2' ? 'view-bom' : ''
+        : k === 'e' && e.shiftKey ? 'export' : k === 'w' ? 'close-tab' : k === ',' ? 'settings' : k === 'h' && e.shiftKey ? 'home' : k === '1' ? 'view-schema' : k === '2' ? 'view-bom' : k === '3' ? 'view-ops' : ''
       if (!id) return
       e.preventDefault()
       runCommand(id)
@@ -142,18 +146,26 @@ export default function App() {
         <div className="brand">Fluidigram</div>
         <TabBar onClose={requestClose} />
       </header>
-      <Toolbar notify={notify} onExport={() => { flushFocusedField(); setExporting(true) }} onSettings={() => setSettingsOpen(true)} tools={tools} homeMode={home} />
+      <Toolbar notify={notify} onSettings={() => setSettingsOpen(true)} tools={tools} homeMode={home} />
+      {!home && <StepBar onExport={() => { flushFocusedField(); setExporting(true) }} />}
       {home ? (
         <HomeView onOpen={() => void openProject(notify)} onOpenRecent={(p) => void openRecent(p)} />
       ) : (
         <>
-          <div className={'body' + (stageView === 'bom' ? ' no-lib' : '')}>
-            {stageView !== 'bom' && <Library />}
-            <main className="stage">
-              {stageView === 'bom' ? <BomView /> : <Canvas />}
-            </main>
-            <Inspector />
-          </div>
+          {step === 'operation' ? (
+            <div className="body no-lib" key="operation">
+              <main className="stage"><OperationStage /></main>
+              <OperationPanel />
+            </div>
+          ) : (
+            <div className={'body' + (stageView === 'bom' ? ' no-lib' : '')} key="design">
+              {stageView !== 'bom' && <Library />}
+              <main className="stage">
+                {stageView === 'bom' ? <BomView /> : <Canvas />}
+              </main>
+              <Inspector />
+            </div>
+          )}
         </>
       )}
 

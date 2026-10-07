@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { Download, FilePlus2, House, FolderOpen, Monitor, Moon, Plus, Redo2, Save, Settings, Sun, Table2, Undo2, Workflow, X } from 'lucide-react'
+import { FilePlus2, House, FolderOpen, Monitor, Moon, Plus, Redo2, Save, Settings, Sun, Undo2, X } from 'lucide-react'
 import { openTextFile, saveTextFile } from '../platform/files'
 import { flushFocusedField } from './flush'
 import { isPristineTab } from '../state/session'
@@ -82,14 +82,12 @@ const THEMES = [
 /** Pulsante aggiunto da un modulo opzionale attivo. */
 export interface ExtraTool { id: string; label: string; title: string; Icon: LucideIcon; onClick: () => void }
 
-export function Toolbar({ notify, onExport, onSettings, tools, homeMode = false }: { notify: Notify; onExport: () => void; onSettings: () => void; tools: ExtraTool[]; homeMode?: boolean }) {
+export function Toolbar({ notify, onSettings, tools, homeMode = false }: { notify: Notify; onSettings: () => void; tools: ExtraTool[]; homeMode?: boolean }) {
   const tab = useActiveTab()
   const theme = useStore((s) => s.theme)
   const setTheme = useStore((s) => s.setTheme)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
-  const stageView = useStore((s) => s.stageView)
-  const setStageView = useStore((s) => s.setStageView)
   const next = THEMES[(THEMES.findIndex((t) => t.id === theme) + 1) % THEMES.length]
   const Cur = THEMES.find((t) => t.id === theme)!.Icon
 
@@ -124,15 +122,10 @@ export function Toolbar({ notify, onExport, onSettings, tools, homeMode = false 
         <button className="icon-btn" aria-label="Annulla" title="Annulla (⌘Z)" disabled={!tab.past.length} onClick={undo}><Undo2 size={16} /></button>
         <button className="icon-btn" aria-label="Ripeti" title="Ripeti (⇧⌘Z)" disabled={!tab.future.length} onClick={redo}><Redo2 size={16} /></button>
       </div>
-      <div className="seg" role="tablist" aria-label="Schermata">
-        <button role="tab" aria-selected={stageView === 'schema'} className={stageView === 'schema' ? 'on' : ''} onClick={() => { flushFocusedField(); setStageView('schema') }} title="Schema (⌘1)"><Workflow size={14} />Schema</button>
-        <button role="tab" aria-selected={stageView === 'bom'} className={stageView === 'bom' ? 'on' : ''} onClick={() => { flushFocusedField(); setStageView('bom') }} title="Distinta componenti (⌘2)"><Table2 size={14} />Distinta</button>
-      </div>
       <div className="spacer" />
       {tools.map(({ id, label, title, Icon, onClick }) => <button key={id} onClick={onClick} title={title}><Icon size={15} />{label}</button>)}
       {themeBtn}
       {settingsBtn}
-      <button className="primary" onClick={onExport}><Download size={15} />Esporta…</button>
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { Maximize, Minus, Plus } from 'lucide-react'
 import {
   FLUIDS, FLUID_IDS, addAnnotation, addComponent, annotationBounds, autoRoute, renderAnnotation, branchFromLine, runChecks, traceFlow, componentPorts, connectPorts, deleteItems,
   filterPipeSizes, freePorts, drawingBounds, lineRoute, mirrorComponents, moveSegment, nearestOnRoute, obstaclesOf, pickPortToward,
-  mountInstrument, planLabels, reconnectLine, renderComponent, renderLine, resolvePort, rotateComponents, routeLine, snap, worldExtent,
+  mountInstrument, phaseValves, cycleValveState, planLabels, reconnectLine, renderComponent, renderLine, resolvePort, rotateComponents, routeLine, snap, worldExtent,
   type Component, type Dir, type Point, type PortRef,
 } from '../core'
 import { useActiveTab, useShownPhase, useStore, type View } from '../state/store'
@@ -57,6 +57,8 @@ export function Canvas() {
   const tab = useActiveTab()
   const { draw, placing, inspectorTab, focusRequest } = useStore()
   const activePhase = useShownPhase()
+  // nel passo «Funzionamento» lo schema è da guardare: niente spostamenti, collegamenti o cancellazioni; le valvole si cliccano per cambiarne lo stato
+  const locked = useStore((s) => s.step === 'operation')
   const store = useStore
   const sheet = tab.doc.drawing
   const selection = useMemo(() => new Set(tab.selection), [tab.selection])
@@ -151,6 +153,7 @@ export function Canvas() {
       if (e.key === '0' && !mod) { if (wrapRef.current) { const t = st.tabs.find((x) => x.id === st.activeId)!; st.setView(fitView(wrapRef.current.clientWidth, wrapRef.current.clientHeight, drawingBounds(t.doc.drawing))) } return }
       if ((e.key === '+' || e.key === '=') && !mod) { zoomAt(1.25, size.w / 2, size.h / 2); return }
       if (e.key === '-' && !mod) { zoomAt(0.8, size.w / 2, size.h / 2); return }
+      if (locked) return
       if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); runEditCommand('paste'); return }
       if (!sel.size) return
       if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); runEditCommand('copy'); return }
@@ -207,11 +210,11 @@ export function Canvas() {
   const liveLines = useMemo(() => (activePhase ? traceFlow(tab.doc, activePhase).live : null), [tab.doc, activePhase])
   const issueMap = useMemo(() => {
     const m = new Map<string, 'error' | 'warning' | 'info'>()
-    if (inspectorTab !== 'checks') return m
+    if (inspectorTab !== 'checks' && !locked) return m
     const rank = { error: 0, warning: 1, info: 2 } as const
-    for (const i of runChecks(tab.doc)) for (const id of i.targets) if (!m.has(id) || rank[i.severity] < rank[m.get(id)!]) m.set(id, i.severity)
+    for (const i of runChecks(tab.doc, { scope: locked ? 'operation' : 'design' })) for (const id of i.targets) if (!m.has(id) || rank[i.severity] < rank[m.get(id)!]) m.set(id, i.severity)
     return m
-  }, [tab.doc, inspectorTab])
+  }, [tab.doc, inspectorTab, locked])
   const lineHtml = useMemo(
     () => sheet.lines.map((l) => [l, renderLine(sheet, l, true, labels.lines.get(l.id) ?? null), lineRoute(sheet, l)] as const),
     [sheet, labels],
@@ -255,13 +258,13 @@ export function Canvas() {
   // maniglie della linea selezionata
   const selectedLine = tab.selection.length === 1 ? sheet.lines.find((l) => l.id === tab.selection[0]) : undefined
   const lineHandles = useMemo(() => {
-    if (!selectedLine) return null
+    if (!selectedLine || locked) return null
     const a = resolvePort(sheet, selectedLine.from), b = resolvePort(sheet, selectedLine.to)
     if (!a || !b) return null
     const pts = lineRoute(sheet, selectedLine)
     const segs = pts.slice(1).map((q, i) => ({ i, p: pts[i], q })).filter(({ i }) => !!(moveSegment(pts, i, 5, a.dir, b.dir) || moveSegment(pts, i, -5, a.dir, b.dir)))
     return { pts, a, b, segs }
-  }, [selectedLine, sheet])
+  }, [selectedLine, sheet, locked])
 
   // ---- puntatore ----
   const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
@@ -271,6 +274,21 @@ export function Canvas() {
 
     if (e.button === 1 || space) { setDrag({ t: 'pan', sx: e.clientX, sy: e.clientY, view }); return }
     if (e.button !== 0) return
+
+    if (locked) {
+      const el = (e.target as Element).closest('[data-kind]') as HTMLElement | null
+      const id = el?.dataset.id
+      if (el?.dataset.kind === 'comp' && id) {
+        const c = sheet.components.find((x) => x.id === id)
+        st.setSelection([id])
+        if (c && activePhase && phaseValves(sheet).some((v) => v.id === id)) st.edit((d) => cycleValveState(d, id, activePhase))
+        return
+      }
+      if (el?.dataset.kind === 'line' && id) { st.setSelection([id]); return }
+      st.setSelection([])
+      setDrag({ t: 'pan', sx: e.clientX, sy: e.clientY, view })
+      return
+    }
 
     if (st.placing) {
       st.setSelection([placeItem(st.placing, w.x, w.y)])
@@ -418,6 +436,7 @@ export function Canvas() {
 
   const onDragOver = (e: DragEvent) => { if (e.dataTransfer.types.includes(SYMBOL_DRAG_TYPE)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }
   const onDrop = (e: DragEvent) => {
+    if (locked) return
     const symbolId = e.dataTransfer.getData(SYMBOL_DRAG_TYPE)
     if (!symbolId) return
     e.preventDefault()
@@ -532,7 +551,7 @@ export function Canvas() {
             return <rect key={'i' + c.id} className={'issue-ring ' + issueMap.get(c.id)} x={e.minX - 2.5} y={e.minY - 2.5} width={e.maxX - e.minX + 5} height={e.maxY - e.minY + 5} rx={2.5} />
           })}
 
-          {portHandles.map((h) => (
+          {!locked && portHandles.map((h) => (
             !h.used && (
               <g key={h.key} className={'port' + (connecting ? ' live' : '')} data-kind="port" data-comp={h.comp} data-pos={`${h.pos.x},${h.pos.y}`}>
                 <circle cx={h.pos.x} cy={h.pos.y} r={portR} className="port-hit" />
@@ -566,7 +585,7 @@ export function Canvas() {
         </g>
       </svg>
 
-      <DrawBar />
+      {!locked && <DrawBar />}
 
       {activePhase && (
         <div className="phase-badge">

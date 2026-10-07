@@ -16,7 +16,13 @@ export interface CheckIssue {
   message: string
   /** id di componenti e/o linee coinvolti */
   targets: string[]
+  /** passo del lavoro a cui appartiene: il disegno o il funzionamento (fasi) */
+  scope: CheckScope
 }
+
+export type CheckScope = 'design' | 'operation'
+/** Segnalazioni che riguardano le fasi di funzionamento. */
+const OPERATION_CODES = new Set(['phase-contamination', 'phase-incomplete'])
 
 /** Componenti che chiudono il volume (valvole, serbatoi, tappi): una linea delimitata da due di essi può intrappolare il fluido. */
 const isBlocker = (c: Component): boolean => {
@@ -51,22 +57,29 @@ export interface CheckReport {
   hiddenHints: number
 }
 
-export function checkReport(doc: FluidDocument, opts: { hints?: boolean } = {}): CheckReport {
+export interface CheckOptions {
+  /** forza suggerimenti accesi/spenti (altrimenti vale la scelta salvata nel file) */
+  hints?: boolean
+  /** solo le segnalazioni di un passo (altrimenti tutte) */
+  scope?: CheckScope
+}
+
+export function checkReport(doc: FluidDocument, opts: CheckOptions = {}): CheckReport {
   const showHints = opts.hints ?? doc.checks.hints
   const skip = new Set(doc.checks.dismissed)
-  const all = collectIssues(doc)
+  const all = collectIssues(doc).filter((i) => !opts.scope || i.scope === opts.scope)
   const hintsOff = all.filter((i) => HINT_CODES.has(i.code) && !showHints)
   const shown = all.filter((i) => showHints || !HINT_CODES.has(i.code))
   return { issues: shown.filter((i) => !skip.has(i.id)), dismissed: shown.filter((i) => skip.has(i.id)), hiddenHints: hintsOff.filter((i) => !skip.has(i.id)).length }
 }
 
-export const runChecks = (doc: FluidDocument, opts: { hints?: boolean } = {}): CheckIssue[] => checkReport(doc, opts).issues
+export const runChecks = (doc: FluidDocument, opts: CheckOptions = {}): CheckIssue[] => checkReport(doc, opts).issues
 
 function collectIssues(doc: FluidDocument): CheckIssue[] {
   const d: Drawing = doc.drawing
   const issues: CheckIssue[] = []
   const add = (severity: Severity, code: string, message: string, targets: string[], idSuffix = '') =>
-    issues.push({ id: `${code}:${targets.join(',')}${idSuffix}`, severity, code, message, targets })
+    issues.push({ id: `${code}:${targets.join(',')}${idSuffix}`, severity, code, message, targets, scope: OPERATION_CODES.has(code) ? 'operation' : 'design' })
 
   const connected = new Set<string>()
   for (const l of d.lines) {
@@ -191,6 +204,16 @@ function collectIssues(doc: FluidDocument): CheckIssue[] {
         add('error', 'phase-contamination', `Fase «${ph.name.it}»: ossidante e combustibile risultano in comunicazione attraverso valvole aperte.`, [...grp.lineIds, ...grp.componentIds], `:${ph.id}`)
       }
     }
+  }
+
+  // --- 4c. valvole senza stato in una fase ---------------------------------------
+  const pv = phaseValves(d)
+  for (const ph of doc.phases) {
+    const missing = pv.filter((v) => !v.states?.[ph.id])
+    if (!missing.length) continue
+    const tags = missing.map((v) => v.tag)
+    const shownTags = tags.length > 4 ? `${tags.slice(0, 4).join(', ')}…` : tags.join(', ')
+    add('warning', 'phase-incomplete', `Fase «${ph.name.it}»: ${missing.length === 1 ? 'una valvola senza stato' : `${missing.length} valvole senza stato`} (${shownTags}).`, missing.map((v) => v.id), `:${ph.id}`)
   }
 
   // --- 5. completezza dei dati --------------------------------------------------

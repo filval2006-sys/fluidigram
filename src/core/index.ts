@@ -19,6 +19,7 @@ export { MISC_GROUP, autoBomRow, bomEditorRows, bomEditorSections, bomGroups, bo
 export { ACTUATORS, resolveSymbol } from './symbols/library'
 export type { ActuatorId } from './symbols/types'
 export * from './checks'
+export * from './phases'
 export * from './flow'
 export * from './topology'
 export { optionSuffix } from './symbols/library'

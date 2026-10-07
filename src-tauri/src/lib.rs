@@ -112,8 +112,9 @@ const COMMANDS: &[(&str, &str, Option<&str>)] = &[
     ("rotate", "Ruota (R)", None),
     ("mirror", "Specchia (M)", None),
     ("delete", "Elimina (Canc)", None),
-    ("view-schema", "Schema", Some("CmdOrCtrl+1")),
-    ("view-bom", "Distinta componenti", Some("CmdOrCtrl+2")),
+    ("view-schema", "Disegno: schema", Some("CmdOrCtrl+1")),
+    ("view-bom", "Disegno: distinta componenti", Some("CmdOrCtrl+2")),
+    ("view-ops", "Funzionamento (fasi)", Some("CmdOrCtrl+3")),
     ("zoom-in", "Ingrandisci", Some("CmdOrCtrl+=")),
     ("zoom-out", "Riduci", Some("CmdOrCtrl+-")),
     ("zoom-fit", "Inquadra tutto", Some("CmdOrCtrl+0")),
@@ -175,6 +176,7 @@ fn build_menu<R: Runtime, M: Manager<R>>(app: &M) -> tauri::Result<Menu<R>> {
     let view = SubmenuBuilder::new(app, "Visualizza")
         .item(&cmd(app, "view-schema")?)
         .item(&cmd(app, "view-bom")?)
+        .item(&cmd(app, "view-ops")?)
         .separator()
         .item(&cmd(app, "zoom-in")?)
         .item(&cmd(app, "zoom-out")?)

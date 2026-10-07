@@ -22,7 +22,10 @@ export interface Tab {
 
 export const isDirty = (t: Tab): boolean => t.doc !== t.savedDoc
 
-export type InspectorTab = 'props' | 'checks' | 'phases'
+export type InspectorTab = 'props' | 'checks'
+
+/** Passi del lavoro: prima si disegna lo schema, poi si descrive come funziona (fasi e stato delle valvole). */
+export type Step = 'design' | 'operation'
 
 interface Store {
   tabs: Tab[]
@@ -44,6 +47,9 @@ interface Store {
   /** schermata principale: lo schema o la distinta (stessa scheda di progetto) */
   stageView: 'schema' | 'bom'
   setStageView: (v: 'schema' | 'bom') => void
+  /** passo del lavoro in corso */
+  step: Step
+  setStep: (s: Step) => void
   requestView: (kind: 'in' | 'out' | 'fit') => void
   clipboard: Clip | null
   pasteCount: number
@@ -212,7 +218,9 @@ export const useStore = create<Store>((set, get) => ({
   focusRequest: null,
   viewRequest: null,
   stageView: 'schema',
-  setStageView: (stageView) => set({ stageView }),
+  setStageView: (stageView) => set({ stageView, step: 'design' }),
+  step: 'design',
+  setStep: (step) => set({ step }),
   requestView: (kind) => set((s) => ({ viewRequest: { kind, n: (s.viewRequest?.n ?? 0) + 1 } })),
   clipboard: null,
   pasteCount: 0,
@@ -350,7 +358,9 @@ export const useActiveTab = (): Tab => useStore((s) => s.tabs.find((t) => t.id =
 export const useShownPhase = (): string | null =>
   useStore((s) => {
     const t = s.tabs.find((x) => x.id === s.activeId) ?? s.tabs[0]
-    return s.activePhase && t.doc.phases.some((p) => p.id === s.activePhase) ? s.activePhase : null
+    // il disegno mostra le fasi solo nel passo «Funzionamento»; lì, se non ne hai scelta una, si parte dalla prima
+    if (s.step !== 'operation') return null
+    return t.doc.phases.find((p) => p.id === s.activePhase)?.id ?? t.doc.phases[0]?.id ?? null
   })
 
 /** Nome mostrato nella scheda. */
