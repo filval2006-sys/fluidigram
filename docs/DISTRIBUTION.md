@@ -11,11 +11,14 @@ After installation, `.fluidigram` files open with a double click.
 
 ## Publishing a version
 
+1. Write the bilingual release notes in `docs/releases/vX.Y.Z.md` (same content in English and Italian: new features, changes, fixes, compatibility) and update `CHANGELOG.md`. The release body is built from these notes plus `docs/release-install.md` (download and installation steps for macOS and Windows) by `scripts/release-notes.sh`; the workflow fails if the notes file is missing.
+2. Then:
+
 ```bash
-npm run version:set 0.3.1                      # same version in package.json, tauri.conf.json, Cargo.toml and Cargo.lock
-git commit -am "Release 0.3.1"
-git tag v0.3.1
-git push --follow-tags
+npm run version:set 0.4.0                      # same version in package.json, tauri.conf.json, Cargo.toml and Cargo.lock
+git commit -am "Release 0.4.0"
+git tag v0.4.0
+git push && git push origin v0.4.0
 ```
 
 GitHub Actions builds macOS (universal) and Windows (about 10–15 minutes) after running all checks. Then open **Releases**:

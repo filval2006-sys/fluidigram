@@ -52,7 +52,19 @@ jobs:
       # a version with failing tests is never distributed
       - run: npm test
 
-      - name: Costruisci l'app e crea la bozza di release
+      # the release body comes from docs/releases/<tag>.md + docs/release-install.md (see scripts/release-notes.sh)
+      - name: Compose the release notes
+        id: notes
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        shell: bash
+        run: |
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+            scripts/release-notes.sh "${GITHUB_REF_NAME}"
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build the app and create the draft release
         id: tauri
         uses: tauri-apps/tauri-action@v0
         env:
@@ -68,29 +80,13 @@ jobs:
         with:
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseName: 'Fluidigram ${{ github.ref_name }}'
-          releaseBody: |
-            ## Download
-            **macOS** (Apple Silicon and Intel) — download the `.pkg`, a guided installer (you can install for everyone, only for you, or on another disk).
-            **Windows 10/11** — download the `-setup.exe` and follow the wizard: install for you or for everyone, choose the folder, Start menu folder and desktop shortcut.
-
-            ### First launch
-            The app is not code-signed/notarized yet, so your system warns you the first time. This is expected, not a virus.
-            - **macOS** ("Apple could not verify Fluidigram is free of malware"): open the app once and press *Done*, then **System Settings → Privacy & Security → Open Anyway**. Alternatively, before opening it, run `xattr -cr /Applications/Fluidigram.app` in Terminal.
-            - **Windows** ("Windows protected your PC"): *More info* → *Run anyway*.
-
-            Works fully offline. The interface is in Italian; exported drawings can be in Italian or English.
-
-            ## Installazione
-            **macOS** — scarica il `.pkg` (installer guidato: per tutti, solo per te o su un altro disco). La prima volta: Impostazioni di Sistema → Privacy e sicurezza → **Apri comunque** (oppure `xattr -cr /Applications/Fluidigram.app` da Terminale).
-            **Windows** — scarica il `-setup.exe` e segui la procedura guidata (per te o per tutti, cartella, menu Start, collegamento sul desktop). Se compare «Windows ha protetto il PC»: *Ulteriori informazioni* → *Esegui comunque*.
-
-            Created by Filippo Valentini.
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
 
       # guided installer for Mac (.pkg): welcome, choice of where to install, installation, summary
-      - name: Crea l'installer guidato per macOS (.pkg)
+      - name: Create the guided macOS installer (.pkg)
         if: ${{ runner.os == 'macOS' }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
@@ -98,7 +94,7 @@ jobs:
           scripts/make-pkg.sh src-tauri/target/universal-apple-darwin/release/bundle/macos/Fluidigram.app "$VERSION" "pkg-out/Fluidigram_${VERSION}_macOS.pkg"
           ls -la pkg-out
 
-      - name: Aggiungi il .pkg alla bozza di release
+      - name: Add the .pkg to the draft release
         if: ${{ runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/') }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -111,7 +107,7 @@ jobs:
           done
 
       # in manual runs (without a tag) the installers can be downloaded from here
-      - name: Salva gli installer come artifacts
+      - name: Save the installers as artifacts
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
