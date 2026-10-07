@@ -306,7 +306,7 @@ export const useStore = create<Store>((set, get) => ({
       const idx = s.tabs.findIndex((t) => t.id === id)
       return { tabs: rest, activeId: s.activeId === id ? rest[Math.max(0, idx - 1)].id : s.activeId }
     }),
-  setActive: (activeId) => set({ activeId, placing: null }),
+  setActive: (activeId) => set({ activeId, home: false, placing: null }),
   markSaved: (filePath) =>
     set((s) => {
       const recents = filePath ? pushRecent(s.recents, filePath) : s.recents

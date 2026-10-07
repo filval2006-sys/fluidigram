@@ -1,6 +1,6 @@
-import { FilePlus2, FileText, FolderOpen, History, Settings, Sparkles, Trash2, X } from 'lucide-react'
+import { FilePlus2, FileText, FolderOpen, History, Sparkles, Trash2, X } from 'lucide-react'
 import { SAMPLE_DOCUMENT, readDocument } from '../core'
-import { APP_CREDIT, APP_NAME, APP_VERSION } from '../appInfo'
+import { APP_NAME } from '../appInfo'
 import { isNativeApp } from '../platform/openFiles'
 import { isPristineTab } from '../state/session'
 import { isDirty, tabName, useStore } from '../state/store'
@@ -25,11 +25,7 @@ const folderOf = (path: string): string => {
  * Pagina iniziale: nuovo diagramma, apri, esempio, file recenti, schede ancora aperte e lavoro non salvato dell'ultima volta.
  * Le schede dell'ultima sessione non si riaprono da sole: chi vuole riprendere un file lo trova nei recenti.
  */
-export function HomeView({ onOpen, onOpenRecent, onSettings }: {
-  onOpen: () => void
-  onOpenRecent: (path: string) => void
-  onSettings: () => void
-}) {
+export function HomeView({ onOpen, onOpenRecent }: { onOpen: () => void; onOpenRecent: (path: string) => void }) {
   const st = useStore()
   const open = st.tabs.filter((t) => !isPristineTab(t))
   const native = isNativeApp()
@@ -41,7 +37,6 @@ export function HomeView({ onOpen, onOpenRecent, onSettings }: {
           <h1>{APP_NAME}</h1>
           <p className="muted">Schemi fluidici (P&amp;ID) per il razzomodellismo</p>
         </div>
-        <button className="icon-btn" aria-label="Impostazioni" title="Impostazioni" onClick={onSettings}><Settings size={18} /></button>
       </header>
 
       <div className="home-grid">
@@ -121,7 +116,6 @@ export function HomeView({ onOpen, onOpenRecent, onSettings }: {
         </div>
       </div>
 
-      <footer className="home-foot muted small">{APP_NAME} v{APP_VERSION} · {APP_CREDIT}</footer>
     </div>
   )
 }

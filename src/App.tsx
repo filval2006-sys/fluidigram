@@ -140,13 +140,13 @@ export default function App() {
     <div className="app">
       <header className="titlebar">
         <div className="brand">Fluidigram</div>
-        {!home && <TabBar onClose={requestClose} />}
+        <TabBar onClose={requestClose} />
       </header>
+      <Toolbar notify={notify} onExport={() => { flushFocusedField(); setExporting(true) }} onSettings={() => setSettingsOpen(true)} tools={tools} homeMode={home} />
       {home ? (
-        <HomeView onOpen={() => void openProject(notify)} onOpenRecent={(p) => void openRecent(p)} onSettings={() => setSettingsOpen(true)} />
+        <HomeView onOpen={() => void openProject(notify)} onOpenRecent={(p) => void openRecent(p)} />
       ) : (
         <>
-          <Toolbar notify={notify} onExport={() => { flushFocusedField(); setExporting(true) }} onSettings={() => setSettingsOpen(true)} tools={tools} />
           <div className={'body' + (stageView === 'bom' ? ' no-lib' : '')}>
             {stageView !== 'bom' && <Library />}
             <main className="stage">
@@ -183,10 +183,10 @@ export default function App() {
         </div>
       )}
 
-      {!home && <footer className="statusbar">
+      <footer className="statusbar">
         <button className="link" onClick={() => setAboutOpen(true)} title="About">{APP_NAME} v{APP_VERSION}</button>
         <span>{APP_CREDIT}</span>
-      </footer>}
+      </footer>
 
       <div className="toasts">{toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.msg}</div>)}</div>
     </div>

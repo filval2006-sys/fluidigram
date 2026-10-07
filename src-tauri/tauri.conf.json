@@ -63,6 +63,9 @@
           "x": 480,
           "y": 190
         }
+      },
+      "files": {
+        "Resources/fluidigram-file.icns": "icons/fluidigram-file.icns"
       }
     },
     "windows": {
