@@ -102,7 +102,7 @@ const COMMANDS: &[(&str, &str, Option<&str>)] = &[
     ("open", "Apri…", Some("CmdOrCtrl+O")),
     ("save", "Salva", Some("CmdOrCtrl+S")),
     ("save-as", "Salva con nome…", Some("CmdOrCtrl+Shift+S")),
-    ("export", "Esporta disegno…", Some("CmdOrCtrl+Shift+E")),
+    ("export", "Esporta…", Some("CmdOrCtrl+Shift+E")),
     ("close-tab", "Chiudi scheda", Some("CmdOrCtrl+W")),
     ("quit", "Esci", Some("Alt+F4")),
     ("undo", "Annulla", Some("CmdOrCtrl+Z")),

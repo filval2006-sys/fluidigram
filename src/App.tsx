@@ -174,7 +174,7 @@ export default function App() {
       {MODULES.map(({ id, Dialog }) => openModule === id && enabledModules[id] && (
         <Suspense key={id} fallback={null}><Dialog onClose={() => setOpenModule(null)} /></Suspense>
       ))}
-      {exporting && <ExportDialog onClose={() => setExporting(false)} notify={notify} />}
+      {exporting && <ExportDialog kind={step === 'operation' ? 'phases' : 'design'} onClose={() => setExporting(false)} notify={notify} />}
 
       {closing && (
         <div className="modal-bg" onMouseDown={() => setConfirmClose(null)}>

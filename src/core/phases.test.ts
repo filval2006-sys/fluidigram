@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { produce } from 'immer'
-import { checkReport, cycleValveState, phaseValves, runChecks, setPhaseForAll, setValveState } from '.'
+import { checkReport, cycleValveState, phasePageCount, phaseValves, renderPhasePages, runChecks, setPhaseForAll, setValveState } from '.'
 import { addComponent } from './edit'
 import { createEmptyDocument } from './documents'
 
@@ -41,5 +41,53 @@ describe('stato delle valvole per fase', () => {
     expect(checkReport(doc, { scope: 'design' }).issues.some((i) => i.code === 'phase-incomplete')).toBe(false)
     const filled = produce(doc, (d) => { for (const c of d.drawing.components) c.states = { p1: 'closed', p2: 'open' } })
     expect(runChecks(filled).some((i) => i.code === 'phase-incomplete')).toBe(false)
+  })
+})
+
+describe('documento delle fasi (PDF)', () => {
+  const build = (nValves: number, lang: 'it' | 'en' = 'it') => produce(createEmptyDocument(), (d) => {
+    for (let i = 0; i < nValves; i++) addComponent(d, 'valve.ball', 40 + (i % 10) * 30, 40 + Math.floor(i / 10) * 30)
+    d.phases = [{ id: 'p1', name: { it: 'Riempimento', en: 'Filling' } }, { id: 'p2', name: { it: 'Combustione', en: 'Burn' } }]
+    d.drawing.components.forEach((c, i) => { c.states = { p1: i % 2 ? 'open' : 'closed' } })
+    d.export.lang = lang
+  })
+
+  it('una pagina per fase più la tabella riassuntiva, con lo stato scritto', () => {
+    const doc = build(4)
+    const pages = renderPhasePages(doc)
+    expect(pages).toHaveLength(phasePageCount(doc))
+    expect(pages).toHaveLength(3)
+    expect(pages[0]).toContain('Riempimento')
+    expect(pages[0]).toContain('APERTA')
+    expect(pages[0]).toContain('CHIUSA')
+    expect(pages[1]).toContain('NON SPECIF.')
+    expect(pages[1]).toContain('4 non specificate')
+    expect(pages[2]).toContain('Stati delle valvole per fase'.toUpperCase())
+  })
+
+  it('in inglese testi e pallini cambiano lingua', () => {
+    const pages = renderPhasePages(build(2, 'en'))
+    expect(pages[0]).toContain('OPEN')
+    expect(pages[0]).toContain('Phase 1/2: Filling')
+    expect(pages[0]).not.toContain('APERTA')
+  })
+
+  it('tante valvole: la tabella continua su altri fogli, senza perderne', () => {
+    const doc = build(60)
+    const pages = renderPhasePages(doc)
+    expect(pages.length).toBeGreaterThan(3)
+    for (const tag of doc.drawing.components.map((c) => c.tag)) expect(pages.some((p) => p.includes(`>${tag}<`))).toBe(true)
+    expect(pages.some((p) => p.includes('(segue)'))).toBe(true)
+  })
+
+  it('senza fasi esce un solo foglio con un avviso', () => {
+    const doc = produce(build(2), (d) => { d.phases = [] })
+    const pages = renderPhasePages(doc)
+    expect(pages).toHaveLength(1)
+    expect(pages[0]).toContain('Nessuna fase definita')
+  })
+
+  it('schema vuoto o con fasi senza valvole non fa errori', () => {
+    expect(() => renderPhasePages(produce(createEmptyDocument(), (d) => { d.phases = [{ id: 'x', name: { it: 'A', en: 'A' } }] }))).not.toThrow()
   })
 })

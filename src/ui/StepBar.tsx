@@ -32,7 +32,7 @@ export function StepBar({ onExport }: { onExport: () => void }) {
             <button role="tab" aria-selected={stageView === 'bom'} className={stageView === 'bom' ? 'on' : ''} onClick={() => { flushFocusedField(); setStageView('bom') }} title="Distinta componenti (⌘2)"><Table2 size={14} />Distinta</button>
           </div>
         )}
-        <button className="primary" onClick={onExport} title={step === 'design' ? 'Esporta il disegno (⇧⌘E)' : 'Esporta (⇧⌘E)'}><Download size={15} />{step === 'design' ? 'Esporta disegno…' : 'Esporta…'}</button>
+        <button className="primary" onClick={onExport} title={step === 'design' ? 'Esporta il disegno (⇧⌘E)' : 'Esporta le fasi in PDF (⇧⌘E)'}><Download size={15} />{step === 'design' ? 'Esporta disegno…' : 'Esporta fasi…'}</button>
       </div>
     </nav>
   )

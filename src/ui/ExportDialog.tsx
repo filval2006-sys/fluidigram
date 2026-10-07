@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, FileImage, FileText, FileType, Loader2, Plus, Trash2, X } from 'lucide-react'
-import { PAGE, describePlan, planExport, renderAllPages, type ExportMode, type Lang, type SheetFormat } from '../core'
+import { PAGE, describePlan, planExport, renderAllPages, renderPhasePages, type ExportMode, type Lang, type SheetFormat } from '../core'
 import { svgPagesToPdf, svgToPng } from '../platform/exporters'
 import { saveFiles, type OutFile } from '../platform/files'
 import { useActiveTab, useStore } from '../state/store'
@@ -15,7 +15,9 @@ const MODES: { id: ExportMode; label: string; hint: string }[] = [
   { id: 'split', label: 'Più fogli 1:1', hint: 'Mantiene la scala 1:1 e divide in più fogli con frecce di continuazione.' },
 ]
 
-export function ExportDialog({ onClose, notify }: { onClose: () => void; notify: Notify }) {
+/** `design`: il disegno (schema, distinta, tabella stati); `phases`: il documento delle fasi di funzionamento. */
+export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: () => void; notify: Notify; kind?: 'design' | 'phases' }) {
+  const phasesDoc = kind === 'phases'
   const tab = useActiveTab()
   const edit = useStore((s) => s.edit)
   const doc = tab.doc
@@ -24,7 +26,7 @@ export function ExportDialog({ onClose, notify }: { onClose: () => void; notify:
   const [busy, setBusy] = useState<string | null>(null)
 
   const plan = useMemo(() => planExport(doc), [doc])
-  const pages = useMemo(() => renderAllPages(doc, plan), [doc, plan])
+  const pages = useMemo(() => (phasesDoc ? renderPhasePages(doc) : renderAllPages(doc, plan)), [doc, plan, phasesDoc])
   const cur = Math.min(page, pages.length)
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function ExportDialog({ onClose, notify }: { onClose: () => void; notify:
   const l10n = (key: 'title' | 'subtitle', l: Lang, v: string) => meta((m) => { m[key] = { it: m[key]?.it ?? '', en: m[key]?.en ?? '', [l]: v } })
   const text = (key: 'company' | 'drawingNo' | 'revision' | 'date' | 'drawnBy' | 'checkedBy') => (v: string) => meta((m) => { m[key] = v })
 
-  const base = `${slug(doc.meta.drawingNo || doc.meta.title[ex.lang] || doc.meta.title.it)}_${ex.lang}`
+  const base = `${slug(doc.meta.drawingNo || doc.meta.title[ex.lang] || doc.meta.title.it)}_${phasesDoc ? (ex.lang === 'it' ? 'fasi' : 'phases') + '_' : ''}${ex.lang}`
 
   const run = async (kind: 'pdf' | 'svg' | 'png') => {
     setBusy(kind.toUpperCase())
@@ -72,8 +74,8 @@ export function ExportDialog({ onClose, notify }: { onClose: () => void; notify:
     <div className="modal-bg" onMouseDown={() => { if (!busy) onClose() }}>
       <div className="export" role="dialog" aria-modal aria-label="Esporta" onMouseDown={(e) => e.stopPropagation()}>
         <header className="export-head">
-          <h2>Esporta disegno</h2>
-          <span className="export-summary">{describePlan(plan, 'it')}</span>
+          <h2>{phasesDoc ? 'Esporta fasi di funzionamento' : 'Esporta disegno'}</h2>
+          <span className="export-summary">{phasesDoc ? `${pages.length} ${pages.length === 1 ? 'foglio' : 'fogli'}: una pagina per fase e la tabella riassuntiva` : describePlan(plan, 'it')}</span>
           <div className="spacer" />
           <button className="icon-btn" aria-label="Chiudi" onClick={onClose} disabled={!!busy}><X size={18} /></button>
         </header>
@@ -92,7 +94,7 @@ export function ExportDialog({ onClose, notify }: { onClose: () => void; notify:
                   {(['A4', 'A3', 'A2'] as const).map((f) => <option key={f} value={f}>{f} ({fmtDims(f)})</option>)}
                 </select>
               </Field>
-              <Field label="Impaginazione">
+              {!phasesDoc && <Field label="Impaginazione">
                 <div className="radios">
                   {MODES.map((m) => (
                     <label key={m.id} className={'radio' + (ex.mode === m.id ? ' on' : '')}>
@@ -101,12 +103,12 @@ export function ExportDialog({ onClose, notify }: { onClose: () => void; notify:
                     </label>
                   ))}
                 </div>
-              </Field>
+              </Field>}
               <div className="checks">
-                <label><input type="checkbox" checked={ex.color} onChange={(e) => setEx({ color: e.target.checked })} />Linee a colori (altrimenti bianco e nero)</label>
-                <label><input type="checkbox" checked={ex.legend} onChange={(e) => setEx({ legend: e.target.checked })} />Legenda</label>
+                <label><input type="checkbox" checked={ex.color} onChange={(e) => setEx({ color: e.target.checked })} />{phasesDoc ? 'A colori (stati verde e rosso; altrimenti bianco e nero)' : 'Linee a colori (altrimenti bianco e nero)'}</label>
+                {!phasesDoc && <><label><input type="checkbox" checked={ex.legend} onChange={(e) => setEx({ legend: e.target.checked })} />Legenda</label>
                 <label><input type="checkbox" checked={ex.bom} onChange={(e) => setEx({ bom: e.target.checked })} />Distinta componenti</label>
-                {doc.phases.length > 0 && <label><input type="checkbox" checked={ex.states} onChange={(e) => setEx({ states: e.target.checked })} />Tabella stati delle valvole per fase</label>}
+                {doc.phases.length > 0 && <label><input type="checkbox" checked={ex.states} onChange={(e) => setEx({ states: e.target.checked })} />Tabella stati delle valvole per fase</label>}</>}
               </div>
             </Section>
 
@@ -155,7 +157,7 @@ export function ExportDialog({ onClose, notify }: { onClose: () => void; notify:
             </div>
             <div className="preview-nav">
               <button className="icon-btn" aria-label="Foglio precedente" disabled={cur <= 1} onClick={() => setPage(cur - 1)}><ChevronLeft size={18} /></button>
-              <span>Foglio {cur} di {pages.length}{cur > plan.tiles.length + plan.bomPages ? ' · stati valvole' : cur > plan.tiles.length ? ' · distinta' : ''}</span>
+              <span>Foglio {cur} di {pages.length}{phasesDoc ? '' : cur > plan.tiles.length + plan.bomPages ? ' · stati valvole' : cur > plan.tiles.length ? ' · distinta' : ''}</span>
               <button className="icon-btn" aria-label="Foglio successivo" disabled={cur >= pages.length} onClick={() => setPage(cur + 1)}><ChevronRight size={18} /></button>
             </div>
             {pages.length > 1 && (
