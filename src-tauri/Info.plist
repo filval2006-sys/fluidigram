@@ -2,7 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <!-- Icona dei file .fluidigram nel Finder: si aggiunge a quanto Tauri genera da `fileAssociations` (stessi valori, più l'icona). -->
+  <!-- Icona dei file .fluidigram nel Finder: si aggiunge a quanto Tauri genera da `fileAssociations` (stessi valori, più l'icona).
+       Il tipo è «dati» e non «testo/JSON»: altrimenti Finder mostra come icona un'anteprima del testo del file. -->
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>
@@ -24,7 +25,7 @@
   <array>
     <dict>
       <key>UTTypeConformsTo</key>
-      <array><string>public.json</string><string>public.data</string></array>
+      <array><string>public.data</string></array>
       <key>UTTypeDescription</key>
       <string>Schema fluidico Fluidigram</string>
       <key>UTTypeIconFile</key>

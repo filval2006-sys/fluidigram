@@ -96,7 +96,6 @@
         "exportedType": {
           "identifier": "it.fluidigram.project",
           "conformsTo": [
-            "public.json",
             "public.data"
           ]
         }
