@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Fluidigram",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "identifier": "it.fluidigram.app",
   "build": {
     "frontendDist": "../dist",

@@ -18,7 +18,7 @@ function usedKeys(): Map<string, string> {
   const str = String.raw`(['"\`])((?:\\.|(?!\1)[^\\])*)\1`
   const unescape = (s: string) => s.replace(/\\(['"`\\])/g, '$1').replace(/\\n/g, '\n')
   // the core has its own translation table for exported drawings (core/i18n.ts): it is not scanned here
-  for (const f of walk(SRC).filter((x) => !x.includes('/core/') && !x.includes('/i18n/'))) {
+  for (const f of walk(SRC).filter((x) => { const p = x.replace(/\\/g, '/'); return !p.includes('/core/') && !p.includes('/i18n/') })) {
     const src = readFileSync(f, 'utf8')
     for (const m of src.matchAll(new RegExp(String.raw`(?<![\w.])(?:t|N_)\(\s*${str}`, 'g'))) out.set(unescape(m[2]), f)
     for (const m of src.matchAll(new RegExp(String.raw`(?<![\w.])tp\(\s*[^,]+,\s*${str}\s*,\s*${str}`, 'g'))) { out.set(unescape(m[2]), f); out.set(unescape(m[4]), f) }
@@ -28,7 +28,7 @@ function usedKeys(): Map<string, string> {
 
 describe('interface translations', () => {
   it('every string passed to t() has an Italian translation', () => {
-    const missing = [...usedKeys()].filter(([k]) => !(k in IT)).map(([k, f]) => `${f.replace(SRC, 'src')}: ${k}`)
+    const missing = [...usedKeys()].filter(([k]) => !(k in IT)).map(([k, f]) => `${f.replace(SRC, 'src').replace(/\\/g, '/')}: ${k}`)
     expect(missing).toEqual([])
   })
   it('the Italian dictionary has no unused entries', () => {
