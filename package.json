@@ -36,7 +36,7 @@
     "dejavu-fonts-ttf": "^2.37.3",
     "immer": "^11.1.18",
     "jspdf": "^4.2.1",
-    "lucide-react": "^1.49.0",
+    "lucide-react": "^1.52.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "svg2pdf.js": "^2.8.1",
