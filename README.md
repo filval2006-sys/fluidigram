@@ -15,8 +15,8 @@ Get the latest installer from the **[Releases page](../../releases/latest)**:
 
 | System | File |
 |---|---|
-| macOS 11+ (Apple Silicon and Intel) | `Fluidigram_x.y.z_macOS.pkg` — guided installer (choose for everyone, only you, or another disk) |
-| Windows 10/11 (64-bit) | `Fluidigram_x.y.z_x64-setup.exe` — guided installer: for you or for everyone, install folder, Start menu folder, desktop shortcut |
+| macOS 11+ (Apple Silicon and Intel) | `Fluidigram_x.y.z_macOS.pkg` — guided installer, installs for the current user |
+| Windows 10/11 (64-bit) | `Fluidigram_x.y.z_x64-setup.exe` — guided installer, installs for the current user, install folder, Start menu folder, desktop shortcut |
 
 The app is not code-signed or notarized by Apple/Microsoft yet (that costs money), so the first time your system warns you. It is safe to continue:
 - **macOS** ("Apple could not verify Fluidigram is free of malware"): drag the app to Applications, open it once and press *Done*, then go to **System Settings → Privacy & Security**, scroll to *Security* and press **Open Anyway**. Or, before opening it, run this in Terminal: `xattr -cr /Applications/Fluidigram.app`
@@ -28,7 +28,7 @@ The interface is available in English and Italian (it follows your system langua
 
 ## Updates and privacy
 
-In **Settings → Updates** you can check whether a newer version is available, and the app does it by itself once a day (you can turn that off). A red dot on the Settings button tells you when a new version is out. The check asks `github.com` for the latest published release: only a standard web request (your IP address and the app name) leaves your computer. The app never downloads or installs anything by itself: you download the new installer and install it over the old one.
+In **Settings → Updates** the app checks whether a newer version is available (it does it by itself once a day; you can turn that off). A red dot on the Settings button tells you when one is out, and **Update now** downloads, verifies and installs it, then restarts the app. The check asks `github.com` for the latest published release: only a standard web request (your IP address and the app name) leaves your computer, and it is the only network request the app makes. The installers install for the current user, so no administrator rights are needed to update.
 
 ## About
 

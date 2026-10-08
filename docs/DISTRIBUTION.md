@@ -4,8 +4,8 @@ Users get **a single file** and need nothing else: the app contains everything (
 
 | System | File to download | Size | Notes |
 |---|---|---|---|
-| macOS 11+ (Apple Silicon and Intel) | `Fluidigram_x.y.z_macOS.pkg` | a few MB | guided installer (for everyone, only you, or another disk) |
-| Windows 10/11 (64-bit) | `Fluidigram_x.y.z_x64-setup.exe` | a few MB | guided installer: for you or for everyone, install folder, Start menu folder, desktop shortcut |
+| macOS 11+ (Apple Silicon and Intel) | `Fluidigram_x.y.z_macOS.pkg` | a few MB | guided installer, installs for the current user (`~/Applications`) |
+| Windows 10/11 (64-bit) | `Fluidigram_x.y.z_x64-setup.exe` | a few MB | guided installer, installs for the current user (no administrator rights), install folder, Start menu folder, desktop shortcut |
 
 After installation, `.fluidigram` files open with a double click.
 
@@ -32,6 +32,15 @@ The app is not yet signed by Apple or Microsoft (official signing costs money: a
 
 - **macOS** ("Apple could not verify Fluidigram is free of malware"): open the app once and press *Done*, then *System Settings → Privacy & Security → Open Anyway*. Alternatively, before opening it, run in Terminal: `xattr -cr /Applications/Fluidigram.app`. The old "right-click → Open" is no longer enough on recent macOS.
 - **Windows** ("Windows protected your PC"): *More info* → *Run anyway*.
+
+## In-app updates
+
+The app updates itself from **Settings → Updates**. It reads `latest.json`, which the Release workflow attaches to every release, and verifies the update with a public key embedded in the app (`plugins.updater.pubkey` in `tauri.conf.json`). This is **not** an Apple/Microsoft certificate: it is a free key pair made with `npx tauri signer generate`.
+
+- **Private key:** kept outside the repository (for example `~/.tauri/fluidigram-updater.key`) and stored as the repository secret `TAURI_SIGNING_PRIVATE_KEY` (secret `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` too, empty if the key has no password). **Back it up**: if it is lost, installed apps can no longer receive updates and users have to install a new version by hand.
+- **Installers install for the current user only** (macOS `~/Applications`, Windows per-user), so the app can replace itself without administrator rights. An app installed for all users cannot update itself; the Settings page then offers the manual download.
+- Local builds (`scripts/update-local-app.command`) do not create update files.
+- To change the key pair: generate a new one, update `pubkey`, the secrets, and release; apps installed with the old key must be reinstalled once.
 
 ## Code signing (optional, later)
 

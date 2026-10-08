@@ -494,4 +494,12 @@ export const IT: Record<string, string> = {
   'Check automatically once a day': 'Controlla automaticamente una volta al giorno',
   'Checking contacts github.com and sends only a standard web request (your IP address and the app name). Nothing else leaves your computer. Turn the automatic check off if you prefer.': 'Il controllo contatta github.com e invia solo una normale richiesta web (il tuo indirizzo IP e il nome dell\'app). Nient\'altro lascia il tuo computer. Se preferisci, spegni il controllo automatico.',
   'Settings (an update is available)': 'Impostazioni (c\'è un aggiornamento)',
+  // Auto update
+  'Update now': 'Aggiorna ora',
+  'Updating…': 'Aggiornamento in corso…',
+  'Your projects are not touched; the app restarts when the update is installed.': 'I tuoi progetti non vengono toccati; l\'app si riavvia quando l\'aggiornamento è installato.',
+  'Downloading…': 'Scaricamento…',
+  'Downloading… {percent}%': 'Scaricamento… {percent}%',
+  'Installing… the app will restart.': 'Installazione… l\'app si riavvierà.',
+  'The update could not be installed automatically ({error}). Download the installer instead and install it over the current version.': 'Non è stato possibile installare l\'aggiornamento in automatico ({error}). Scarica invece l\'installer e installalo sopra la versione attuale.',
 }

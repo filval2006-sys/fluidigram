@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Monitor, Moon, Sun, X, type LucideIcon } from 'lucide-react'
 import { N_, t, type LanguagePref } from '../i18n'
+import { isNativeApp } from '../platform/openFiles'
 import { openExternal } from '../platform/updates'
 import { APP_VERSION } from '../appInfo'
 import { useStore, type Theme } from '../state/store'
@@ -31,6 +32,9 @@ export function SettingsDialog({ modules, onClose }: { modules: ModuleInfo[]; on
   const setUpdateAuto = useStore((s) => s.setUpdateAuto)
   const checkForUpdates = useStore((s) => s.checkForUpdates)
   const markUpdateSeen = useStore((s) => s.markUpdateSeen)
+  const install = useStore((s) => s.install)
+  const installNow = useStore((s) => s.installNow)
+  const busy = install.phase === 'downloading' || install.phase === 'installing'
   const enabled = useStore((s) => s.modules)
   const setModule = useStore((s) => s.setModule)
 
@@ -76,12 +80,20 @@ export function SettingsDialog({ modules, onClose }: { modules: ModuleInfo[]; on
             <button onClick={() => void checkForUpdates()} disabled={update.phase === 'checking'}>{update.phase === 'checking' ? t('Checking…') : t('Check for updates')}</button>
             {update.phase === 'available' && update.latest && (
               <>
-                <button className="primary" onClick={() => void openExternal(update.latest!.downloadUrl ?? update.latest!.url)}>{t('Download {version}', { version: update.latest.version })}</button>
-                <button onClick={() => void openExternal(update.latest!.url)}>{t('What’s new')}</button>
+                {isNativeApp() && install.phase !== 'error' && (
+                  <button className="primary" disabled={busy} onClick={() => void installNow()}>{busy ? t('Updating…') : t('Update now')}</button>
+                )}
+                {(!isNativeApp() || install.phase === 'error') && (
+                  <button className="primary" onClick={() => void openExternal(update.latest!.downloadUrl ?? update.latest!.url)}>{t('Download {version}', { version: update.latest.version })}</button>
+                )}
+                <button onClick={() => void openExternal(update.latest!.url)} disabled={busy}>{t('What’s new')}</button>
               </>
             )}
           </div>
-          {update.phase === 'available' && update.latest && <p className="update-note">{t('Version {version} is available.', { version: update.latest.version })} {t('Download it and install it over the current one: your projects are not touched.')}</p>}
+          {update.phase === 'available' && update.latest && <p className="update-note">{t('Version {version} is available.', { version: update.latest.version })} {isNativeApp() ? t('Your projects are not touched; the app restarts when the update is installed.') : t('Download it and install it over the current one: your projects are not touched.')}</p>}
+          {install.phase === 'downloading' && <p className="muted small">{install.percent === null ? t('Downloading…') : t('Downloading… {percent}%', { percent: install.percent })}</p>}
+          {install.phase === 'installing' && <p className="muted small">{t('Installing… the app will restart.')}</p>}
+          {install.phase === 'error' && <p className="error">{t('The update could not be installed automatically ({error}). Download the installer instead and install it over the current version.', { error: install.error ?? '' })}</p>}
           {update.phase === 'current' && <p className="muted small">{t('You have the latest version.')}</p>}
           {update.phase === 'error' && <p className="error">{t('Could not check for updates: {error}', { error: update.error ?? '' })}</p>}
           <label className="check-row">

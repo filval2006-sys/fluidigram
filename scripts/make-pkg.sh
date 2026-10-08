@@ -28,8 +28,8 @@ cat > "$WORK/distribution.xml" <<XML
   <welcome file="welcome.html" mime-type="text/html"/>
   <conclusion file="conclusion.html" mime-type="text/html"/>
   <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
-  <!-- tipo di installazione: per tutti gli utenti, solo per me (~/Applications) o su un altro disco -->
-  <domains enable_anywhere="true" enable_currentUserHome="true" enable_localSystem="true"/>
+  <!-- install for the current user only (~/Applications): the app can then update itself without administrator rights -->
+  <domains enable_anywhere="false" enable_currentUserHome="true" enable_localSystem="false"/>
   <choices-outline><line choice="default"><line choice="$ID"/></line></choices-outline>
   <choice id="default"/>
   <choice id="$ID" visible="false"><pkg-ref id="$ID"/></choice>

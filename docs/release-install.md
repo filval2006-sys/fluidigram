@@ -15,7 +15,7 @@ Non serve installare altro: l'app funziona del tutto offline e i tuoi progetti r
 The installers are **not code-signed** yet (Apple and Microsoft charge for it), so both systems show a warning the first time. This is expected: it does **not** mean the app is a virus.
 
 ### macOS
-1. Download the `.pkg` and open it. The wizard lets you install for everyone, only for you, or on another disk.
+1. Download the `.pkg` and open it. It installs Fluidigram for your user account (in your *Applications* folder), so it can update itself later.
 2. The first time you open Fluidigram, macOS says it "could not verify that Fluidigram is free of malware". Press **Done**.
 3. Open **System Settings → Privacy & Security**, scroll down to the *Security* section and press **Open Anyway**, then confirm with your password or Touch ID.
 4. Alternative: before the first launch, run `xattr -cr /Applications/Fluidigram.app` in Terminal.
@@ -23,10 +23,10 @@ The installers are **not code-signed** yet (Apple and Microsoft charge for it), 
 ### Windows
 1. Download the `-setup.exe` and double-click it.
 2. Windows shows a blue **"Windows protected your PC"** screen (SmartScreen). Click **More info**, then **Run anyway**.
-3. In the wizard choose whether to install for you or for all users (this one asks for administrator permission), the folder, the Start menu folder and the desktop shortcut.
+3. In the wizard choose the folder, the Start menu folder and the desktop shortcut. It installs for your user only, so no administrator permission is needed.
 
 ### Updating
-Install the new version over the old one. Your `.fluidigram` projects are not touched.
+From version 0.5.0 the app updates itself: when a new version is out a red dot appears on the Settings button; open **Settings → Updates** and press **Update now**. Your `.fluidigram` projects are not touched. (If you installed an older version for all users, install 0.5.0 once by hand: from then on updates are automatic.)
 
 ---
 
@@ -35,7 +35,7 @@ Install the new version over the old one. Your `.fluidigram` projects are not to
 Gli installer **non sono ancora firmati** (Apple e Microsoft chiedono un pagamento), quindi entrambi i sistemi mostrano un avviso la prima volta. È normale: **non** significa che l'app sia un virus.
 
 ### macOS
-1. Scarica il `.pkg` e aprilo. La procedura guidata permette di installare per tutti, solo per te o su un altro disco.
+1. Scarica il `.pkg` e aprilo. Installa Fluidigram per il tuo utente (nella tua cartella *Applicazioni*), così potrà aggiornarsi da solo.
 2. La prima volta che apri Fluidigram, macOS dice che «non può verificare che Fluidigram sia privo di software dannoso». Premi **Fine**.
 3. Apri **Impostazioni di Sistema → Privacy e sicurezza**, scorri fino alla sezione *Sicurezza* e premi **Apri comunque**, poi conferma con la password o Touch ID.
 4. In alternativa, prima di aprirla, esegui da Terminale: `xattr -cr /Applications/Fluidigram.app`.
@@ -43,10 +43,10 @@ Gli installer **non sono ancora firmati** (Apple e Microsoft chiedono un pagamen
 ### Windows
 1. Scarica il `-setup.exe` e fai doppio clic.
 2. Windows mostra una schermata blu **«Windows ha protetto il PC»** (SmartScreen). Clicca **Ulteriori informazioni**, poi **Esegui comunque**.
-3. Nella procedura guidata scegli se installare per te o per tutti gli utenti (in quest'ultimo caso chiede il permesso di amministratore), la cartella, la cartella del menu Start e il collegamento sul desktop.
+3. Nella procedura guidata scegli la cartella, la cartella del menu Start e il collegamento sul desktop. Installa solo per il tuo utente, quindi non serve il permesso di amministratore.
 
 ### Aggiornamento
-Installa la nuova versione sopra la vecchia. I tuoi progetti `.fluidigram` non vengono toccati.
+Dalla versione 0.5.0 l'app si aggiorna da sola: quando esce una versione nuova compare un pallino rosso sul pulsante Impostazioni; apri **Impostazioni → Aggiornamenti** e premi **Aggiorna ora**. I tuoi progetti `.fluidigram` non vengono toccati. (Se avevi installato una versione precedente per tutti gli utenti, installa la 0.5.0 una volta a mano: da lì in poi gli aggiornamenti sono automatici.)
 
 ---
 

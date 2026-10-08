@@ -5,8 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-08
+
 ### Added
-- **Update check** in Settings → Updates: *Check for updates* and, if enabled (default), an automatic check once a day. A red dot on the Settings button shows when a newer version is available; the user downloads and installs it (the app never installs anything by itself). The only network request the app makes, with a clear note in Settings.
+- **In-app updates.** Settings → Updates checks for a newer version (manually, and automatically once a day unless turned off); a red dot on the Settings button shows when one is out. *Update now* downloads, verifies the signature, installs and restarts the app. The updates are signed with a project key (not an Apple/Microsoft certificate).
+- A *What's new* button opens the release notes of the new version.
+
+### Changed
+- **Installers install for the current user only** (macOS `~/Applications`, Windows per user, no administrator rights) so the app can replace itself. An app installed for all users falls back to a manual download.
+- The update check is the only network request the app makes; it is described in Settings and the README.
 
 ## [0.4.0] - 2026-10-07
 
@@ -52,7 +59,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - First version: editor, symbol library, automatic routing, checks, valve states per phase, PDF/SVG/PNG export, IT/EN drawings.
 
-[Unreleased]: https://github.com/filval2006-sys/fluidigram/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/filval2006-sys/fluidigram/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/filval2006-sys/fluidigram/compare/v0.2.0...v0.2.1

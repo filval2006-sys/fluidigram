@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { produce } from 'immer'
 import { APP_VERSION } from '../appInfo'
-import { compareVersions, fetchLatestRelease, type LatestRelease } from '../platform/updates'
+import { compareVersions, fetchLatestRelease, installUpdate, type LatestRelease } from '../platform/updates'
 import { resolveLanguage, setUiLanguage, t, uiLanguage, type LanguagePref } from '../i18n'
 import { MAX_RECENTS, isPristineTab, mergeRecoverable, pushRecent, worthRecovering, type RecentFile, type Recoverable } from './session'
 import {
@@ -41,6 +41,9 @@ interface Store {
   updateAuto: boolean
   setUpdateAuto: (on: boolean) => void
   update: UpdateState
+  install: InstallState
+  /** downloads and installs the new version, then restarts (native app) */
+  installNow: () => Promise<void>
   updateSeen: string
   /** `silent`: a failed check is not reported (used by the automatic one) */
   checkForUpdates: (silent?: boolean) => Promise<void>
@@ -132,6 +135,13 @@ const UPDATE_SEEN_KEY = 'fluidigram.updates.seen'
 const UPDATE_LAST_KEY = 'fluidigram.updates.last'
 /** The automatic check runs at most once a day. */
 const UPDATE_EVERY_MS = 24 * 3600 * 1000
+
+/** Progress of an in-app update (download, install, restart). */
+export interface InstallState {
+  phase: 'idle' | 'downloading' | 'installing' | 'error'
+  percent: number | null
+  error?: string
+}
 
 export interface UpdateState {
   phase: 'idle' | 'checking' | 'current' | 'available' | 'error'
@@ -254,6 +264,7 @@ export const useStore = create<Store>((set, get) => ({
   language: initialLanguage,
   updateAuto: readKey(UPDATE_AUTO_KEY) !== 'off',
   update: { phase: 'idle' },
+  install: { phase: 'idle', percent: null },
   updateSeen: readKey(UPDATE_SEEN_KEY) ?? '',
   modules: loadModules(),
   draw: { fluid: 'oxidizer', size: DEFAULT_PIPE_SIZE },
@@ -292,6 +303,15 @@ export const useStore = create<Store>((set, get) => ({
       set({ update: compareVersions(latest.version, APP_VERSION) > 0 ? { phase: 'available', latest } : { phase: 'current', latest } })
     } catch (e) {
       set({ update: silent ? (before.phase === 'checking' ? { phase: 'idle' } : before) : { phase: 'error', error: e instanceof Error ? e.message : String(e) } })
+    }
+  },
+  installNow: async () => {
+    if (get().install.phase === 'downloading' || get().install.phase === 'installing') return
+    set({ install: { phase: 'downloading', percent: null } })
+    try {
+      await installUpdate((p) => set({ install: { phase: p.phase, percent: p.percent } }))
+    } catch (e) {
+      set({ install: { phase: 'error', percent: null, error: e instanceof Error ? e.message : String(e) } })
     }
   },
   autoCheckForUpdates: () => {

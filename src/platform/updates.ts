@@ -61,3 +61,24 @@ export async function openExternal(url: string): Promise<void> {
     window.open(url, '_blank', 'noopener')
   }
 }
+
+export interface InstallProgress { phase: 'downloading' | 'installing'; percent: number | null }
+
+/**
+ * Downloads, verifies (signature) and installs the newest release, then restarts the app. Native app only.
+ * Throws if there is no signed update or the app cannot replace itself (e.g. installed for all users):
+ * the caller then offers the manual download.
+ */
+export async function installUpdate(onProgress: (p: InstallProgress) => void): Promise<void> {
+  const { check } = await import('@tauri-apps/plugin-updater')
+  const update = await check()
+  if (!update) throw new Error('No signed update is available yet')
+  let total = 0, done = 0
+  await update.downloadAndInstall((e) => {
+    if (e.event === 'Started') { total = e.data.contentLength ?? 0; onProgress({ phase: 'downloading', percent: total ? 0 : null }) }
+    else if (e.event === 'Progress') { done += e.data.chunkLength; onProgress({ phase: 'downloading', percent: total ? Math.min(100, Math.round((done / total) * 100)) : null }) }
+    else onProgress({ phase: 'installing', percent: null })
+  })
+  const { relaunch } = await import('@tauri-apps/plugin-process')
+  await relaunch()
+}

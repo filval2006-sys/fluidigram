@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Fluidigram",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "identifier": "it.fluidigram.app",
   "build": {
     "frontendDist": "../dist",
@@ -29,6 +29,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": [
       "app",
       "nsis"
@@ -75,7 +76,7 @@
         "type": "embedBootstrapper"
       },
       "nsis": {
-        "installMode": "both",
+        "installMode": "currentUser",
         "languages": [
           "Italian",
           "English"
@@ -103,5 +104,16 @@
         }
       }
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhEOTVCRjQyN0MyNEVGQTEKUldTaDd5UjhRcitWalVyT2NzOEx2bVZQazR4OTMyZThEbmVVWVduWDFtdkFRRU1tMVRZWm1rS0IK",
+      "endpoints": [
+        "https://github.com/filval2006-sys/fluidigram/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

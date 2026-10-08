@@ -324,6 +324,12 @@ pub fn run() {
         }
     }));
 
+    // in-app updates: the updater downloads and verifies the signed update, the process plugin restarts the app
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init());
+
     let app = builder
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())

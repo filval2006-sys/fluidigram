@@ -6,7 +6,8 @@ source "$HOME/.cargo/env" 2>/dev/null
 APP=src-tauri/target/release/bundle/macos/Fluidigram.app
 echo "Building Fluidigram (1-2 minutes)…"
 pkill -f "Fluidigram.app/Contents/MacOS" 2>/dev/null
-if npx tauri build --bundles app; then
+# local builds do not need the signed update files (they need the private update key)
+if npx tauri build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'; then
   rm -rf "$HOME/Applications/Fluidigram.app"
   if rm -rf /Applications/Fluidigram.app 2>/dev/null && cp -R "$APP" /Applications/; then
     :

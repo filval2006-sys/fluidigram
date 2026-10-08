@@ -69,6 +69,9 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # key that signs the in-app updates (not an Apple/Microsoft certificate): see docs/DISTRIBUTION.md
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # macOS signing and notarization (optional, they need an Apple Developer account):
           # add these secrets to the repository and uncomment the lines.
           # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
