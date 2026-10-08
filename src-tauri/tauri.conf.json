@@ -85,6 +85,10 @@
         "headerImage": "windows/header.bmp",
         "sidebarImage": "windows/sidebar.bmp",
         "startMenuFolder": "Fluidigram",
+        "customLanguageFiles": {
+          "English": "windows/languages/English.nsh",
+          "Italian": "windows/languages/Italian.nsh"
+        },
         "installerHooks": "windows/hooks.nsh"
       }
     },

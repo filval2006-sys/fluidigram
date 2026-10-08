@@ -1,0 +1,5 @@
+#!/bin/sh
+# When updating: asks Fluidigram to quit (if it is running) so the new version can replace it. Best effort, never blocks the install.
+osascript -e 'tell application id "it.fluidigram.app" to quit' >/dev/null 2>&1 || true
+sleep 1
+exit 0
