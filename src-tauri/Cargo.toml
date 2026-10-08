@@ -33,4 +33,4 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 
 [dev-dependencies]
-muda = "0.20"
+muda = "0.21"
