@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-08
+
+### Fixed
+- **macOS installer replaces the existing app** instead of creating a second copy: it always installs into `/Applications` (asking for the password once), and removes the duplicate that 0.5.0 could leave in `~/Applications`.
+- The app is given to the installing user, so *Update now* can replace it without a password.
+
 ## [0.5.0] - 2026-10-08
 
 ### Added
@@ -59,7 +65,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - First version: editor, symbol library, automatic routing, checks, valve states per phase, PDF/SVG/PNG export, IT/EN drawings.
 
-[Unreleased]: https://github.com/filval2006-sys/fluidigram/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/filval2006-sys/fluidigram/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/filval2006-sys/fluidigram/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.2.1...v0.3.0

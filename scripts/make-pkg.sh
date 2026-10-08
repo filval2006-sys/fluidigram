@@ -28,8 +28,8 @@ cat > "$WORK/distribution.xml" <<XML
   <welcome file="welcome.html" mime-type="text/html"/>
   <conclusion file="conclusion.html" mime-type="text/html"/>
   <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
-  <!-- install for the current user only (~/Applications): the app can then update itself without administrator rights -->
-  <domains enable_anywhere="false" enable_currentUserHome="true" enable_localSystem="false"/>
+  <!-- always /Applications: one copy that an update replaces (the postinstall script gives it to the installing user so it can update itself) -->
+  <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
   <choices-outline><line choice="default"><line choice="$ID"/></line></choices-outline>
   <choice id="default"/>
   <choice id="$ID" visible="false"><pkg-ref id="$ID"/></choice>

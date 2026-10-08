@@ -73,7 +73,7 @@ Get the latest installer from the **[Releases page](../../releases/latest)**:
 
 | System | File |
 |---|---|
-| macOS 11+ (Apple Silicon and Intel) | `Fluidigram_x.y.z_macOS.pkg` — guided installer, installs for your user |
+| macOS 11+ (Apple Silicon and Intel) | `Fluidigram_x.y.z_macOS.pkg` — guided installer: installs or updates the app in Applications (asks your password once) |
 | Windows 10/11 (64-bit) | `Fluidigram_x.y.z_x64-setup.exe` — guided installer, installs for your user, no administrator rights |
 
 The app is **not code-signed yet** (Apple and Microsoft charge for it), so your system shows a warning the first time. This is expected and does not mean the app is a virus:
@@ -167,7 +167,7 @@ Prendi l'ultimo installer dalla **[pagina delle release](../../releases/latest)*
 
 | Sistema | File |
 |---|---|
-| macOS 11+ (Apple Silicon e Intel) | `Fluidigram_x.y.z_macOS.pkg` — installer guidato, installa per il tuo utente |
+| macOS 11+ (Apple Silicon e Intel) | `Fluidigram_x.y.z_macOS.pkg` — installer guidato: installa o aggiorna l'app in Applicazioni (chiede la password una volta) |
 | Windows 10/11 (64 bit) | `Fluidigram_x.y.z_x64-setup.exe` — installer guidato, installa per il tuo utente, senza permessi di amministratore |
 
 L'app **non è ancora firmata** (Apple e Microsoft la fanno pagare), quindi la prima volta il sistema mostra un avviso. È normale e non significa che l'app sia un virus:

@@ -15,7 +15,7 @@ Non serve installare altro: l'app funziona del tutto offline e i tuoi progetti r
 The installers are **not code-signed** yet (Apple and Microsoft charge for it), so both systems show a warning the first time. This is expected: it does **not** mean the app is a virus.
 
 ### macOS
-1. Download the `.pkg` and open it. It installs Fluidigram for your user account (in your *Applications* folder), so it can update itself later.
+1. Download the `.pkg` and open it. It installs (or updates) Fluidigram in your *Applications* folder, replacing the previous version, and asks for your password once. The app then belongs to you, so it can update itself later without asking again.
 2. The first time you open Fluidigram, macOS says it "could not verify that Fluidigram is free of malware". Press **Done**.
 3. Open **System Settings → Privacy & Security**, scroll down to the *Security* section and press **Open Anyway**, then confirm with your password or Touch ID.
 4. Alternative: before the first launch, run `xattr -cr /Applications/Fluidigram.app` in Terminal.
@@ -35,7 +35,7 @@ From version 0.5.0 the app updates itself: when a new version is out a red dot a
 Gli installer **non sono ancora firmati** (Apple e Microsoft chiedono un pagamento), quindi entrambi i sistemi mostrano un avviso la prima volta. È normale: **non** significa che l'app sia un virus.
 
 ### macOS
-1. Scarica il `.pkg` e aprilo. Installa Fluidigram per il tuo utente (nella tua cartella *Applicazioni*), così potrà aggiornarsi da solo.
+1. Scarica il `.pkg` e aprilo. Installa (o aggiorna) Fluidigram nella cartella *Applicazioni*, sostituendo la versione precedente, e chiede la password una sola volta. Poi l'app è tua, così potrà aggiornarsi da sola senza chiedere altro.
 2. La prima volta che apri Fluidigram, macOS dice che «non può verificare che Fluidigram sia privo di software dannoso». Premi **Fine**.
 3. Apri **Impostazioni di Sistema → Privacy e sicurezza**, scorri fino alla sezione *Sicurezza* e premi **Apri comunque**, poi conferma con la password o Touch ID.
 4. In alternativa, prima di aprirla, esegui da Terminale: `xattr -cr /Applications/Fluidigram.app`.

@@ -12,7 +12,7 @@
     "url": "https://github.com/filval2006-sys/fluidigram/issues"
   },
   "description": "Schemi fluidici (P&ID) per il razzomodellismo",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

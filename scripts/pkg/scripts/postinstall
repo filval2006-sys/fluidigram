@@ -1,6 +1,16 @@
 #!/bin/sh
-# Removes the "downloaded from the internet" mark from the freshly installed app, so a second warning does not appear on opening.
-for app in /Applications/Fluidigram.app "$HOME/Applications/Fluidigram.app" "$2/Fluidigram.app"; do
-  [ -d "$app" ] && xattr -cr "$app" 2>/dev/null
-done
+# After installing into /Applications:
+# - removes the "downloaded from the internet" mark, so a second warning does not appear on opening;
+# - gives the app to the person who installed it, so the in-app updater can replace it without asking for a password;
+# - removes a copy left in the user's own Applications folder by an earlier installer, which would be a duplicate.
+APP="/Applications/Fluidigram.app"
+xattr -cr "$APP" 2>/dev/null
+USER_NAME=$(stat -f%Su /dev/console 2>/dev/null)
+if [ -n "$USER_NAME" ] && [ "$USER_NAME" != "root" ]; then
+  chown -R "$USER_NAME":admin "$APP" 2>/dev/null
+  HOME_DIR=$(dscl . -read "/Users/$USER_NAME" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
+  if [ -n "$HOME_DIR" ] && [ -d "$HOME_DIR/Applications/Fluidigram.app" ]; then
+    rm -rf "$HOME_DIR/Applications/Fluidigram.app"
+  fi
+fi
 exit 0
