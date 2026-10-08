@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { Monitor, Moon, Sun, X, type LucideIcon } from 'lucide-react'
 import { N_, t, type LanguagePref } from '../i18n'
+import { openExternal } from '../platform/updates'
+import { APP_VERSION } from '../appInfo'
 import { useStore, type Theme } from '../state/store'
 
 /** Description of an optional module (the list is provided by the App: this dialog does not know the modules). */
@@ -24,8 +26,16 @@ export function SettingsDialog({ modules, onClose }: { modules: ModuleInfo[]; on
   const setTheme = useStore((s) => s.setTheme)
   const language = useStore((s) => s.language)
   const setLanguage = useStore((s) => s.setLanguage)
+  const update = useStore((s) => s.update)
+  const updateAuto = useStore((s) => s.updateAuto)
+  const setUpdateAuto = useStore((s) => s.setUpdateAuto)
+  const checkForUpdates = useStore((s) => s.checkForUpdates)
+  const markUpdateSeen = useStore((s) => s.markUpdateSeen)
   const enabled = useStore((s) => s.modules)
   const setModule = useStore((s) => s.setModule)
+
+  // opening the settings counts as having seen the notification dot
+  useEffect(() => { markUpdateSeen() }, [markUpdateSeen, update.latest?.version])
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -57,6 +67,28 @@ export function SettingsDialog({ modules, onClose }: { modules: ModuleInfo[]; on
               <button key={id} className={language === id ? 'on' : ''} onClick={() => setLanguage(id)}>{id === 'auto' ? t(label) : label}</button>
             ))}
           </div>
+        </section>
+
+        <section>
+          <h4>{t('Updates')}</h4>
+          <p className="muted small">{t('Version {version}', { version: APP_VERSION })}</p>
+          <div className="btn-row">
+            <button onClick={() => void checkForUpdates()} disabled={update.phase === 'checking'}>{update.phase === 'checking' ? t('Checking…') : t('Check for updates')}</button>
+            {update.phase === 'available' && update.latest && (
+              <>
+                <button className="primary" onClick={() => void openExternal(update.latest!.downloadUrl ?? update.latest!.url)}>{t('Download {version}', { version: update.latest.version })}</button>
+                <button onClick={() => void openExternal(update.latest!.url)}>{t('What’s new')}</button>
+              </>
+            )}
+          </div>
+          {update.phase === 'available' && update.latest && <p className="update-note">{t('Version {version} is available.', { version: update.latest.version })} {t('Download it and install it over the current one: your projects are not touched.')}</p>}
+          {update.phase === 'current' && <p className="muted small">{t('You have the latest version.')}</p>}
+          {update.phase === 'error' && <p className="error">{t('Could not check for updates: {error}', { error: update.error ?? '' })}</p>}
+          <label className="check-row">
+            <input type="checkbox" checked={updateAuto} onChange={(e) => setUpdateAuto(e.target.checked)} />
+            <span>{t('Check automatically once a day')}</span>
+          </label>
+          <p className="muted small">{t('Checking contacts github.com and sends only a standard web request (your IP address and the app name). Nothing else leaves your computer. Turn the automatic check off if you prefer.')}</p>
         </section>
 
         <section>

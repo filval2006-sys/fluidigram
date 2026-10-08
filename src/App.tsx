@@ -45,6 +45,12 @@ export default function App() {
     if (theme === 'system') root.removeAttribute('data-theme')
     else root.setAttribute('data-theme', theme)
   }, [theme])
+  // once the app is ready, look for a new version (at most once a day, if enabled in Settings)
+  useEffect(() => {
+    if (!ready) return
+    const id = setTimeout(() => useStore.getState().autoCheckForUpdates(), 4000)
+    return () => clearTimeout(id)
+  }, [ready])
   // the native menu follows the interface language
   useEffect(() => { void setMenuLanguage(uiLang) }, [uiLang])
   const closeTab = useStore((s) => s.closeTab)

@@ -58,6 +58,7 @@ export function Toolbar({ notify, onSettings, tools, homeMode = false }: { notif
   const setTheme = useStore((s) => s.setTheme)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
+  const updateDot = useStore((s) => s.update.phase === 'available' && s.update.latest?.version !== s.updateSeen)
   const next = THEMES[(THEMES.findIndex((th) => th.id === theme) + 1) % THEMES.length]
   const Cur = THEMES.find((th) => th.id === theme)!.Icon
   const themeLabel = t(THEMES.find((th) => th.id === theme)!.label)
@@ -65,7 +66,12 @@ export function Toolbar({ notify, onSettings, tools, homeMode = false }: { notif
   const themeBtn = (
     <button className="icon-btn theme-btn" aria-label={themeLabel} title={t('{label} (click to change)', { label: themeLabel })} onClick={() => setTheme(next.id)}><Cur size={17} /></button>
   )
-  const settingsBtn = <button className="icon-btn theme-btn" aria-label={t('Settings')} title={t('Settings')} onClick={onSettings}><Settings size={17} /></button>
+  const settingsLabel = updateDot ? t('Settings (an update is available)') : t('Settings')
+  const settingsBtn = (
+    <button className="icon-btn theme-btn has-dot" aria-label={settingsLabel} title={settingsLabel} onClick={onSettings}>
+      <Settings size={17} />{updateDot && <i className="update-dot" aria-hidden />}
+    </button>
+  )
 
   // on the home page the bar stays, with what is needed: same height, no jump when switching to the drawing
   if (homeMode) {

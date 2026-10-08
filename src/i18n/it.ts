@@ -481,4 +481,17 @@ export const IT: Record<string, string> = {
   // Modules
   'Calculation tools': 'Strumenti di calcolo',
   'Sizing of N₂O injectors (SPI, HEM, Dyer), gas orifices, pressure drops and Cv. They are separate calculators: they do not change the diagram.': 'Dimensionamento di iniettori N₂O (SPI, HEM, Dyer), orifizi per gas, perdite di carico e Cv. Sono calcolatori a parte: non cambiano lo schema.',
+  // Updates
+  'Updates': 'Aggiornamenti',
+  'Checking…': 'Controllo in corso…',
+  'Check for updates': 'Controlla aggiornamenti',
+  'Download {version}': 'Scarica la {version}',
+  'What’s new': 'Novità',
+  'Version {version} is available.': 'È disponibile la versione {version}.',
+  'Download it and install it over the current one: your projects are not touched.': 'Scaricala e installala sopra quella attuale: i tuoi progetti non vengono toccati.',
+  'You have the latest version.': 'Hai l\'ultima versione.',
+  'Could not check for updates: {error}': 'Impossibile controllare gli aggiornamenti: {error}',
+  'Check automatically once a day': 'Controlla automaticamente una volta al giorno',
+  'Checking contacts github.com and sends only a standard web request (your IP address and the app name). Nothing else leaves your computer. Turn the automatic check off if you prefer.': 'Il controllo contatta github.com e invia solo una normale richiesta web (il tuo indirizzo IP e il nome dell\'app). Nient\'altro lascia il tuo computer. Se preferisci, spegni il controllo automatico.',
+  'Settings (an update is available)': 'Impostazioni (c\'è un aggiornamento)',
 }

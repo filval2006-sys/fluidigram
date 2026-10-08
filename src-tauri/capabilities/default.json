@@ -8,6 +8,10 @@
   "permissions": [
     "core:default",
     "dialog:default",
-    "fs:allow-read-text-file"
+    "fs:allow-read-text-file",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/filval2006-sys/fluidigram/**" }]
+    }
   ]
 }

@@ -2,7 +2,7 @@
 
 **Fluid system (P&ID) diagrams for model rocketry** — draw valves, tanks, sensors and lines, check the schematic, and export
 professional drawings (title block, legend, bill of materials, automatic multi-sheet layout) as PDF, SVG or PNG, in Italian or English.
-Works fully offline; your projects stay on your computer.
+Works fully offline; your projects stay on your computer. The only network request is the optional check for a new version (see below).
 
 *Schemi fluidici (P&ID) per il razzomodellismo: valvole, serbatoi, strumenti e collegamenti, controlli sullo schema ed esportazione
 professionale (cartiglio, legenda, distinta, più fogli) in PDF, SVG e PNG, in italiano e inglese. Funziona offline.*
@@ -25,6 +25,10 @@ The app is not code-signed or notarized by Apple/Microsoft yet (that costs money
 Questa è l'avviso normale per un'app non firmata, non indica un virus. Su Mac: Impostazioni di Sistema → Privacy e sicurezza → **Apri comunque**.
 
 The interface is available in English and Italian (it follows your system language; you can change it in Settings). Exported drawings can be in Italian or English, independently.
+
+## Updates and privacy
+
+In **Settings → Updates** you can check whether a newer version is available, and the app does it by itself once a day (you can turn that off). A red dot on the Settings button tells you when a new version is out. The check asks `github.com` for the latest published release: only a standard web request (your IP address and the app name) leaves your computer. The app never downloads or installs anything by itself: you download the new installer and install it over the old one.
 
 ## About
 

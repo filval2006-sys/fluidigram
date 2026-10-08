@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- **Update check** in Settings → Updates: *Check for updates* and, if enabled (default), an automatic check once a day. A red dot on the Settings button shows when a newer version is available; the user downloads and installs it (the app never installs anything by itself). The only network request the app makes, with a clear note in Settings.
+
 ## [0.4.0] - 2026-10-07
 
 ### Added

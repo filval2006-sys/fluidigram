@@ -52,5 +52,5 @@ Edit `scripts/icon.svg` and run `npm run icon` to regenerate all app icons (macO
 
 ## What the app contains
 
-- No external dependencies: the interface is embedded in the executable and makes no network requests.
+- No external dependencies: the interface is embedded in the executable. The only network request is the update check (Settings → Updates), which asks the GitHub API for the latest published release; it runs once a day unless turned off, never downloads or installs anything, and sends only a standard web request.
 - Windows uses the system WebView2 component, already present on Windows 11 and updated Windows 10; if missing, the installer downloads it once (internet needed).

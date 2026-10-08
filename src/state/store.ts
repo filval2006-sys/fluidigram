@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { produce } from 'immer'
+import { APP_VERSION } from '../appInfo'
+import { compareVersions, fetchLatestRelease, type LatestRelease } from '../platform/updates'
 import { resolveLanguage, setUiLanguage, t, uiLanguage, type LanguagePref } from '../i18n'
 import { MAX_RECENTS, isPristineTab, mergeRecoverable, pushRecent, worthRecovering, type RecentFile, type Recoverable } from './session'
 import {
@@ -35,6 +37,16 @@ interface Store {
   /** interface language preference: follow the system or force Italian/English */
   language: LanguagePref
   setLanguage: (l: LanguagePref) => void
+  /** update check: automatic once a day (can be turned off), result and the version whose notification dot was seen */
+  updateAuto: boolean
+  setUpdateAuto: (on: boolean) => void
+  update: UpdateState
+  updateSeen: string
+  /** `silent`: a failed check is not reported (used by the automatic one) */
+  checkForUpdates: (silent?: boolean) => Promise<void>
+  /** runs the check if it is enabled and a day has passed since the last one */
+  autoCheckForUpdates: () => void
+  markUpdateSeen: () => void
   /** moduli opzionali attivi (id → true) */
   modules: Record<string, boolean>
   /** values used for new lines */
@@ -115,6 +127,20 @@ const REJECTED_KEY = 'fluidigram.workspace.rejected'
 const THEME_KEY = 'fluidigram.theme'
 const MODULES_KEY = 'fluidigram.modules'
 const LANGUAGE_KEY = 'fluidigram.language'
+const UPDATE_AUTO_KEY = 'fluidigram.updates.auto'
+const UPDATE_SEEN_KEY = 'fluidigram.updates.seen'
+const UPDATE_LAST_KEY = 'fluidigram.updates.last'
+/** The automatic check runs at most once a day. */
+const UPDATE_EVERY_MS = 24 * 3600 * 1000
+
+export interface UpdateState {
+  phase: 'idle' | 'checking' | 'current' | 'available' | 'error'
+  latest?: LatestRelease
+  error?: string
+}
+
+const readKey = (k: string): string | null => { try { return localStorage.getItem(k) } catch { return null } }
+const writeKey = (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* storage unavailable */ } }
 
 export type Theme = 'system' | 'light' | 'dark'
 
@@ -226,6 +252,9 @@ export const useStore = create<Store>((set, get) => ({
   recoverable: previousSession,
   theme: loadTheme(),
   language: initialLanguage,
+  updateAuto: readKey(UPDATE_AUTO_KEY) !== 'off',
+  update: { phase: 'idle' },
+  updateSeen: readKey(UPDATE_SEEN_KEY) ?? '',
   modules: loadModules(),
   draw: { fluid: 'oxidizer', size: DEFAULT_PIPE_SIZE },
   placing: null,
@@ -249,6 +278,33 @@ export const useStore = create<Store>((set, get) => ({
       try { localStorage.setItem(MODULES_KEY, JSON.stringify(modules)) } catch { /* storage unavailable */ }
       return { modules }
     }),
+  setUpdateAuto: (on) => {
+    writeKey(UPDATE_AUTO_KEY, on ? 'on' : 'off')
+    set({ updateAuto: on })
+  },
+  checkForUpdates: async (silent = false) => {
+    if (get().update.phase === 'checking') return
+    const before = get().update
+    set({ update: { ...before, phase: 'checking' } })
+    try {
+      const latest = await fetchLatestRelease()
+      writeKey(UPDATE_LAST_KEY, String(Date.now()))
+      set({ update: compareVersions(latest.version, APP_VERSION) > 0 ? { phase: 'available', latest } : { phase: 'current', latest } })
+    } catch (e) {
+      set({ update: silent ? (before.phase === 'checking' ? { phase: 'idle' } : before) : { phase: 'error', error: e instanceof Error ? e.message : String(e) } })
+    }
+  },
+  autoCheckForUpdates: () => {
+    if (!get().updateAuto) return
+    const last = Number(readKey(UPDATE_LAST_KEY) ?? 0)
+    if (Date.now() - last >= UPDATE_EVERY_MS) void get().checkForUpdates(true)
+  },
+  markUpdateSeen: () => {
+    const v = get().update.latest?.version
+    if (!v || get().updateSeen === v) return
+    writeKey(UPDATE_SEEN_KEY, v)
+    set({ updateSeen: v })
+  },
   setLanguage: (language) => {
     try { localStorage.setItem(LANGUAGE_KEY, language) } catch { /* storage unavailable */ }
     setUiLanguage(resolveLanguage(language))
