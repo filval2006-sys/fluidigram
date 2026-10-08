@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-08
+
+### Changed
+- The macOS installer text now says that the app is visible to every user of the Mac while projects and settings stay in each user's account.
+- Maintenance release, also used to test the in-app update from 0.5.0.
+
 ## [0.5.0] - 2026-10-08
 
 ### Added
