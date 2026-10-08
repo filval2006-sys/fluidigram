@@ -5,7 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-## [0.5.2] - 2026-10-08
+## [0.5.0] - 2026-10-08
 
 ### Added
 - **In-app updates.** Settings → Updates checks for a newer version (manually, and automatically once a day unless turned off); a red dot on the Settings button shows when one is out. *Update now* downloads, verifies the signature, installs and restarts the app. The updates are signed with a project key (not an Apple/Microsoft certificate).
@@ -59,8 +59,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - First version: editor, symbol library, automatic routing, checks, valve states per phase, PDF/SVG/PNG export, IT/EN drawings.
 
-[Unreleased]: https://github.com/filval2006-sys/fluidigram/compare/v0.5.2...HEAD
-[0.5.2]: https://github.com/filval2006-sys/fluidigram/compare/v0.4.0...v0.5.2
+[Unreleased]: https://github.com/filval2006-sys/fluidigram/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/filval2006-sys/fluidigram/compare/v0.2.0...v0.2.1
