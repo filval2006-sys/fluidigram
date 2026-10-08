@@ -5,20 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-## [0.5.1] - 2026-10-08
-
-### Fixed
-- **macOS installer replaces the existing app** instead of creating a second copy: it always installs into `/Applications` (asking for the password once), and removes the duplicate that 0.5.0 could leave in `~/Applications`.
-- The app is given to the installing user, so *Update now* can replace it without a password.
-
-## [0.5.0] - 2026-10-08
+## [0.5.2] - 2026-10-08
 
 ### Added
 - **In-app updates.** Settings → Updates checks for a newer version (manually, and automatically once a day unless turned off); a red dot on the Settings button shows when one is out. *Update now* downloads, verifies the signature, installs and restarts the app. The updates are signed with a project key (not an Apple/Microsoft certificate).
 - A *What's new* button opens the release notes of the new version.
 
 ### Changed
-- **Installers install for the current user only** (macOS `~/Applications`, Windows per user, no administrator rights) so the app can replace itself. An app installed for all users falls back to a manual download.
+- **Installers keep a single copy that can replace itself.** macOS: always `/Applications` (password asked once), replaces the previous version, hands the app to the installing user and removes a duplicate left in `~/Applications`. Windows: per user (no administrator rights); it warns if an older copy installed for all users exists and says how to remove it.
 - The update check is the only network request the app makes; it is described in Settings and the README.
 
 ## [0.4.0] - 2026-10-07
@@ -65,9 +59,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - First version: editor, symbol library, automatic routing, checks, valve states per phase, PDF/SVG/PNG export, IT/EN drawings.
 
-[Unreleased]: https://github.com/filval2006-sys/fluidigram/compare/v0.5.1...HEAD
-[0.5.1]: https://github.com/filval2006-sys/fluidigram/compare/v0.5.0...v0.5.1
-[0.5.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.4.0...v0.5.0
+[Unreleased]: https://github.com/filval2006-sys/fluidigram/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/filval2006-sys/fluidigram/compare/v0.4.0...v0.5.2
 [0.4.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/filval2006-sys/fluidigram/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/filval2006-sys/fluidigram/compare/v0.2.0...v0.2.1
