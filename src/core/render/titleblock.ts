@@ -2,6 +2,7 @@ import { t } from '../i18n'
 import type { FluidDocument, Lang } from '../types'
 import type { PageLayout } from './layout'
 import { lineEl, rectEl, textEl } from './svg'
+import { fitText } from './table'
 
 function cell(x: number, y: number, w: number, h: number, label: string, value: string, valueSize = 3.6, bold = false): string {
   return (
@@ -31,7 +32,8 @@ export function renderTitleBlock(doc: FluidDocument, layout: PageLayout, lang: L
   // riga 1: titolo + numero disegno
   s += rectEl(x, y, 110, half, 0.25)
   s += textEl(x + 1.2, y + 2, t('title', lang), { size: 2.3, anchor: 'start', color: '#555' })
-  s += textEl(x + 1.2, y + 8, title, { size: 5, anchor: 'start', bold: true })
+  const titleSize = Math.max(3.4, Math.min(5, 107 / Math.max(1, title.length * 0.62)))
+  s += textEl(x + 1.2, y + 8, fitText(title, 107, titleSize, true), { size: Math.round(titleSize * 100) / 100, anchor: 'start', bold: true })
   if (subtitle) s += textEl(x + 1.2, y + 14.2, subtitle, { size: 3.6, anchor: 'start', color: '#333' })
   s += cell(x + 110, y, 60, half, t('drawingNo', lang), m.drawingNo, 4.6, true)
 
@@ -60,8 +62,9 @@ export function renderRevisionTable(doc: FluidDocument, layout: PageLayout, lang
   const rowH = h / 5
   const cols = [12, 22, w - 12 - 22 - 28, 28]
   const heads = [t('revision', lang), t('date', lang), t('description', lang), t('author', lang)]
-  let s = rectEl(x, y, w, h, 0.5)
-  s += lineEl(x, y + rowH, x + w, y + rowH, 0.25)
+  // same 0.7 mm outline as the title block next to it, so the shared edge has no step
+  let s = rectEl(x, y, w, h, 0.7)
+  for (let r = 1; r < 5; r++) s += lineEl(x, y + rowH * r, x + w, y + rowH * r, 0.25)
   let cx = x
   cols.forEach((cw, i) => {
     if (i > 0) s += lineEl(cx, y, cx, y + h, 0.25)
@@ -73,10 +76,9 @@ export function renderRevisionTable(doc: FluidDocument, layout: PageLayout, lang
     const vals = [r.rev, r.date, r.description[lang], r.author]
     let vx = x
     vals.forEach((v, i) => {
-      s += textEl(vx + 1.2, ty, v, { size: 3, anchor: 'start' })
+      s += textEl(vx + 1.2, ty, fitText(v, cols[i] - 2.4, 3), { size: 3, anchor: 'start' })
       vx += cols[i]
     })
-    if (row > 0) s += lineEl(x, y + rowH * (row + 1), x + w, y + rowH * (row + 1), 0.15, '#999')
   })
   return s
 }

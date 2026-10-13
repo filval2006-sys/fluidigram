@@ -272,8 +272,8 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
     `<g clip-path="url(#${clipId})"><g transform="translate(${n(ox)} ${n(oy)}) scale(${n(s)}) ">${body}</g></g>`
 
   return pageShell(plan,
-    content + frame +
-    (settings.legend ? renderLegend(usedIn(comps, lines), layout, lang, settings.color) : '') +
+    content +
+    (settings.legend ? renderLegend(usedIn(comps, lines), layout, lang, settings.color) : '') + frame +
     renderRevisionTable(doc, layout, lang) +
     renderTitleBlock(doc, layout, lang, { index: pageNumber, total: plan.totalPages, scaleText: scaleText(s) }))
 }

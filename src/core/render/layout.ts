@@ -11,7 +11,7 @@ export const PAGE: Record<SheetFormat, { w: number; h: number }> = {
 const MARGIN = 10
 const TITLEBLOCK = { w: 170, h: 36 }
 /** The legend takes a smaller share of a small sheet. */
-const LEGEND_W: Record<SheetFormat, number> = { A4: 64, A3: 76, A2: 90 }
+const LEGEND_W: Record<SheetFormat, number> = { A4: 72, A3: 78, A2: 90 }
 
 export interface PageLayout {
   page: { w: number; h: number }

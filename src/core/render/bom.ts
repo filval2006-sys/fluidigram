@@ -2,7 +2,8 @@ import { t } from '../i18n'
 import { ACTUATORS, CATEGORY_NAMES, getSymbol, optionSuffix, resolveSymbol } from '../symbols/library'
 import type { BomConfig, Component, Drawing, FluidDocument, Lang, Phase, ValveState } from '../types'
 import type { PageLayout } from './layout'
-import { lineEl, n, rectEl, textEl, wrapText } from './svg'
+import { textEl, textWidth } from './svg'
+import { GRID_PAD, fitText, renderGrid, wrapToWidth } from './table'
 
 export interface BomRow {
   /** c:<component id> or x:<added row id>: identifies the row even if tags change */
@@ -15,8 +16,11 @@ export interface BomRow {
   note: string
 }
 
-const ROW_H = 9.5
-const HEAD_H = 10
+const ROW_H = 8.5
+const HEAD_H = 9
+/** Distance of the table top from the top of the drawing area (the title sits above it). */
+const TABLE_TOP = 16
+const BOTTOM_GAP = 3
 
 function typeLabel(c: Drawing['components'][number], lang: Lang): string {
   const def = getSymbol(c.symbol)
@@ -177,57 +181,54 @@ export function paginateBom(items: BomItem[], perPage: number): BomItem[][] {
 }
 
 export function bomRowsPerPage(layout: PageLayout): number {
-  return Math.max(1, Math.floor((layout.drawing.h - HEAD_H - 4) / ROW_H))
+  return Math.max(1, Math.floor((layout.drawing.h - TABLE_TOP - HEAD_H - BOTTOM_GAP) / ROW_H))
 }
 
 /** A page of the bill of materials (rows already cut for the page). */
 export function renderBomPage(items: BomItem[], doc: FluidDocument, layout: PageLayout, lang: Lang): string {
   const area = { ...layout.drawing, w: layout.frame.w }
-  const cols = [
-    { key: 'tag', label: t('tag', lang), w: 0.11 },
-    { key: 'description', label: t('description', lang), w: 0.3 },
-    { key: 'type', label: t('item', lang), w: 0.23 },
-    { key: 'size', label: t('size', lang), w: 0.1 },
-    { key: 'pmax', label: t('pmax', lang), w: 0.09 },
-    { key: 'note', label: t('notes', lang), w: 0.17 },
-  ] as const
+  // optional columns appear only if some row uses them: the others would be empty boxes
+  const all = bomItems(doc.drawing, lang, doc.bom).flatMap((it) => (it.kind === 'row' ? [it.row] : []))
+  const cols = ([
+    { key: 'tag', label: t('tag', lang), weight: 1.1, always: true },
+    { key: 'type', label: t('item', lang), weight: 3.2, always: true },
+    { key: 'description', label: t('description', lang), weight: 3 },
+    { key: 'size', label: t('size', lang), weight: 1.5 },
+    { key: 'pmax', label: t('pmax', lang), weight: 1.2 },
+    { key: 'note', label: t('notes', lang), weight: 2.4 },
+  ] as const).filter((c) => ('always' in c && c.always) || all.some((r) => r[c.key]))
   const x0 = area.x + 4
   const tableW = area.w - 8
-  let s = textEl(x0, area.y + 6, t('bom', lang).toUpperCase(), { size: 4, anchor: 'start', bold: true })
-  const top = area.y + 12
-  s += rectEl(x0, top, tableW, HEAD_H, 0.4, '#eee')
-  let cx = x0
-  const xs: number[] = []
-  for (const c of cols) {
-    xs.push(cx)
-    s += textEl(cx + 1.5, top + HEAD_H / 2, c.label, { size: 2.7, anchor: 'start', bold: true, color: '#333' })
-    cx += c.w * tableW
-  }
+  // the tag column has a fixed width; the others share the rest by weight
+  const TAG_W = 28
+  const rest = cols.filter((c) => c.key !== 'tag')
+  const total = rest.reduce((a, c) => a + c.weight, 0)
+  const widths = cols.map((c) => (c.key === 'tag' ? TAG_W : Math.round(((tableW - TAG_W) * c.weight) / total * 10) / 10))
+  widths[widths.length - 1] = Math.round((tableW - widths.slice(0, -1).reduce((a, b) => a + b, 0)) * 10) / 10
+  let s = textEl(x0, area.y + 6, t('bom', lang).toUpperCase(), { size: 4.5, anchor: 'start', bold: true })
+  const grid = renderGrid({ x: x0, top: area.y + TABLE_TOP, widths, headH: HEAD_H, rowH: ROW_H, rows: items.length ? items.map((it) => ({ span: it.kind === 'group' })) : [{}] })
+  s += grid.svg
+  const top = area.y + TABLE_TOP
+  cols.forEach((c, j) => { s += textEl(grid.colX[j] + GRID_PAD, top + HEAD_H / 2, fitText(c.label, widths[j] - 2 * GRID_PAD, 2.8, true), { size: 2.8, anchor: 'start', bold: true, color: '#333' }) })
   items.forEach((it, i) => {
-    const y = top + HEAD_H + i * ROW_H
+    const y = grid.rowY(i) + ROW_H / 2
     if (it.kind === 'group') {
-      s += `<rect x="${n(x0)}" y="${n(y)}" width="${n(tableW)}" height="${n(ROW_H)}" fill="#e6e6e6" stroke="none"/>`
-      s += lineEl(x0, y + ROW_H, x0 + tableW, y + ROW_H, 0.15, '#bbb')
-      s += textEl(x0 + 1.5, y + ROW_H / 2, it.name.toUpperCase(), { size: 3.1, anchor: 'start', bold: true })
-      s += textEl(x0 + tableW - 1.5, y + ROW_H / 2, String(it.count), { size: 2.9, anchor: 'end', color: '#555' })
+      s += textEl(x0 + GRID_PAD, y, it.name.toUpperCase(), { size: 3.2, anchor: 'start', bold: true })
+      s += textEl(x0 + tableW - GRID_PAD, y, String(it.count), { size: 3, anchor: 'end', color: '#444' })
       return
     }
-    const r = it.row
-    s += lineEl(x0, y + ROW_H, x0 + tableW, y + ROW_H, 0.15, '#bbb')
     cols.forEach((c, j) => {
-      const maxChars = Math.floor((c.w * tableW - 3) / 1.7)
+      const bold = c.key === 'tag'
       // up to two lines per cell: a long hand-written text is not lost
-      let parts = wrapText(r[c.key], maxChars)
-      if (parts.length > 2) parts = [parts[0], parts[1].length >= maxChars ? parts[1].slice(0, maxChars - 1) + '…' : parts[1] + '…']
-      const size = parts.length > 1 ? 2.6 : 3
+      const maxW = widths[j] - 2 * GRID_PAD
+      const one = wrapToWidth(it.row[c.key], maxW, 3.2, 1, bold)
+      const parts = textWidth(it.row[c.key], 3.2, bold) > maxW ? wrapToWidth(it.row[c.key], maxW, 2.8, 2, bold) : one
+      const size = parts.length > 1 ? 2.8 : 3.2
       parts.forEach((line, k) => {
-        s += textEl(xs[j] + 1.5, parts.length > 1 ? y + ROW_H / 2 + (k - 0.5) * 3.6 : y + ROW_H / 2, line, { size, anchor: 'start', bold: c.key === 'tag' })
+        s += textEl(grid.colX[j] + GRID_PAD, parts.length > 1 ? y + (k - 0.5) * 3.7 : y, line, { size, anchor: 'start', bold })
       })
     })
   })
-  const bottom = top + HEAD_H + Math.max(items.length, 1) * ROW_H
-  s += rectEl(x0, top, tableW, bottom - top, 0.4)
-  void doc
   return s
 }
 
@@ -250,35 +251,37 @@ export function renderStatesPage(rows: StateRow[], phases: Phase[], layout: Page
   const area = { ...layout.drawing, w: layout.frame.w }
   const x0 = area.x + 4
   const tableW = area.w - 8
-  const fixed = [0.1, 0.22, 0.2]
+  const showDesc = rows.some((r) => r.description)
+  const fixed = showDesc ? [0.1, 0.22, 0.2] : [0.1, 0.3]
   const phaseW = (1 - fixed.reduce((a, b) => a + b, 0)) / Math.max(1, phases.length)
-  let s = textEl(x0, area.y + 6, t('stateTable', lang).toUpperCase(), { size: 4, anchor: 'start', bold: true })
+  const widths = [...fixed, ...phases.map(() => phaseW)].map((w) => Math.round(w * tableW * 10) / 10)
+  widths[widths.length - 1] = Math.round((tableW - widths.slice(0, -1).reduce((a, b) => a + b, 0)) * 10) / 10
+  let s = textEl(x0, area.y + 6, t('stateTable', lang).toUpperCase(), { size: 4.5, anchor: 'start', bold: true })
   s += textEl(x0, area.y + 11.5, `●  ${t('closedLbl', lang)}      ○  ${t('openLbl', lang)}      –  ${t('unsetLbl', lang)}`, { size: 3.2, anchor: 'start', color: '#333' })
-  const top = area.y + 16
-  s += rectEl(x0, top, tableW, HEAD_H, 0.4, '#eee')
-  const xs: number[] = []
-  let cx = x0
-  const heads = [t('tag', lang), t('description', lang), t('item', lang), ...phases.map((p) => p.name[lang] || p.name.it)]
-  const widths = [...fixed, ...phases.map(() => phaseW)].map((w) => w * tableW)
+  const top = area.y + TABLE_TOP
+  const grid = renderGrid({ x: x0, top, widths, headH: HEAD_H, rowH: ROW_H, rows: rows.length ? rows.map(() => ({})) : [{}] })
+  s += grid.svg
+  const heads = [t('tag', lang), ...(showDesc ? [t('description', lang)] : []), t('item', lang), ...phases.map((p) => p.name[lang] || p.name.it)]
+  const nFixed = fixed.length
   heads.forEach((h, i) => {
-    xs.push(cx)
-    const maxChars = Math.max(3, Math.floor((widths[i] - 3) / 1.75))
-    s += textEl(cx + 1.5, top + HEAD_H / 2, h.length > maxChars ? h.slice(0, maxChars - 1) + '…' : h, { size: 2.6, anchor: 'start', bold: true, color: '#333' })
-    cx += widths[i]
+    const maxW = widths[i] - 2 * GRID_PAD
+    const lines = wrapToWidth(h, maxW, 2.7, 2, true)
+    lines.forEach((ln, k) => {
+      const cy = top + HEAD_H / 2 + (k - (lines.length - 1) / 2) * 3.4
+      s += i < nFixed
+        ? textEl(grid.colX[i] + GRID_PAD, cy, ln, { size: 2.7, anchor: 'start', bold: true, color: '#333' })
+        : textEl(grid.colX[i] + widths[i] / 2, cy, ln, { size: 2.7, bold: true, color: '#333' })
+    })
   })
   rows.forEach((r, i) => {
-    const y = top + HEAD_H + i * ROW_H
-    s += lineEl(x0, y + ROW_H, x0 + tableW, y + ROW_H, 0.15, '#bbb')
-    ;[r.tag, r.description, r.type].forEach((v, j) => {
-      const maxChars = Math.floor((widths[j] - 3) / 1.75)
-      s += textEl(xs[j] + 1.5, y + ROW_H / 2, v.length > maxChars ? v.slice(0, maxChars - 1) + '…' : v, { size: 3, anchor: 'start', bold: j === 0 })
+    const y = grid.rowY(i) + ROW_H / 2
+    const vals = showDesc ? [r.tag, r.description, r.type] : [r.tag, r.type]
+    vals.forEach((v, j) => {
+      s += textEl(grid.colX[j] + GRID_PAD, y, fitText(v, widths[j] - 2 * GRID_PAD, 3.2, j === 0), { size: 3.2, anchor: 'start', bold: j === 0 })
     })
     r.states.forEach((st, j) => {
-      const cxm = xs[3 + j] + widths[3 + j] / 2
-      s += textEl(cxm, y + ROW_H / 2, st === 'closed' ? '●' : st === 'open' ? '○' : '–', { size: 3.8, color: st ? '#111' : '#999' })
+      s += textEl(grid.colX[nFixed + j] + widths[nFixed + j] / 2, y, st === 'closed' ? '●' : st === 'open' ? '○' : '–', { size: 4, color: st ? '#111' : '#999' })
     })
   })
-  const bottom = top + HEAD_H + Math.max(rows.length, 1) * ROW_H
-  s += rectEl(x0, top, tableW, bottom - top, 0.4)
   return s
 }

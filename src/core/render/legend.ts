@@ -4,7 +4,8 @@ import { ACTUATORS, getSymbol, optionSuffix, resolveSymbol } from '../symbols/li
 import type { SymbolDef } from '../symbols/types'
 import type { Component, FluidId, Lang, Line } from '../types'
 import type { PageLayout } from './layout'
-import { INK, lineEl, n, rectEl, symbolThumbnail, textEl, wrapText } from './svg'
+import { INK, lineEl, n, symbolThumbnail, textEl } from './svg'
+import { wrapToWidth } from './table'
 
 interface LegendSymbol { def: SymbolDef; props: Record<string, string>; name: { it: string; en: string } }
 export interface LegendItems { symbols: LegendSymbol[]; fluids: FluidId[] }
@@ -34,69 +35,95 @@ export function usedIn(components: Component[], lines: Line[]): LegendItems {
   return { symbols, fluids }
 }
 
-const SYMBOL_ROW_MIN = 11
-const FLUID_ROW = 12
-const HEAD = 7
-const SECTION = 9
+const HEAD = 8
+const SECTION_H = 7
+const PAD = 2
+const THUMB_W = 16
+const NAME_SIZE = 3
+const TAG_SIZE_L = 2.4
+const LINE_H = 3.6
+const FLUID_ROW_MIN = 10.5
 
-function rowHeights(items: LegendItems): number[] {
-  return items.symbols.map((s) => Math.max(SYMBOL_ROW_MIN, symbolThumbnail(s.def, 0, 0, 14, 14, 1, s.props).height + 3))
-}
+interface SymRow { sym: LegendSymbol; lines: string[]; h: number }
 
-/** Height that would be needed to show everything at scale 1. */
-function neededHeight(items: LegendItems): number {
-  const sym = items.symbols.length ? SECTION + rowHeights(items).reduce((a, b) => a + b, 0) + 2 : 0
-  const flu = items.fluids.length ? SECTION + items.fluids.length * FLUID_ROW : 0
-  return HEAD + sym + flu + 2
+function symbolRows(items: LegendItems, lang: Lang, textW: number, withTag: boolean): SymRow[] {
+  return items.symbols.map((sym) => {
+    const lines = wrapToWidth(sym.name[lang], textW, NAME_SIZE, 3)
+    const h = Math.max(withTag ? 11 : 9, lines.length * LINE_H + (withTag ? 3.4 : 0) + 4)
+    return { sym, lines, h }
+  })
 }
 
 export function renderLegend(items: LegendItems, layout: PageLayout, lang: Lang, color: boolean): string {
   if (!layout.legend) return ''
   const { x, y, w, h } = layout.legend
-  // if everything does not fit, the rows are compressed (down to 70%), then the excess entries are cut
-  const k = Math.max(0.7, Math.min(1, h / neededHeight(items)))
-  let s = rectEl(x, y, w, h, 0.5)
-  s += `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${HEAD}" fill="${INK}"/>`
-  s += textEl(x + w / 2, y + HEAD / 2, t('legend', lang), { size: 3.6, bold: true, color: '#fff' })
+  const textX = x + PAD + THUMB_W + 2.5
+  const textW = x + w - PAD - textX
+  const bottom = y + h
+  const fluidRows = items.fluids.map((id) => ({ id, lines: wrapToWidth(FLUIDS[id].name[lang], textW, NAME_SIZE, 2) }))
+  const fluidH = (r: { lines: string[] }) => Math.max(FLUID_ROW_MIN, 4.5 + 3.6 + r.lines.length * LINE_H)
 
-  let cy = y + HEAD
+  // black title bar; the sheet frame is drawn on top and the legend only adds its left border
+  let s = `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${HEAD}" fill="${INK}"/>`
+  s += textEl(x + w / 2, y + HEAD / 2, t('legend', lang), { size: 3.8, bold: true, color: '#fff' })
+  s += lineEl(x, y, x, bottom, 0.5)
+
+  // fluids are reserved first: they matter more than the last symbols
+  const fluidsNeed = items.fluids.length ? 1 + SECTION_H + fluidRows.reduce((a, r) => a + fluidH(r), 0) : 0
+  const moreLine = 5
+  const symbolRoom = h - HEAD - fluidsNeed - SECTION_H - 2
+  // the tag line under each name only if everything fits with it; otherwise the compact rows
+  let withTag = true
+  let rows = symbolRows(items, lang, textW, true)
+  if (rows.reduce((a, r) => a + r.h, 0) > symbolRoom) { withTag = false; rows = symbolRows(items, lang, textW, false) }
+  let room = symbolRoom
   let hidden = 0
-  const fits = (need: number) => cy + need <= y + h - 1
-  const section = (label: string) => {
-    s += textEl(x + 2, cy + 4 * k, label, { size: 2.7, anchor: 'start', bold: true, color: '#555' })
-    s += lineEl(x + 2, cy + 6.8 * k, x + w - 2, cy + 6.8 * k, 0.2, '#999')
-    cy += SECTION * k
+  const shown: SymRow[] = []
+  for (const r of rows) {
+    if (room - r.h >= (shown.length + 1 < rows.length ? moreLine : 0)) { shown.push(r); room -= r.h } else hidden++
   }
 
-  const heights = rowHeights(items)
-  if (items.symbols.length) {
-    section(t('symbols', lang))
-    items.symbols.forEach((sym, i) => {
-      const def = sym.def
-      const rowH = heights[i] * k
-      if (!fits(rowH)) { hidden += 1; return }
-      s += symbolThumbnail(def, x + 10, cy + rowH / 2, 14, 14 * k, 1, sym.props).svg
-      const nameLines = wrapText(sym.name[lang], 27)
-      nameLines.forEach((ln, j) => { s += textEl(x + 21, cy + rowH / 2 - 2 + j * 3.8 * k, ln, { size: 3.1, anchor: 'start' }) })
-      s += textEl(x + 21, cy + rowH / 2 - 2 + nameLines.length * 3.8 * k, `${t('tagPrefix', lang)}: ${def.tagPrefix}-nnn`, { size: 2.5, anchor: 'start', color: '#666' })
-      cy += rowH
+  const section = (cy: number, label: string): number => {
+    s += textEl(x + PAD, cy + SECTION_H / 2 + 0.4, label, { size: 2.7, anchor: 'start', bold: true, color: '#444' })
+    s += lineEl(x + PAD, cy + SECTION_H - 0.4, x + w - PAD, cy + SECTION_H - 0.4, 0.3, '#777')
+    return cy + SECTION_H
+  }
+
+  let cy = y + HEAD
+  if (shown.length) {
+    cy = section(cy, t('symbols', lang))
+    shown.forEach((r, i) => {
+      if (i > 0) s += lineEl(x + PAD, cy, x + w - PAD, cy, 0.15, '#bbb')
+      const mid = cy + r.h / 2
+      s += symbolThumbnail(r.sym.def, x + PAD + THUMB_W / 2, mid, THUMB_W - 1, r.h - 2.6, 1.2, r.sym.props).svg
+      const block = r.lines.length * LINE_H + (withTag ? 3.4 : 0)
+      const top = mid - block / 2
+      r.lines.forEach((ln, j) => { s += textEl(textX, top + LINE_H * (j + 0.5), ln, { size: NAME_SIZE, anchor: 'start' }) })
+      if (withTag) s += textEl(textX, top + r.lines.length * LINE_H + 1.9, `${t('tagPrefix', lang)}: ${r.sym.def.tagPrefix}-nnn`, { size: TAG_SIZE_L, anchor: 'start', color: '#666' })
+      cy += r.h
     })
-    cy += 2
+    if (hidden) {
+      s += textEl(x + PAD, cy + moreLine / 2, `+${hidden} ${t('moreItems', lang)}`, { size: 2.6, anchor: 'start', color: '#666' })
+      cy += moreLine
+    }
   }
 
   if (items.fluids.length) {
-    if (fits(SECTION * k + FLUID_ROW * k)) section(t('fluids', lang))
-    for (const id of items.fluids) {
-      if (!fits(FLUID_ROW * k)) { hidden += 1; continue }
-      const f = FLUIDS[id]
+    // the fluids section sits right below the symbols
+    cy = section(cy + 1, t('fluids', lang))
+    fluidRows.forEach((r, i) => {
+      if (i > 0) s += lineEl(x + PAD, cy, x + w - PAD, cy, 0.15, '#bbb')
+      const rh = fluidH(r)
+      const f = FLUIDS[r.id]
       const stroke = color ? f.color : INK
       const dash = f.dash ? ` stroke-dasharray="${f.dash}"` : ''
-      s += `<line x1="${n(x + 2)}" y1="${n(cy + 4)}" x2="${n(x + 18)}" y2="${n(cy + 4)}" stroke="${stroke}" stroke-width="${Math.max(f.width, 0.9)}"${dash}/>`
-      s += textEl(x + 20, cy + 2.8, f.code, { size: 3.2, anchor: 'start', bold: true })
-      wrapText(f.name[lang], 27).forEach((ln, j) => { s += textEl(x + 20, cy + 6.8 + j * 3.8, ln, { size: 3, anchor: 'start' }) })
-      cy += FLUID_ROW * k
-    }
+      s += `<line x1="${n(x + PAD)}" y1="${n(cy + rh / 2)}" x2="${n(x + PAD + THUMB_W)}" y2="${n(cy + rh / 2)}" stroke="${stroke}" stroke-width="${Math.max(f.width, 0.9)}"${dash}/>`
+      const block = LINE_H + 0.6 + r.lines.length * LINE_H
+      const top = cy + rh / 2 - block / 2
+      s += textEl(textX, top + LINE_H / 2, f.code, { size: 3.2, anchor: 'start', bold: true })
+      r.lines.forEach((ln, j) => { s += textEl(textX, top + LINE_H + 0.6 + LINE_H * (j + 0.5), ln, { size: NAME_SIZE, anchor: 'start' }) })
+      cy += rh
+    })
   }
-  if (hidden) s += textEl(x + 2, y + h - 3, `+${hidden} ${t('moreItems', lang)}`, { size: 2.6, anchor: 'start', color: '#666' })
   return s
 }
