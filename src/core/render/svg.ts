@@ -39,17 +39,6 @@ export function rectEl(x: number, y: number, w: number, h: number, sw = 0.25, fi
 }
 
 /** Splits a text into lines of at most `maxChars` characters. */
-export function wrapText(s: string, maxChars: number): string[] {
-  const lines: string[] = []
-  let cur = ''
-  for (const word of s.split(/\s+/)) {
-    if (cur && (cur + ' ' + word).length > maxChars) { lines.push(cur); cur = word }
-    else cur = cur ? cur + ' ' + word : word
-  }
-  if (cur) lines.push(cur)
-  return lines
-}
-
 /**
  * Symbol primitives in local coordinates.
  * `textTransform` keeps text upright when the group is rotated/mirrored.

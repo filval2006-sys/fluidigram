@@ -26,6 +26,7 @@ const EXPORT_TEXT = {
   pmax: { it: 'P MAX', en: 'MAX P' },
   notes: { it: 'NOTE', en: 'NOTES' },
   toSheet: { it: 'Foglio', en: 'Sheet' },
+  toSheetShort: { it: 'Fg.', en: 'Sh.' },
   moreItems: { it: 'altre voci nella distinta', en: 'more items in the BOM' },
   empty: { it: 'Nessun componente', en: 'No components' },
   stateTable: { it: 'Stati delle valvole per fase', en: 'Valve states by phase' },

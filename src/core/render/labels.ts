@@ -42,13 +42,14 @@ function rectOf(p: LabelPlace, w: number, h: number): Rect {
  * Chooses where to write tags and line data so they do not touch lines, components, notes or other labels.
  * Component tags first (near the part), then line labels (on the segment, to the side).
  */
-export function planLabels(d: Drawing, scale = 1, textScale = 1): LabelPlan {
+/** `extra`: further areas to keep clear (continuation texts, sheet cuts). */
+export function planLabels(d: Drawing, scale = 1, textScale = 1, extra: Rect[] = []): LabelPlan {
   const wanted = textFactor(scale) * textScale
   // if the texts are too big for the room around the parts, they shrink (all together) until every tag has a free place close to its part
   const floor = wanted * MIN_SHRINK
   let k = wanted
   for (;;) {
-    const r = layoutLabels(d, k)
+    const r = layoutLabels(d, k, extra)
     if (r.clean || k <= floor) return { tags: r.tags, lines: r.lines, factor: k }
     k *= 0.93
   }
@@ -57,7 +58,7 @@ export function planLabels(d: Drawing, scale = 1, textScale = 1): LabelPlan {
 /** Lowest share of the requested size the planner shrinks the texts to. */
 const MIN_SHRINK = 0.4
 
-function layoutLabels(d: Drawing, k0: number): LabelPlan & { clean: boolean } {
+function layoutLabels(d: Drawing, k0: number, extra: Rect[]): LabelPlan & { clean: boolean } {
   let clean = true
   const tagSize = TAG_SIZE * k0, lineSize = LINE_LABEL_SIZE * k0
   const tags = new Map<string, LabelPlace>()
@@ -74,7 +75,7 @@ function layoutLabels(d: Drawing, k0: number): LabelPlan & { clean: boolean } {
   }
   const notes = d.annotations.filter((a) => a.kind === 'text').map((a) => inflate(annotationBounds(a, 'any'), 0.5))
   // vent / external inlet symbols: the text must not end up on them
-  const placed: Rect[] = d.components.flatMap((c) => endMarkers(c).map((m) => m.box))
+  const placed: Rect[] = [...d.components.flatMap((c) => endMarkers(c).map((m) => m.box)), ...extra]
 
   const count = (r: Rect, ownIdx = -1): number => {
     let n = 0

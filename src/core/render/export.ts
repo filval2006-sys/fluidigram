@@ -7,7 +7,7 @@ import { layoutFor, type PageLayout, type Rect } from './layout'
 import { renderLegend, usedIn } from './legend'
 import { annotationBounds, renderAnnotationBox, renderAnnotationText } from './annotations'
 import { endMarkers } from './endpoints'
-import { labelRects, planLabels, textFactor, type LabelPlan } from './labels'
+import { planLabels, textFactor, type LabelPlan } from './labels'
 import { renderComponent, renderLine } from './sheet'
 import { n, rectEl, textEl, textWidth } from './svg'
 import { renderRevisionTable, renderTitleBlock } from './titleblock'
@@ -68,7 +68,7 @@ export function drawingBounds(d: Drawing, extraPad = 0): Rect | null {
 }
 
 /** Cut positions along an axis: avoids cutting symbols and crossing too many lines. */
-export function chooseCuts(min: number, max: number, cap: number, straddles: (c: number) => boolean, crossings: (c: number) => number): number[] {
+export function chooseCuts(min: number, max: number, cap: number, straddles: (c: number) => boolean, crossings: (c: number) => number, crowded: (c: number) => number = () => 0): number[] {
   const cuts = [min]
   let pos = min
   for (let guard = 0; max - pos > cap + 1e-6 && guard < 500; guard++) {
@@ -78,7 +78,7 @@ export function chooseCuts(min: number, max: number, cap: number, straddles: (c:
     let bestScore = Infinity
     for (let c = hi; c >= lo; c -= GRID) {
       if (straddles(c)) continue
-      const score = crossings(c) * 30 + (hi - c)
+      const score = crossings(c) * 30 + crowded(c) * 80 + (hi - c)
       if (score < bestScore) { best = c; bestScore = score }
     }
     pos = best ?? hi
@@ -141,11 +141,13 @@ export function planExport(doc: FluidDocument, settings: ExportSettings = doc.ex
   } else {
     const ext = d.components.map((c) => worldExtent(c))
     const routes = routesOf(d)
-    const pad = 3
+    // a cut keeps clear of the parts by the room the "Sheet N" text needs next to its arrow (it grows with the text size)
+    const kk = textFactor(scale) * settings.textScale
+    const padX = 3 + 9 * kk, padY = 3 + 4.6 * kk
     const crossX = (c: number) => routes.reduce((s, r) => s + r.points.slice(1).filter((p, i) => r.points[i].y === p.y && Math.min(r.points[i].x, p.x) < c && Math.max(r.points[i].x, p.x) > c).length, 0)
     const crossY = (c: number) => routes.reduce((s, r) => s + r.points.slice(1).filter((p, i) => r.points[i].x === p.x && Math.min(r.points[i].y, p.y) < c && Math.max(r.points[i].y, p.y) > c).length, 0)
-    xCuts = chooseCuts(b.x, b.x + b.w, area.w, (c) => ext.some((e) => e.minX - pad < c && e.maxX + pad > c), crossX)
-    yCuts = chooseCuts(b.y, b.y + b.h, area.h, (c) => ext.some((e) => e.minY - pad < c && e.maxY + pad > c), crossY)
+    xCuts = chooseCuts(b.x, b.x + b.w, area.w, (c) => ext.some((e) => e.minX - 3 < c && e.maxX + 3 > c), crossX, (c) => ext.filter((e) => e.minX - padX < c && e.maxX + padX > c).length + routes.reduce((n_, r) => n_ + new Set(r.points.slice(1).filter((p, i) => r.points[i].x === p.x && Math.abs(p.x - c) < padX).map((p) => p.x)).size, 0))
+    yCuts = chooseCuts(b.y, b.y + b.h, area.h, (c) => ext.some((e) => e.minY - 3 < c && e.maxY + 3 > c), crossY, (c) => ext.filter((e) => e.minY - padY < c && e.maxY + padY > c).length + routes.reduce((n_, r) => n_ + new Set(r.points.slice(1).filter((p, i) => r.points[i].y === p.y && Math.abs(p.y - c) < padY).map((p) => p.y)).size, 0))
   }
 
   const routes = routesOf(d)
@@ -187,60 +189,99 @@ function tileNumberAt(plan: ExportPlan, p: Point): number | undefined {
   return plan.tiles.find((t) => t.col === col && t.row === row)?.number
 }
 
-/** Continuation arrows where a line leaves the sheet ("→ Sheet 2"). */
-function continuationMarkers(plan: ExportPlan, tile: PageTile, d: Drawing, lang: Lang, k: number, lp: LabelPlan): string {
-  const r = tile.region
-  let s = ''
-  // the texts "→ Sheet N" go where nothing else is: not over tags, pipe labels, parts or lines
-  const taken: { minX: number; minY: number; maxX: number; maxY: number }[] = [
-    ...labelRects(d, lp),
-    ...d.components.flatMap((c) => [worldExtent(c), ...endMarkers(c).map((m) => m.box)]),
+/** The part as drawn: a junction is a dot of about 2 mm inside a 10 mm symbol box. */
+export function visibleBox(c: Drawing['components'][number]): { minX: number; minY: number; maxX: number; maxY: number } {
+  const e = worldExtent(c)
+  if (c.symbol !== 'fitting.junction') return e
+  const cx = (e.minX + e.maxX) / 2, cy = (e.minY + e.maxY) / 2
+  return { minX: cx - 1.2, maxX: cx + 1.2, minY: cy - 1.2, maxY: cy + 1.2 }
+}
+
+/** Arrow + "Sheet N" text where a line leaves a sheet; boxes are in drawing coordinates (obstacles for the other labels). */
+interface ContinuationMarker {
+  tile: number
+  triangle: string
+  text: { x: number; y: number; anchor: 'start' | 'end'; size: number; label: string }
+  boxes: { minX: number; minY: number; maxX: number; maxY: number }[]
+}
+
+type Box = { minX: number; minY: number; maxX: number; maxY: number }
+const overlaps = (a: Box, b: Box) => a.minX < b.maxX && a.maxX > b.minX && a.minY < b.maxY && a.maxY > b.minY
+
+/**
+ * Continuation arrows for every sheet. The text always stays glued to its arrow, flush with the sheet edge, on the side
+ * (above/below or left/right of the line) where it touches the least; the other labels are then planned around it.
+ */
+function planMarkers(plan: ExportPlan, d: Drawing, lang: Lang, k: number): ContinuationMarker[] {
+  const out: ContinuationMarker[] = []
+  if (plan.tiles.length < 2) return out
+  const parts: Box[] = [
+    ...d.components.flatMap((c) => [visibleBox(c), ...endMarkers(c).map((m) => m.box)]),
     ...routesOf(d).flatMap((rt) => rt.points.slice(1).map((p, i) => {
       const q = rt.points[i]
-      return { minX: Math.min(p.x, q.x) - 0.8, maxX: Math.max(p.x, q.x) + 0.8, minY: Math.min(p.y, q.y) - 0.8, maxY: Math.max(p.y, q.y) + 0.8 }
+      return { minX: Math.min(p.x, q.x) - 0.6, maxX: Math.max(p.x, q.x) + 0.6, minY: Math.min(p.y, q.y) - 0.6, maxY: Math.max(p.y, q.y) + 0.6 }
     })),
   ]
-  const clashes = (b: { minX: number; minY: number; maxX: number; maxY: number }) => taken.filter((o) => b.minX < o.maxX && b.maxX > o.minX && b.minY < o.maxY && b.maxY > o.minY).length
-  for (const route of routesOf(d)) {
-    for (let i = 1; i < route.points.length; i++) {
-      const a = route.points[i - 1], b = route.points[i]
-      if (inRect(a, r) === inRect(b, r)) continue
-      const [pin, pout] = inRect(a, r) ? [a, b] : [b, a]
-      const horizontal = a.y === b.y
-      const dirSign = horizontal ? Math.sign(pout.x - pin.x) : Math.sign(pout.y - pin.y)
-      const cp: Point = horizontal
-        ? { x: dirSign > 0 ? r.x + r.w : r.x, y: pin.y }
-        : { x: pin.x, y: dirSign > 0 ? r.y + r.h : r.y }
-      const probe: Point = horizontal ? { x: cp.x + dirSign, y: cp.y } : { x: cp.x, y: cp.y + dirSign }
-      const target = tileNumberAt(plan, probe)
-      if (!target || target === tile.number) continue
-      const tk = 1.6 * k
-      const tri = horizontal
-        ? `${n(cp.x)},${n(cp.y)} ${n(cp.x - dirSign * 2 * tk)},${n(cp.y - tk)} ${n(cp.x - dirSign * 2 * tk)},${n(cp.y + tk)}`
-        : `${n(cp.x)},${n(cp.y)} ${n(cp.x - tk)},${n(cp.y - dirSign * 2 * tk)} ${n(cp.x + tk)},${n(cp.y - dirSign * 2 * tk)}`
-      s += `<polygon points="${tri}" fill="#111"/>`
-      const label = `${t('toSheet', lang)} ${target}`
-      const size = 3 * k, w = textWidth(label, size, true), h = size * 1.2
-      const cands: { x: number; y: number; anchor: 'start' | 'end' }[] = []
-      for (const dist of [4, 8, 14, 22, 32, 44]) {
-        for (const side of [1, -1]) {
-          cands.push(horizontal
-            ? { x: cp.x - dirSign * dist * k, y: cp.y + side * 3 * k, anchor: dirSign > 0 ? 'end' : 'start' }
-            : { x: cp.x + side * 3 * k, y: cp.y - dirSign * dist * k, anchor: side > 0 ? 'start' : 'end' })
+  for (const tile of plan.tiles) {
+    const r = tile.region
+    for (const route of routesOf(d)) {
+      for (let i = 1; i < route.points.length; i++) {
+        const a = route.points[i - 1], b = route.points[i]
+        if (inRect(a, r) === inRect(b, r)) continue
+        const [pin, pout] = inRect(a, r) ? [a, b] : [b, a]
+        const horizontal = a.y === b.y
+        const dirSign = horizontal ? Math.sign(pout.x - pin.x) : Math.sign(pout.y - pin.y)
+        const cp: Point = horizontal
+          ? { x: dirSign > 0 ? r.x + r.w : r.x, y: pin.y }
+          : { x: pin.x, y: dirSign > 0 ? r.y + r.h : r.y }
+        const probe: Point = horizontal ? { x: cp.x + dirSign, y: cp.y } : { x: cp.x, y: cp.y + dirSign }
+        const target = tileNumberAt(plan, probe)
+        if (!target || target === tile.number) continue
+        const tk = 1.6 * k
+        const tri = horizontal
+          ? [[cp.x, cp.y], [cp.x - dirSign * 2 * tk, cp.y - tk], [cp.x - dirSign * 2 * tk, cp.y + tk]]
+          : [[cp.x, cp.y], [cp.x - tk, cp.y - dirSign * 2 * tk], [cp.x + tk, cp.y - dirSign * 2 * tk]]
+        const triangle = `<polygon points="${tri.map(([x, y]) => `${n(x)},${n(y)}`).join(' ')}" fill="#111"/>`
+        const arrowBox: Box = { minX: Math.min(...tri.map((q) => q[0])), maxX: Math.max(...tri.map((q) => q[0])), minY: Math.min(...tri.map((q) => q[1])), maxY: Math.max(...tri.map((q) => q[1])) }
+        // full text first; where there is no room next to the arrow: slightly smaller, then abbreviated, then just the number (never tiny)
+        const full = `${t('toSheet', lang)} ${target}`
+        const tries: { label: string; f: number }[] = [
+          { label: full, f: 1 }, { label: full, f: 0.85 },
+          { label: `${t('toSheetShort', lang)} ${target}`, f: 1 }, { label: String(target), f: 1 },
+        ]
+        const gap = 0.4 * k
+        let best: { text: ContinuationMarker['text']; box: Box; clashes: number } | undefined
+        for (const tr of tries) {
+          const size = 3 * k * tr.f, w = textWidth(tr.label, size, true), h = size * 1.2
+          for (const side of [1, -1]) {
+            const text = horizontal
+              ? { x: cp.x - dirSign * 0.3 * k, y: cp.y + side * (tk + gap + h / 2), anchor: (dirSign > 0 ? 'end' : 'start') as 'start' | 'end', size, label: tr.label }
+              : { x: cp.x + side * (tk + gap), y: cp.y - dirSign * (h / 2 + 0.4 * k), anchor: (side > 0 ? 'start' : 'end') as 'start' | 'end', size, label: tr.label }
+            const minX = text.anchor === 'start' ? text.x : text.x - w
+            const box: Box = { minX, maxX: minX + w, minY: text.y - h / 2, maxY: text.y + h / 2 }
+            // a text that would be cut by the sheet edge is worse than touching something
+            const outside = box.minX < r.x || box.maxX > r.x + r.w || box.minY < r.y || box.maxY > r.y + r.h ? 10 : 0
+            const clashes = outside + [...parts, ...out.flatMap((m) => m.boxes)].filter((o) => overlaps(box, o)).length
+            if (!best || clashes < best.clashes) best = { text, box, clashes }
+          }
+          if (best && best.clashes === 0) break
         }
+        if (!best) continue
+        out.push({ tile: tile.number, triangle, text: best.text, boxes: [arrowBox, best.box] })
       }
-      const box = (c: (typeof cands)[number]) => {
-        const minX = c.anchor === 'start' ? c.x : c.x - w
-        return { minX, maxX: minX + w, minY: c.y - h / 2, maxY: c.y + h / 2 }
-      }
-      // the first free place, else the one that touches the least (short distances win ties)
-      let pick = cands[0], least = Infinity
-      for (const c of cands) { const n_ = clashes(box(c)); if (n_ < least) { least = n_; pick = c } }
-      taken.push(box(pick))
-      s += textEl(pick.x, pick.y, label, { size, anchor: pick.anchor, bold: true })
     }
   }
-  return s
+  return out
+}
+
+/** What the other labels must keep clear of: the continuation texts and the lines where the drawing is cut between sheets. */
+function labelObstacles(plan: ExportPlan, markers: ContinuationMarker[]): Box[] {
+  const big = 1e5
+  const cuts: Box[] = [
+    ...plan.xCuts.slice(1, -1).map((x) => ({ minX: x - 0.3, maxX: x + 0.3, minY: -big, maxY: big })),
+    ...plan.yCuts.slice(1, -1).map((y) => ({ minX: -big, maxX: big, minY: y - 0.3, maxY: y + 0.3 })),
+  ]
+  return [...markers.flatMap((m) => m.boxes), ...cuts]
 }
 
 function pageShell(plan: ExportPlan, inner: string): string {
@@ -249,7 +290,16 @@ function pageShell(plan: ExportPlan, inner: string): string {
 }
 
 /** Draws sheet `pageNumber` (from 1): first the sheets with the drawing, then those of the bill of materials. */
-export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: number, labels?: LabelPlan): string {
+/** Labels and continuation markers of the whole drawing: decided together once, so they do not change from one sheet to another. */
+export interface PagePlans { labels: LabelPlan; markers: ContinuationMarker[] }
+
+export function planPageContent(doc: FluidDocument, plan: ExportPlan): PagePlans {
+  const k = textFactor(plan.scale) * plan.settings.textScale
+  const markers = planMarkers(plan, doc.drawing, plan.settings.lang, k)
+  return { markers, labels: planLabels(doc.drawing, plan.scale, plan.settings.textScale, labelObstacles(plan, markers)) }
+}
+
+export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: number, plans?: PagePlans): string {
   const { settings, layout } = plan
   const lang = settings.lang
   const frame = rectEl(layout.frame.x, layout.frame.y, layout.frame.w, layout.frame.h, 0.7)
@@ -286,14 +336,16 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
     return r.slice(1).some((p, i) => segmentTouches(r[i], p, region))
   })
   // labels are decided on the whole drawing, so they do not change from one sheet to another
-  const lp = labels ?? planLabels(d, s, settings.textScale)
+  const { labels: lp, markers } = plans ?? planPageContent(doc, plan)
   const clipId = `clip-${pageNumber}`
   const anns = annsIntersect(d, region)
   let body =
     anns.filter((a) => a.kind === 'box').map((a) => renderAnnotationBox(a, lang)).join('') +
     lines.map((l) => renderLine(d, l, settings.color, lp.lines.get(l.id) ?? null)).join('') + comps.map((c) => renderComponent(c, { label: lp.tags.get(c.id), textScale: lp.factor })).join('') +
     anns.filter((a) => a.kind === 'text').map((a) => renderAnnotationText(a, lang)).join('')
-  if (plan.tiles.length > 1) body += continuationMarkers(plan, tile, d, lang, lp.factor, lp)
+  for (const m of markers) {
+    if (m.tile === tile.number) body += m.triangle + textEl(m.text.x, m.text.y, m.text.label, { size: m.text.size, anchor: m.text.anchor, bold: true })
+  }
   if (!d.components.length && !d.annotations.length) body = textEl(region.x + region.w / 2, region.y + region.h / 2, t('empty', lang), { size: 5, color: '#999' })
 
   const content =
@@ -308,6 +360,6 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
 }
 
 export function renderAllPages(doc: FluidDocument, plan: ExportPlan): string[] {
-  const labels = planLabels(doc.drawing, plan.scale, plan.settings.textScale)
-  return Array.from({ length: plan.totalPages }, (_, i) => renderPageSvg(doc, plan, i + 1, labels))
+  const plans = planPageContent(doc, plan)
+  return Array.from({ length: plan.totalPages }, (_, i) => renderPageSvg(doc, plan, i + 1, plans))
 }
