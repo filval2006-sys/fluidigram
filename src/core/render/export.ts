@@ -7,13 +7,13 @@ import { layoutFor, type PageLayout, type Rect } from './layout'
 import { renderLegend, usedIn } from './legend'
 import { annotationBounds, renderAnnotationBox, renderAnnotationText } from './annotations'
 import { endMarkers } from './endpoints'
-import { planLabels, type LabelPlan } from './labels'
+import { planLabels, textFactor, type LabelPlan } from './labels'
 import { renderComponent, renderLine } from './sheet'
 import { n, rectEl, textEl } from './svg'
 import { renderRevisionTable, renderTitleBlock } from './titleblock'
 
 /** Below this scale the drawing becomes hard to read: in automatic mode it is split over several sheets. */
-const MIN_FIT_SCALE = 0.6
+const MIN_FIT_SCALE = 0.7
 const GRID = 5
 const CONTENT_PAD = 10
 
@@ -177,7 +177,7 @@ function tileNumberAt(plan: ExportPlan, p: Point): number | undefined {
 }
 
 /** Continuation arrows where a line leaves the sheet ("→ Sheet 2"). */
-function continuationMarkers(plan: ExportPlan, tile: PageTile, d: Drawing, lang: Lang): string {
+function continuationMarkers(plan: ExportPlan, tile: PageTile, d: Drawing, lang: Lang, k: number): string {
   const r = tile.region
   let s = ''
   for (const route of routesOf(d)) {
@@ -193,15 +193,15 @@ function continuationMarkers(plan: ExportPlan, tile: PageTile, d: Drawing, lang:
       const probe: Point = horizontal ? { x: cp.x + dirSign, y: cp.y } : { x: cp.x, y: cp.y + dirSign }
       const target = tileNumberAt(plan, probe)
       if (!target || target === tile.number) continue
-      const k = 1.6
+      const tk = 1.6 * k
       const tri = horizontal
-        ? `${n(cp.x)},${n(cp.y)} ${n(cp.x - dirSign * 2 * k)},${n(cp.y - k)} ${n(cp.x - dirSign * 2 * k)},${n(cp.y + k)}`
-        : `${n(cp.x)},${n(cp.y)} ${n(cp.x - k)},${n(cp.y - dirSign * 2 * k)} ${n(cp.x + k)},${n(cp.y - dirSign * 2 * k)}`
+        ? `${n(cp.x)},${n(cp.y)} ${n(cp.x - dirSign * 2 * tk)},${n(cp.y - tk)} ${n(cp.x - dirSign * 2 * tk)},${n(cp.y + tk)}`
+        : `${n(cp.x)},${n(cp.y)} ${n(cp.x - tk)},${n(cp.y - dirSign * 2 * tk)} ${n(cp.x + tk)},${n(cp.y - dirSign * 2 * tk)}`
       s += `<polygon points="${tri}" fill="#111"/>`
       const label = `${t('toSheet', lang)} ${target}`
       s += horizontal
-        ? textEl(cp.x - dirSign * 4, cp.y - 2.6, label, { size: 2.4, anchor: dirSign > 0 ? 'end' : 'start', bold: true })
-        : textEl(cp.x + 3, cp.y - dirSign * 4, label, { size: 2.4, anchor: 'start', bold: true })
+        ? textEl(cp.x - dirSign * 4 * k, cp.y - 2.6 * k, label, { size: 3 * k, anchor: dirSign > 0 ? 'end' : 'start', bold: true })
+        : textEl(cp.x + 3 * k, cp.y - dirSign * 4 * k, label, { size: 3 * k, anchor: 'start', bold: true })
     }
   }
   return s
@@ -250,14 +250,14 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
     return r.slice(1).some((p, i) => segmentTouches(r[i], p, region))
   })
   // labels are decided on the whole drawing, so they do not change from one sheet to another
-  const lp = labels ?? planLabels(d)
+  const lp = labels ?? planLabels(d, s)
   const clipId = `clip-${pageNumber}`
   const anns = annsIntersect(d, region)
   let body =
     anns.filter((a) => a.kind === 'box').map((a) => renderAnnotationBox(a, lang)).join('') +
     lines.map((l) => renderLine(d, l, settings.color, lp.lines.get(l.id) ?? null)).join('') + comps.map((c) => renderComponent(c, { label: lp.tags.get(c.id) })).join('') +
     anns.filter((a) => a.kind === 'text').map((a) => renderAnnotationText(a, lang)).join('')
-  if (plan.tiles.length > 1) body += continuationMarkers(plan, tile, d, lang)
+  if (plan.tiles.length > 1) body += continuationMarkers(plan, tile, d, lang, textFactor(s))
   if (!d.components.length && !d.annotations.length) body = textEl(region.x + region.w / 2, region.y + region.h / 2, t('empty', lang), { size: 5, color: '#999' })
 
   const content =
@@ -272,6 +272,6 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
 }
 
 export function renderAllPages(doc: FluidDocument, plan: ExportPlan): string[] {
-  const labels = planLabels(doc.drawing)
+  const labels = planLabels(doc.drawing, plan.scale)
   return Array.from({ length: plan.totalPages }, (_, i) => renderPageSvg(doc, plan, i + 1, labels))
 }

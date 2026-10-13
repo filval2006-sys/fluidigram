@@ -204,7 +204,6 @@ export function renderPhasePages(doc: FluidDocument): string[] {
 
   const pages = planPages(doc, layout)
   const total = pages.length
-  const labels = planLabels(d)
   const bounds = drawingBounds(d)
   const tw = tableWidth(layout)
   const bodyH = bodyHeight(layout)
@@ -212,6 +211,7 @@ export function renderPhasePages(doc: FluidDocument): string[] {
   const table: Rect = { x: layout.frame.x + layout.frame.w - tw, y: layout.frame.y, w: tw, h: bodyH }
   const area: Rect = { x: layout.frame.x, y: layout.frame.y + TIMELINE_H, w: layout.frame.w - tw, h: bodyH - TIMELINE_H - LEGEND_H }
   const scale = bounds ? Math.min(MAX_SCALE, area.w / bounds.w, area.h / bounds.h) : 1
+  const labels = planLabels(d, scale)
   const accent = color ? NAVY : INK
   const chrome = (index: number, subtitle: string, sc: string) =>
     renderRevisionTable(doc, layout, lang) + renderTitleBlock(doc, layout, lang, { index, total, scaleText: sc, subtitle })

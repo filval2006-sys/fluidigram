@@ -15,8 +15,8 @@ export interface BomRow {
   note: string
 }
 
-const ROW_H = 8
-const HEAD_H = 9
+const ROW_H = 9.5
+const HEAD_H = 10
 
 function typeLabel(c: Drawing['components'][number], lang: Lang): string {
   const def = getSymbol(c.symbol)
@@ -200,7 +200,7 @@ export function renderBomPage(items: BomItem[], doc: FluidDocument, layout: Page
   const xs: number[] = []
   for (const c of cols) {
     xs.push(cx)
-    s += textEl(cx + 1.5, top + HEAD_H / 2, c.label, { size: 2.2, anchor: 'start', bold: true, color: '#333' })
+    s += textEl(cx + 1.5, top + HEAD_H / 2, c.label, { size: 2.7, anchor: 'start', bold: true, color: '#333' })
     cx += c.w * tableW
   }
   items.forEach((it, i) => {
@@ -208,20 +208,20 @@ export function renderBomPage(items: BomItem[], doc: FluidDocument, layout: Page
     if (it.kind === 'group') {
       s += `<rect x="${n(x0)}" y="${n(y)}" width="${n(tableW)}" height="${n(ROW_H)}" fill="#e6e6e6" stroke="none"/>`
       s += lineEl(x0, y + ROW_H, x0 + tableW, y + ROW_H, 0.15, '#bbb')
-      s += textEl(x0 + 1.5, y + ROW_H / 2, it.name.toUpperCase(), { size: 2.6, anchor: 'start', bold: true })
-      s += textEl(x0 + tableW - 1.5, y + ROW_H / 2, String(it.count), { size: 2.4, anchor: 'end', color: '#555' })
+      s += textEl(x0 + 1.5, y + ROW_H / 2, it.name.toUpperCase(), { size: 3.1, anchor: 'start', bold: true })
+      s += textEl(x0 + tableW - 1.5, y + ROW_H / 2, String(it.count), { size: 2.9, anchor: 'end', color: '#555' })
       return
     }
     const r = it.row
     s += lineEl(x0, y + ROW_H, x0 + tableW, y + ROW_H, 0.15, '#bbb')
     cols.forEach((c, j) => {
-      const maxChars = Math.floor((c.w * tableW - 3) / 1.45)
+      const maxChars = Math.floor((c.w * tableW - 3) / 1.7)
       // up to two lines per cell: a long hand-written text is not lost
       let parts = wrapText(r[c.key], maxChars)
       if (parts.length > 2) parts = [parts[0], parts[1].length >= maxChars ? parts[1].slice(0, maxChars - 1) + '…' : parts[1] + '…']
-      const size = parts.length > 1 ? 2.2 : 2.6
+      const size = parts.length > 1 ? 2.6 : 3
       parts.forEach((line, k) => {
-        s += textEl(xs[j] + 1.5, parts.length > 1 ? y + ROW_H / 2 + (k - 0.5) * 3.1 : y + ROW_H / 2, line, { size, anchor: 'start', bold: c.key === 'tag' })
+        s += textEl(xs[j] + 1.5, parts.length > 1 ? y + ROW_H / 2 + (k - 0.5) * 3.6 : y + ROW_H / 2, line, { size, anchor: 'start', bold: c.key === 'tag' })
       })
     })
   })
@@ -253,7 +253,7 @@ export function renderStatesPage(rows: StateRow[], phases: Phase[], layout: Page
   const fixed = [0.1, 0.22, 0.2]
   const phaseW = (1 - fixed.reduce((a, b) => a + b, 0)) / Math.max(1, phases.length)
   let s = textEl(x0, area.y + 6, t('stateTable', lang).toUpperCase(), { size: 4, anchor: 'start', bold: true })
-  s += textEl(x0, area.y + 11.5, `●  ${t('closedLbl', lang)}      ○  ${t('openLbl', lang)}      –  ${t('unsetLbl', lang)}`, { size: 2.8, anchor: 'start', color: '#333' })
+  s += textEl(x0, area.y + 11.5, `●  ${t('closedLbl', lang)}      ○  ${t('openLbl', lang)}      –  ${t('unsetLbl', lang)}`, { size: 3.2, anchor: 'start', color: '#333' })
   const top = area.y + 16
   s += rectEl(x0, top, tableW, HEAD_H, 0.4, '#eee')
   const xs: number[] = []
@@ -262,20 +262,20 @@ export function renderStatesPage(rows: StateRow[], phases: Phase[], layout: Page
   const widths = [...fixed, ...phases.map(() => phaseW)].map((w) => w * tableW)
   heads.forEach((h, i) => {
     xs.push(cx)
-    const maxChars = Math.max(3, Math.floor((widths[i] - 3) / 1.6))
-    s += textEl(cx + 1.5, top + HEAD_H / 2, h.length > maxChars ? h.slice(0, maxChars - 1) + '…' : h, { size: 2.2, anchor: 'start', bold: true, color: '#333' })
+    const maxChars = Math.max(3, Math.floor((widths[i] - 3) / 1.75))
+    s += textEl(cx + 1.5, top + HEAD_H / 2, h.length > maxChars ? h.slice(0, maxChars - 1) + '…' : h, { size: 2.6, anchor: 'start', bold: true, color: '#333' })
     cx += widths[i]
   })
   rows.forEach((r, i) => {
     const y = top + HEAD_H + i * ROW_H
     s += lineEl(x0, y + ROW_H, x0 + tableW, y + ROW_H, 0.15, '#bbb')
     ;[r.tag, r.description, r.type].forEach((v, j) => {
-      const maxChars = Math.floor((widths[j] - 3) / 1.6)
-      s += textEl(xs[j] + 1.5, y + ROW_H / 2, v.length > maxChars ? v.slice(0, maxChars - 1) + '…' : v, { size: 2.6, anchor: 'start', bold: j === 0 })
+      const maxChars = Math.floor((widths[j] - 3) / 1.75)
+      s += textEl(xs[j] + 1.5, y + ROW_H / 2, v.length > maxChars ? v.slice(0, maxChars - 1) + '…' : v, { size: 3, anchor: 'start', bold: j === 0 })
     })
     r.states.forEach((st, j) => {
       const cxm = xs[3 + j] + widths[3 + j] / 2
-      s += textEl(cxm, y + ROW_H / 2, st === 'closed' ? '●' : st === 'open' ? '○' : '–', { size: 3.4, color: st ? '#111' : '#999' })
+      s += textEl(cxm, y + ROW_H / 2, st === 'closed' ? '●' : st === 'open' ? '○' : '–', { size: 3.8, color: st ? '#111' : '#999' })
     })
   })
   const bottom = top + HEAD_H + Math.max(rows.length, 1) * ROW_H

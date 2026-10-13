@@ -229,7 +229,7 @@ const SYMBOLS: SymbolDef[] = [
       { id: 'bottom-left', x: 5, y: 40, dir: 'S' }, { id: 'bottom-right', x: 15, y: 40, dir: 'S' },
     ],
     prims: [{ k: 'path', d: ROUND_V, fill: 'paper' }],
-    labelInside: { x: 10, y: 20, size: 2.5 },
+    labelInside: { x: 10, y: 20, size: 3.2 },
   },
   {
     id: 'vessel.copv', name: { it: 'Bombola composita (COPV)', en: 'Composite bottle (COPV)' }, category: 'vessels', w: 20, h: 40, tagPrefix: 'CB', legend: true,
@@ -246,7 +246,7 @@ const SYMBOLS: SymbolDef[] = [
       { k: 'path', d: ROUND_V, fill: 'paper' },
       { k: 'path', d: 'M2.2,5.2 A3,3 0 0 1 5.2,2.2 H14.8 A3,3 0 0 1 17.8,5.2 V34.8 A3,3 0 0 1 14.8,37.8 H5.2 A3,3 0 0 1 2.2,34.8 Z' },
     ],
-    labelInside: { x: 10, y: 20, size: 2.5 },
+    labelInside: { x: 10, y: 20, size: 3.2 },
   },
   {
     id: 'vessel.horizontal', name: { it: 'Serbatoio orizzontale', en: 'Horizontal tank' }, category: 'vessels', w: 40, h: 20, tagPrefix: 'TK', legend: true,
@@ -260,7 +260,7 @@ const SYMBOLS: SymbolDef[] = [
       { id: 'right-up', x: 40, y: 5, dir: 'E' }, { id: 'right-down', x: 40, y: 15, dir: 'E' },
     ],
     prims: [{ k: 'path', d: ROUND_H, fill: 'paper' }],
-    labelInside: { x: 20, y: 10, size: 2.5 },
+    labelInside: { x: 20, y: 10, size: 3.2 },
   },
   bubble('instr.pt', 'Trasduttore di pressione', 'Pressure transducer', 'PT', ['sensore', 'pressione', 'sensor', 'trasduttore', 'analogico', '4-20', '0-5', 'ratiometrico'], { options: SIGNAL_OPTIONS }),
   bubble('instr.pdt', 'Trasduttore di pressione differenziale', 'Differential pressure transducer', 'PDT', ['differenziale', 'delta', 'dp', 'caduta', 'differential'], {
@@ -345,7 +345,7 @@ const SYMBOLS: SymbolDef[] = [
       { id: 'head-up', x: 0, y: 5, dir: 'W' }, { id: 'head-down', x: 0, y: 15, dir: 'W' },
     ],
     prims: [{ k: 'path', d: 'M0,0 H20 L28,7 H34 L40,2 M0,20 H20 L28,13 H34 L40,18 M0,0 V20', fill: 'none' }],
-    labelInside: { x: 10, y: 10, size: 2.5 },
+    labelInside: { x: 10, y: 10, size: 3.2 },
   },
 ]
 

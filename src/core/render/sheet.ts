@@ -5,7 +5,7 @@ import type { Component, Drawing, Line, ValveState } from '../types'
 import type { Dir } from '../geometry'
 import { dirToWorld } from '../geometry'
 import { endMarkers } from './endpoints'
-import { LINE_LABEL_SIZE, TAG_SIZE, lineLabelText, textWidth, type LabelPlace } from './labels'
+import { LINE_LABEL_SIZE, TAG_SIZE, lineLabelOffset, lineLabelText, textWidth, type LabelPlace } from './labels'
 import { INK, n, primsToSvg, textEl } from './svg'
 
 
@@ -62,7 +62,7 @@ export function renderComponent(c: Component, opts: ComponentRenderOptions = {})
         W: { x: e.minX - 2, y: cy, anchor: 'end' as const },
       }[side]
     }
-    s += textEl(pos.x, pos.y, c.tag, { size: TAG_SIZE, anchor: pos.anchor, bold: true })
+    s += textEl(pos.x, pos.y, c.tag, { size: pos.size ?? TAG_SIZE, anchor: pos.anchor, bold: true })
   }
   for (const m of endMarkers(c)) s += m.svg
   return s
@@ -88,10 +88,11 @@ export function renderLine(sheet: Drawing, line: Line, color: boolean, label?: L
     const a = pts[best], b = pts[best + 1]
     const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2
     const text = lineLabelText(line.fluid, line.size)
+    const off = lineLabelOffset(line.fluid, line.size, LINE_LABEL_SIZE)
     pos = segLen(best) >= textWidth(text, LINE_LABEL_SIZE) + 3
-      ? (a.y === b.y ? { x: mx, y: my - 1.5, anchor: 'middle' } : { x: mx + 1.5, y: my, anchor: 'start' })
+      ? (a.y === b.y ? { x: mx, y: my - off.h, anchor: 'middle' } : { x: mx + off.v, y: my, anchor: 'start' })
       : null
   }
-  if (pos) s += textEl(pos.x, pos.y, lineLabelText(line.fluid, line.size), { size: LINE_LABEL_SIZE, color: '#333', anchor: pos.anchor })
+  if (pos) s += textEl(pos.x, pos.y, pos.text ?? lineLabelText(line.fluid, line.size), { size: pos.size ?? LINE_LABEL_SIZE, color: '#333', anchor: pos.anchor })
   return s
 }

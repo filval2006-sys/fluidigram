@@ -34,10 +34,10 @@ export function usedIn(components: Component[], lines: Line[]): LegendItems {
   return { symbols, fluids }
 }
 
-const SYMBOL_ROW_MIN = 9
-const FLUID_ROW = 9
-const HEAD = 6
-const SECTION = 8
+const SYMBOL_ROW_MIN = 11
+const FLUID_ROW = 12
+const HEAD = 7
+const SECTION = 9
 
 function rowHeights(items: LegendItems): number[] {
   return items.symbols.map((s) => Math.max(SYMBOL_ROW_MIN, symbolThumbnail(s.def, 0, 0, 14, 14, 1, s.props).height + 3))
@@ -57,14 +57,14 @@ export function renderLegend(items: LegendItems, layout: PageLayout, lang: Lang,
   const k = Math.max(0.7, Math.min(1, h / neededHeight(items)))
   let s = rectEl(x, y, w, h, 0.5)
   s += `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${HEAD}" fill="${INK}"/>`
-  s += textEl(x + w / 2, y + HEAD / 2, t('legend', lang), { size: 3, bold: true, color: '#fff' })
+  s += textEl(x + w / 2, y + HEAD / 2, t('legend', lang), { size: 3.6, bold: true, color: '#fff' })
 
   let cy = y + HEAD
   let hidden = 0
   const fits = (need: number) => cy + need <= y + h - 1
   const section = (label: string) => {
-    s += textEl(x + 2, cy + 3.5 * k, label, { size: 2.2, anchor: 'start', bold: true, color: '#555' })
-    s += lineEl(x + 2, cy + 6 * k, x + w - 2, cy + 6 * k, 0.2, '#999')
+    s += textEl(x + 2, cy + 4 * k, label, { size: 2.7, anchor: 'start', bold: true, color: '#555' })
+    s += lineEl(x + 2, cy + 6.8 * k, x + w - 2, cy + 6.8 * k, 0.2, '#999')
     cy += SECTION * k
   }
 
@@ -76,9 +76,9 @@ export function renderLegend(items: LegendItems, layout: PageLayout, lang: Lang,
       const rowH = heights[i] * k
       if (!fits(rowH)) { hidden += 1; return }
       s += symbolThumbnail(def, x + 10, cy + rowH / 2, 14, 14 * k, 1, sym.props).svg
-      const nameLines = wrapText(sym.name[lang], 24)
-      nameLines.forEach((ln, j) => { s += textEl(x + 21, cy + rowH / 2 - 1.5 + j * 3.2 * k, ln, { size: 2.6, anchor: 'start' }) })
-      s += textEl(x + 21, cy + rowH / 2 - 1.5 + nameLines.length * 3.2 * k, `${t('tagPrefix', lang)}: ${def.tagPrefix}-nnn`, { size: 2, anchor: 'start', color: '#666' })
+      const nameLines = wrapText(sym.name[lang], 27)
+      nameLines.forEach((ln, j) => { s += textEl(x + 21, cy + rowH / 2 - 2 + j * 3.8 * k, ln, { size: 3.1, anchor: 'start' }) })
+      s += textEl(x + 21, cy + rowH / 2 - 2 + nameLines.length * 3.8 * k, `${t('tagPrefix', lang)}: ${def.tagPrefix}-nnn`, { size: 2.5, anchor: 'start', color: '#666' })
       cy += rowH
     })
     cy += 2
@@ -91,12 +91,12 @@ export function renderLegend(items: LegendItems, layout: PageLayout, lang: Lang,
       const f = FLUIDS[id]
       const stroke = color ? f.color : INK
       const dash = f.dash ? ` stroke-dasharray="${f.dash}"` : ''
-      s += `<line x1="${n(x + 2)}" y1="${n(cy + 4)}" x2="${n(x + 18)}" y2="${n(cy + 4)}" stroke="${stroke}" stroke-width="${f.width}"${dash}/>`
-      s += textEl(x + 20, cy + 2.2, f.code, { size: 2.6, anchor: 'start', bold: true })
-      wrapText(f.name[lang], 24).forEach((ln, j) => { s += textEl(x + 20, cy + 5.4 + j * 3.2, ln, { size: 2.4, anchor: 'start' }) })
+      s += `<line x1="${n(x + 2)}" y1="${n(cy + 4)}" x2="${n(x + 18)}" y2="${n(cy + 4)}" stroke="${stroke}" stroke-width="${Math.max(f.width, 0.9)}"${dash}/>`
+      s += textEl(x + 20, cy + 2.8, f.code, { size: 3.2, anchor: 'start', bold: true })
+      wrapText(f.name[lang], 27).forEach((ln, j) => { s += textEl(x + 20, cy + 6.8 + j * 3.8, ln, { size: 3, anchor: 'start' }) })
       cy += FLUID_ROW * k
     }
   }
-  if (hidden) s += textEl(x + 2, y + h - 3, `+${hidden} ${t('moreItems', lang)}`, { size: 2, anchor: 'start', color: '#666' })
+  if (hidden) s += textEl(x + 2, y + h - 3, `+${hidden} ${t('moreItems', lang)}`, { size: 2.6, anchor: 'start', color: '#666' })
   return s
 }

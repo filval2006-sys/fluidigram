@@ -4,7 +4,7 @@ import { componentPorts } from '../scene'
 import type { Component } from '../types'
 import { INK, SYMBOL_STROKE, n, textEl, textWidth } from './svg'
 
-const TEXT_SIZE = 2
+const TEXT_SIZE = 2.6
 const STUB = 4
 const REACH = 8
 

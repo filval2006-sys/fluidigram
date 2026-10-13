@@ -10,7 +10,7 @@ export const PAGE: Record<SheetFormat, { w: number; h: number }> = {
 
 const MARGIN = 10
 const TITLEBLOCK = { w: 170, h: 36 }
-const LEGEND_W = 70
+const LEGEND_W = 80
 
 export interface PageLayout {
   page: { w: number; h: number }
