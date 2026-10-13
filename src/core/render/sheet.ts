@@ -14,6 +14,8 @@ export interface ComponentRenderOptions {
   state?: ValveState
   /** where to write the tag (from planLabels); without it, picks a free side of the component alone */
   label?: LabelPlace
+  /** enlargement of the texts inside the symbol when the drawing is shrunk on the sheet (see textFactor) */
+  textScale?: number
 }
 
 export function renderComponent(c: Component, opts: ComponentRenderOptions = {}): string {
@@ -31,7 +33,7 @@ export function renderComponent(c: Component, opts: ComponentRenderOptions = {})
 
   if (def.labelInside) {
     const li = def.labelInside
-    const size = li.size ?? 2.2
+    const size = (li.size ?? 2.2) * Math.min(opts.textScale ?? 1, 1.7)
     // position of the inner point in sheet coordinates
     const ext = worldExtent(c)
     const cx = (ext.minX + ext.maxX) / 2

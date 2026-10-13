@@ -7,7 +7,7 @@ import { renderAnnotationBox, renderAnnotationText } from './annotations'
 import { applyOverride, autoBomRow } from './bom'
 import { drawingBounds, scaleText } from './export'
 import { layoutFor, type PageLayout, type Rect } from './layout'
-import { planLabels } from './labels'
+import { planLabels, textFactor } from './labels'
 import { renderComponent, renderLine } from './sheet'
 import { INK, lineEl, n, rectEl, textEl } from './svg'
 import { renderRevisionTable, renderTitleBlock } from './titleblock'
@@ -238,7 +238,7 @@ export function renderPhasePages(doc: FluidDocument): string[] {
       const svg = renderLine(d, l, color, labels.lines.get(l.id) ?? null)
       return live.has(l.id) ? svg : `<g opacity="0.3">${svg}</g>`
     }).join('')
-    const comps = d.components.map((c) => renderComponent(c, { label: labels.tags.get(c.id), state: stateOf(c, phase.id) })).join('')
+    const comps = d.components.map((c) => renderComponent(c, { label: labels.tags.get(c.id), state: stateOf(c, phase.id), textScale: textFactor(scale) })).join('')
     const marks = phaseValves(d).map((c) => { const e = worldExtent(c); return badge(e.maxX + 0.6, e.minY - 0.6, stateOf(c, phase.id), lang, color) }).join('')
     const body = d.annotations.filter((a) => a.kind === 'box').map((a) => renderAnnotationBox(a, lang)).join('') + lines + comps +
       d.annotations.filter((a) => a.kind === 'text').map((a) => renderAnnotationText(a, lang)).join('') + marks

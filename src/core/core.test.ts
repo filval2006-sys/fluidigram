@@ -116,7 +116,7 @@ describe('layout on export', () => {
     const doc = produce(SAMPLE_DOCUMENT, (d) => {
       let prev: string | undefined
       for (let i = 0; i < 5; i++) {
-        const c = addComponent(d, 'valve.ball', 400 + i * 100, 100 + (i % 2) * 40)
+        const c = addComponent(d, 'valve.ball', 400 + i * 300, 100 + (i % 2) * 40)
         if (prev) connectPorts(d.drawing, { componentId: prev, portId: 'b' }, { componentId: c.id, portId: 'a' }, 'oxidizer', 'Ø6 mm')
         prev = c.id
       }

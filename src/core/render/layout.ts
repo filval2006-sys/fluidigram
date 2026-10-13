@@ -10,7 +10,8 @@ export const PAGE: Record<SheetFormat, { w: number; h: number }> = {
 
 const MARGIN = 10
 const TITLEBLOCK = { w: 170, h: 36 }
-const LEGEND_W = 80
+/** The legend takes a smaller share of a small sheet. */
+const LEGEND_W: Record<SheetFormat, number> = { A4: 64, A3: 76, A2: 90 }
 
 export interface PageLayout {
   page: { w: number; h: number }
@@ -29,12 +30,12 @@ export function layoutFor(format: SheetFormat, withLegend: boolean): PageLayout 
   const frame = { x: MARGIN, y: MARGIN, w: page.w - 2 * MARGIN, h: page.h - 2 * MARGIN }
   const titleBlock = { x: frame.x + frame.w - TITLEBLOCK.w, y: frame.y + frame.h - TITLEBLOCK.h, ...TITLEBLOCK }
   const bodyH = frame.h - TITLEBLOCK.h
-  const legendW = withLegend ? LEGEND_W : 0
+  const legendW = withLegend ? LEGEND_W[format] : 0
   return {
     page,
     frame,
     drawing: { x: frame.x, y: frame.y, w: frame.w - legendW, h: bodyH },
-    legend: withLegend ? { x: frame.x + frame.w - LEGEND_W, y: frame.y, w: LEGEND_W, h: bodyH } : null,
+    legend: withLegend ? { x: frame.x + frame.w - legendW, y: frame.y, w: legendW, h: bodyH } : null,
     titleBlock,
     revisions: { x: frame.x, y: titleBlock.y, w: titleBlock.x - frame.x, h: TITLEBLOCK.h },
   }

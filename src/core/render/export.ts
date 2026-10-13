@@ -1,6 +1,6 @@
 import { t } from '../i18n'
 import { lineRoute, worldExtent } from '../scene'
-import type { Drawing, ExportSettings, FluidDocument, Lang } from '../types'
+import type { Drawing, ExportSettings, FluidDocument, Lang, SheetFormat } from '../types'
 import type { Point } from '../geometry'
 import { bomItems, bomRowsPerPage, paginateBom, renderBomPage, renderStatesPage, stateRows } from './bom'
 import { layoutFor, type PageLayout, type Rect } from './layout'
@@ -12,8 +12,11 @@ import { renderComponent, renderLine } from './sheet'
 import { n, rectEl, textEl } from './svg'
 import { renderRevisionTable, renderTitleBlock } from './titleblock'
 
-/** Below this scale the drawing becomes hard to read: in automatic mode it is split over several sheets. */
-const MIN_FIT_SCALE = 0.7
+/**
+ * Below this scale the drawing becomes hard to read: in automatic mode it is split over several sheets.
+ * Texts are enlarged to compensate (see textFactor), so a small sheet can take a more shrunk drawing and still be readable at arm's length.
+ */
+const MIN_FIT_SCALE: Record<SheetFormat, number> = { A4: 0.3, A3: 0.4, A2: 0.5 }
 const GRID = 5
 const CONTENT_PAD = 10
 
@@ -39,7 +42,7 @@ function routesOf(d: Drawing): Routes {
   return d.lines.map((l) => ({ points: lineRoute(d, l) })).filter((r) => r.points.length > 1)
 }
 
-export function drawingBounds(d: Drawing): Rect | null {
+export function drawingBounds(d: Drawing, extraPad = 0): Rect | null {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   for (const c of d.components) {
     const e = worldExtent(c)
@@ -60,7 +63,8 @@ export function drawingBounds(d: Drawing): Rect | null {
     maxX = Math.max(maxX, e.maxX); maxY = Math.max(maxY, e.maxY)
   }
   if (!isFinite(minX)) return null
-  return { x: minX - CONTENT_PAD, y: minY - CONTENT_PAD, w: maxX - minX + 2 * CONTENT_PAD, h: maxY - minY + 2 * CONTENT_PAD }
+  const pad = CONTENT_PAD + extraPad
+  return { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad }
 }
 
 /** Cut positions along an axis: avoids cutting symbols and crossing too many lines. */
@@ -110,7 +114,10 @@ export function planExport(doc: FluidDocument, settings: ExportSettings = doc.ex
   const layout = layoutFor(settings.format, settings.legend)
   const area = layout.drawing
   const d = doc.drawing
-  const b = drawingBounds(d) ?? { x: 0, y: 0, w: 100, h: 60 }
+  const fallback = { x: 0, y: 0, w: 100, h: 60 }
+  // texts grow when the drawing is shrunk: the margin grows with them so tags at the edge are not cut
+  const fit0 = (() => { const b0 = drawingBounds(d) ?? fallback; return Math.min(area.w / b0.w, area.h / b0.h) })()
+  const b = drawingBounds(d, 8 * (textFactor(Math.min(1, fit0)) - 1)) ?? fallback
   const fit = Math.min(area.w / b.w, area.h / b.h)
 
   let scale = 1
@@ -118,7 +125,7 @@ export function planExport(doc: FluidDocument, settings: ExportSettings = doc.ex
   if (settings.mode === 'fit') scale = Math.min(1, floorTo(fit, 0.05))
   else if (settings.mode === 'split') split = fit < 1
   else if (fit >= 1) scale = 1
-  else if (fit >= MIN_FIT_SCALE) scale = floorTo(fit, 0.05)
+  else if (fit >= MIN_FIT_SCALE[settings.format]) scale = floorTo(fit, 0.05)
   else split = true
   scale = Math.max(0.05, scale)
 
@@ -255,7 +262,7 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
   const anns = annsIntersect(d, region)
   let body =
     anns.filter((a) => a.kind === 'box').map((a) => renderAnnotationBox(a, lang)).join('') +
-    lines.map((l) => renderLine(d, l, settings.color, lp.lines.get(l.id) ?? null)).join('') + comps.map((c) => renderComponent(c, { label: lp.tags.get(c.id) })).join('') +
+    lines.map((l) => renderLine(d, l, settings.color, lp.lines.get(l.id) ?? null)).join('') + comps.map((c) => renderComponent(c, { label: lp.tags.get(c.id), textScale: textFactor(s) })).join('') +
     anns.filter((a) => a.kind === 'text').map((a) => renderAnnotationText(a, lang)).join('')
   if (plan.tiles.length > 1) body += continuationMarkers(plan, tile, d, lang, textFactor(s))
   if (!d.components.length && !d.annotations.length) body = textEl(region.x + region.w / 2, region.y + region.h / 2, t('empty', lang), { size: 5, color: '#999' })

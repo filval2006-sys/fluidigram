@@ -12,7 +12,7 @@ export const TAG_SIZE = 3.5
 export const LINE_LABEL_SIZE = 2.8
 
 /** The drawing is shrunk by `scale` on the sheet: texts grow by the inverse so that they keep the same size on paper (up to a limit). */
-export const textFactor = (scale: number): number => Math.min(2.5, Math.max(1, 1 / scale))
+export const textFactor = (scale: number): number => Math.min(3.5, Math.max(1, 1 / scale))
 
 export interface LabelPlace { x: number; y: number; anchor: 'start' | 'middle' | 'end'; /** replaces the default text (used when only the size fits) */ text?: string; /** text size in drawing units; default = TAG_SIZE / LINE_LABEL_SIZE */ size?: number }
 export interface LabelPlan {
