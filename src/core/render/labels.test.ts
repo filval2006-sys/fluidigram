@@ -5,7 +5,7 @@ import { FLUIDS, lineWidth } from '../fluids'
 import { componentPorts, lineRoute, worldExtent } from '../scene'
 import { SAMPLE_DOCUMENT } from '../sample'
 import { ALL_SYMBOLS } from '../symbols/library'
-import { EXPORT_LIMITS as LIMITS, type Drawing, type FluidId } from '../types'
+import type { Drawing, FluidId } from '../types'
 import { LINE_LABEL_SIZE, TAG_SIZE, labelRects, planLabels, textFactor, textWidth, type Rect } from './labels'
 
 describe('label planning', () => {
@@ -69,7 +69,7 @@ describe('labels at every slider position', () => {
       const d = dense(n)
       // a very crowded diagram shrunk to the 15–20% limit has no room left for any text: only the scales where the parts are still more than a few millimetres apart on paper are required
       for (const scale of n > 24 ? [0.45, 0.7, 1] : [0.2, 0.3, 0.45, 0.7, 1]) {
-        for (const ts of [LIMITS.textScale.min, 1, 1.25, LIMITS.textScale.max]) {
+        for (const ts of [0.85, 1, 1.25]) {
           const lp = planLabels(d, scale, ts)
           const rects = labelRects(d, lp)
           for (let i = 0; i < rects.length; i++) {

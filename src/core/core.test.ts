@@ -7,6 +7,7 @@ import { SYMBOL_LIBRARY } from './symbols/library'
 import { checkIntegrity, parseDocument } from './validate'
 import { describePlan, planExport, renderAllPages, renderPageSvg, chooseCuts, scaleText } from './render/export'
 import { readDocument } from './documents'
+import { SIZE_PROFILES } from './render/sizing'
 import { addComponent, connectPorts } from './edit'
 import { produce } from 'immer'
 
@@ -123,7 +124,7 @@ describe('layout on export', () => {
     })
     const plan = planExport(doc)
     expect(plan.tiles.length).toBeGreaterThan(1)
-    expect(plan.scale).toBe(1)
+    expect(plan.scale).toBeGreaterThanOrEqual(SIZE_PROFILES.medium.floor.A3 - 1e-9)
     const tag = (c: { x: number }) => plan.xCuts.some((cut) => Math.abs(cut - c.x) < 5.1)
     expect(doc.drawing.components.some(tag)).toBe(false) // no cut passes through a symbol
     const svgs = renderAllPages(doc, plan)
@@ -131,13 +132,26 @@ describe('layout on export', () => {
     expect(svgs.some((s) => s.includes('Foglio 2'))).toBe(true) // continuation arrows
     for (const s of svgs) { expect(s).not.toContain('NaN'); expect(s).not.toContain('undefined') }
   })
-  it('"one sheet" mode always shrinks; "more sheets" never shrinks', () => {
-    const big = produce(SAMPLE_DOCUMENT, (d) => { addComponent(d, 'valve.ball', 1000, 100) })
-    expect(planExport(big, { ...big.export, mode: 'fit' }).tiles).toHaveLength(1)
-    expect(planExport(big, { ...big.export, mode: 'fit' }).scale).toBeLessThan(0.6)
-    const split = planExport(big, { ...big.export, mode: 'split' })
-    expect(split.scale).toBe(1)
-    expect(split.tiles.length).toBeGreaterThan(1)
+  it('sizes: a bigger size never gives fewer sheets, and "large" is never smaller than "normal", and the floors are respected', () => {
+    const big = produce(SAMPLE_DOCUMENT, (d) => { addComponent(d, 'valve.ball', 700, 330) })
+    for (const format of ['A4', 'A3', 'A2'] as const) {
+      const at = (size: 'small' | 'medium' | 'large') => planExport(big, { ...big.export, format, size })
+      const [s, m, l] = [at('small'), at('medium'), at('large')]
+      // (the texts are smaller in "small", so its margins are too: scales can differ slightly, sheet counts must not go the wrong way)
+      expect(s.tiles.length, format).toBeLessThanOrEqual(m.tiles.length)
+      expect(m.tiles.length, format).toBeLessThanOrEqual(l.tiles.length)
+      expect(l.scale, format).toBeGreaterThanOrEqual(m.scale - 1e-9)
+      for (const [size, p] of [['small', s], ['medium', m], ['large', l]] as const) expect(p.scale, `${format} ${size}`).toBeGreaterThanOrEqual(SIZE_PROFILES[size].floor[format] - 1e-9)
+    }
+  })
+  it('a drawing that fits is never split, and a huge one is split at no less than the floor scale', () => {
+    for (const size of ['small', 'medium', 'large'] as const) {
+      expect(planExport(SAMPLE_DOCUMENT, { ...SAMPLE_DOCUMENT.export, size }).tiles, size).toHaveLength(1)
+      const huge = produce(SAMPLE_DOCUMENT, (d) => { addComponent(d, 'valve.ball', 3000, 2000) })
+      const p = planExport(huge, { ...huge.export, size })
+      expect(p.tiles.length, size).toBeGreaterThan(1)
+      expect(p.scale, size).toBeGreaterThanOrEqual(SIZE_PROFILES[size].floor.A3 - 1e-9)
+    }
   })
   it('chooseCuts respects capacity and prefers free areas', () => {
     const cuts = chooseCuts(0, 100, 40, (c) => c > 35 && c < 45, () => 0)

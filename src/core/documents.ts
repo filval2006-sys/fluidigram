@@ -12,7 +12,7 @@ export function createEmptyDocument(): FluidDocument {
     revisions: [{ rev: 'A', date: today, description: { it: 'Prima emissione', en: 'First issue' }, author: '' }],
     drawing: { components: [], lines: [], annotations: [] },
     phases: [],
-    export: { format: 'A3', mode: 'auto', lang: 'it', color: true, legend: true, bom: true, states: true, scale: 0, textScale: 1, tableScale: 1 },
+    export: { format: 'A3', size: 'medium', lang: 'it', color: true, legend: true, bom: true, states: true },
     bom: { overrides: {}, hidden: [], extra: [], grouped: true, groups: [], renames: {}, order: [] },
     checks: { hints: false, dismissed: [] },
   }

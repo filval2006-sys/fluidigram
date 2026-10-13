@@ -1,10 +1,11 @@
 import { t } from '../i18n'
 import { lineRoute, worldExtent } from '../scene'
-import type { Drawing, ExportSettings, FluidDocument, Lang, SheetFormat } from '../types'
+import type { Drawing, ExportSettings, FluidDocument, Lang } from '../types'
 import type { Point } from '../geometry'
 import { bomItems, bomRowsPerPage, paginateBom, renderBomPage, renderStatesPage, stateRows } from './bom'
 import { layoutFor, type PageLayout, type Rect } from './layout'
 import { renderLegend, usedIn } from './legend'
+import { chooseScale, exportFactors } from './sizing'
 import { annotationBounds, renderAnnotationBox, renderAnnotationText } from './annotations'
 import { endMarkers } from './endpoints'
 import { planLabels, textFactor, type LabelPlan } from './labels'
@@ -12,11 +13,6 @@ import { renderComponent, renderLine } from './sheet'
 import { n, rectEl, textEl, textWidth } from './svg'
 import { renderRevisionTable, renderTitleBlock } from './titleblock'
 
-/**
- * Below this scale the drawing becomes hard to read: in automatic mode it is split over several sheets.
- * Texts are enlarged to compensate (see textFactor), so a small sheet can take a more shrunk drawing and still be readable at arm's length.
- */
-const MIN_FIT_SCALE: Record<SheetFormat, number> = { A4: 0.3, A3: 0.4, A2: 0.5 }
 const GRID = 5
 const CONTENT_PAD = 10
 
@@ -108,30 +104,20 @@ function annsIntersect(d: Drawing, region: Rect): Drawing['annotations'] {
   })
 }
 
-function floorTo(v: number, step: number): number { return Math.floor(v / step + 1e-9) * step }
-
 export function planExport(doc: FluidDocument, settings: ExportSettings = doc.export): ExportPlan {
   const layout = layoutFor(settings.format, settings.legend)
   const area = layout.drawing
   const d = doc.drawing
+  const { text: textMul, table: tableMul } = exportFactors(settings)
   const fallback = { x: 0, y: 0, w: 100, h: 60 }
   // texts grow when the drawing is shrunk: the margin grows with them so tags at the edge are not cut
-  const fit0 = (() => { const b0 = drawingBounds(d) ?? fallback; return Math.min(area.w / b0.w, area.h / b0.h) })()
-  const b = drawingBounds(d, Math.max(0, 8 * (textFactor(settings.scale > 0 ? settings.scale : Math.min(1, fit0)) * settings.textScale - 1))) ?? fallback
+  const boundsFor = (s: number) => drawingBounds(d, Math.max(0, 8 * (textFactor(s) * textMul - 1))) ?? fallback
+  let b = boundsFor(1)
+  let scale = chooseScale(b, area, settings.size, settings.format)
+  b = boundsFor(scale)
+  scale = chooseScale(b, area, settings.size, settings.format)
   const fit = Math.min(area.w / b.w, area.h / b.h)
-
-  let scale = 1
-  let split = false
-  if (settings.scale > 0) {
-    // fixed scale chosen by the user: the drawing is split over several sheets if it does not fit
-    scale = settings.scale
-    split = fit < scale
-  } else if (settings.mode === 'fit') scale = Math.min(1, floorTo(fit, 0.05))
-  else if (settings.mode === 'split') split = fit < 1
-  else if (fit >= 1) scale = 1
-  else if (fit >= MIN_FIT_SCALE[settings.format]) scale = floorTo(fit, 0.05)
-  else split = true
-  scale = Math.max(0.05, scale)
+  const split = fit < scale
 
   let xCuts: number[], yCuts: number[]
   if (!split) {
@@ -142,12 +128,13 @@ export function planExport(doc: FluidDocument, settings: ExportSettings = doc.ex
     const ext = d.components.map((c) => worldExtent(c))
     const routes = routesOf(d)
     // a cut keeps clear of the parts by the room the "Sheet N" text needs next to its arrow (it grows with the text size)
-    const kk = textFactor(scale) * settings.textScale
+    const kk = textFactor(scale) * textMul
     const padX = 3 + 9 * kk, padY = 3 + 4.6 * kk
     const crossX = (c: number) => routes.reduce((s, r) => s + r.points.slice(1).filter((p, i) => r.points[i].y === p.y && Math.min(r.points[i].x, p.x) < c && Math.max(r.points[i].x, p.x) > c).length, 0)
     const crossY = (c: number) => routes.reduce((s, r) => s + r.points.slice(1).filter((p, i) => r.points[i].x === p.x && Math.min(r.points[i].y, p.y) < c && Math.max(r.points[i].y, p.y) > c).length, 0)
-    xCuts = chooseCuts(b.x, b.x + b.w, area.w, (c) => ext.some((e) => e.minX - 3 < c && e.maxX + 3 > c), crossX, (c) => ext.filter((e) => e.minX - padX < c && e.maxX + padX > c).length + routes.reduce((n_, r) => n_ + new Set(r.points.slice(1).filter((p, i) => r.points[i].x === p.x && Math.abs(p.x - c) < padX).map((p) => p.x)).size, 0))
-    yCuts = chooseCuts(b.y, b.y + b.h, area.h, (c) => ext.some((e) => e.minY - 3 < c && e.maxY + 3 > c), crossY, (c) => ext.filter((e) => e.minY - padY < c && e.maxY + padY > c).length + routes.reduce((n_, r) => n_ + new Set(r.points.slice(1).filter((p, i) => r.points[i].y === p.y && Math.abs(p.y - c) < padY).map((p) => p.y)).size, 0))
+    // a sheet shows area / scale of the drawing
+    xCuts = chooseCuts(b.x, b.x + b.w, area.w / scale, (c) => ext.some((e) => e.minX - 3 < c && e.maxX + 3 > c), crossX, (c) => ext.filter((e) => e.minX - padX < c && e.maxX + padX > c).length + routes.reduce((n_, r) => n_ + new Set(r.points.slice(1).filter((p, i) => r.points[i].x === p.x && Math.abs(p.x - c) < padX).map((p) => p.x)).size, 0))
+    yCuts = chooseCuts(b.y, b.y + b.h, area.h / scale, (c) => ext.some((e) => e.minY - 3 < c && e.maxY + 3 > c), crossY, (c) => ext.filter((e) => e.minY - padY < c && e.maxY + padY > c).length + routes.reduce((n_, r) => n_ + new Set(r.points.slice(1).filter((p, i) => r.points[i].y === p.y && Math.abs(p.y - c) < padY).map((p) => p.y)).size, 0))
   }
 
   const routes = routesOf(d)
@@ -162,9 +149,9 @@ export function planExport(doc: FluidDocument, settings: ExportSettings = doc.ex
   }
   if (!tiles.length) tiles.push({ col: 0, row: 0, region: { x: xCuts[0], y: yCuts[0], w: xCuts[1] - xCuts[0], h: yCuts[1] - yCuts[0] }, number: 1 })
 
-  const bomPages = settings.bom ? paginateBom(bomItems(d, settings.lang, doc.bom), bomRowsPerPage(layout, settings.tableScale)).length : 0
+  const bomPages = settings.bom ? paginateBom(bomItems(d, settings.lang, doc.bom), bomRowsPerPage(layout, tableMul)).length : 0
   const stRows = settings.states && doc.phases.length ? stateRows(d, doc.phases, settings.lang).length : 0
-  const statesPages = stRows > 0 ? Math.ceil(stRows / bomRowsPerPage(layout, settings.tableScale)) : 0
+  const statesPages = stRows > 0 ? Math.ceil(stRows / bomRowsPerPage(layout, tableMul)) : 0
   return { settings, layout, scale, bounds: b, xCuts, yCuts, tiles, bomPages, statesPages, totalPages: tiles.length + bomPages + statesPages }
 }
 
@@ -294,9 +281,10 @@ function pageShell(plan: ExportPlan, inner: string): string {
 export interface PagePlans { labels: LabelPlan; markers: ContinuationMarker[] }
 
 export function planPageContent(doc: FluidDocument, plan: ExportPlan): PagePlans {
-  const k = textFactor(plan.scale) * plan.settings.textScale
+  const text = exportFactors(plan.settings).text
+  const k = textFactor(plan.scale) * text
   const markers = planMarkers(plan, doc.drawing, plan.settings.lang, k)
-  return { markers, labels: planLabels(doc.drawing, plan.scale, plan.settings.textScale, labelObstacles(plan, markers)) }
+  return { markers, labels: planLabels(doc.drawing, plan.scale, text, labelObstacles(plan, markers)) }
 }
 
 export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: number, plans?: PagePlans): string {
@@ -306,18 +294,18 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
 
   if (pageNumber > plan.tiles.length + plan.bomPages) {
     const all = stateRows(doc.drawing, doc.phases, lang)
-    const per = bomRowsPerPage(layout, settings.tableScale)
+    const per = bomRowsPerPage(layout, exportFactors(settings).table)
     const idx = pageNumber - plan.tiles.length - plan.bomPages - 1
     return pageShell(plan,
-      frame + renderStatesPage(all.slice(idx * per, (idx + 1) * per), doc.phases, layout, lang, settings.tableScale) +
+      frame + renderStatesPage(all.slice(idx * per, (idx + 1) * per), doc.phases, layout, lang, exportFactors(settings).table) +
       renderRevisionTable(doc, layout, lang) +
       renderTitleBlock(doc, layout, lang, { index: pageNumber, total: plan.totalPages, scaleText: '—', subtitle: t('stateTable', lang) }))
   }
   if (pageNumber > plan.tiles.length) {
-    const pages = paginateBom(bomItems(doc.drawing, lang, doc.bom), bomRowsPerPage(layout, settings.tableScale))
+    const pages = paginateBom(bomItems(doc.drawing, lang, doc.bom), bomRowsPerPage(layout, exportFactors(settings).table))
     const idx = pageNumber - plan.tiles.length - 1
     return pageShell(plan,
-      frame + renderBomPage(pages[idx] ?? [], doc, layout, lang, settings.tableScale) +
+      frame + renderBomPage(pages[idx] ?? [], doc, layout, lang, exportFactors(settings).table) +
       renderRevisionTable(doc, layout, lang) +
       renderTitleBlock(doc, layout, lang, { index: pageNumber, total: plan.totalPages, scaleText: '—', subtitle: t('bom', lang) }))
   }
@@ -354,7 +342,7 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
 
   return pageShell(plan,
     content +
-    (settings.legend ? renderLegend(usedIn(comps, lines), layout, lang, settings.color, settings.tableScale) : '') + frame +
+    (settings.legend ? renderLegend(usedIn(comps, lines), layout, lang, settings.color, exportFactors(settings).table) : '') + frame +
     renderRevisionTable(doc, layout, lang) +
     renderTitleBlock(doc, layout, lang, { index: pageNumber, total: plan.totalPages, scaleText: scaleText(s) }))
 }

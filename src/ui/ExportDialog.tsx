@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, FileImage, FileText, FileType, Loader2, Plus, Trash2, X } from 'lucide-react'
-import { EXPORT_LIMITS, PAGE, describePlan, planExport, renderAllPages, renderPhasePages, type ExportMode, type Lang, type SheetFormat } from '../core'
+import { PAGE, describePlan, planExport, renderAllPages, renderPhasePages, type ExportSize, type Lang, type SheetFormat } from '../core'
 import { svgPagesToPdf, svgToPng } from '../platform/exporters'
 import { saveFiles, type OutFile } from '../platform/files'
 import { N_, t, tp, uiLanguage } from '../i18n'
@@ -10,27 +10,11 @@ import type { Notify } from './projectActions'
 
 const slug = (s: string) => s.trim().replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '') || t('project')
 
-const MODES: { id: ExportMode; label: string; hint: string }[] = [
-  { id: 'auto', label: N_('Automatic'), hint: N_('Scale 1:1 if it fits, otherwise shrinks a little and, if needed, splits over several sheets.') },
-  { id: 'fit', label: N_('One sheet'), hint: N_('Shrinks everything to fit on one sheet.') },
-  { id: 'split', label: N_('Several sheets 1:1'), hint: N_('Keeps the 1:1 scale and splits over several sheets with continuation arrows.') },
+const SIZES: { id: ExportSize; label: string; hint: string }[] = [
+  { id: 'small', label: N_('Small'), hint: N_('Compact: as few sheets as possible, smaller but still legible texts.') },
+  { id: 'medium', label: N_('Normal'), hint: N_('Balanced between sheet count and size. Recommended.') },
+  { id: 'large', label: N_('Large'), hint: N_('Big diagram and texts, easy to read at a glance; more sheets if needed.') },
 ]
-
-const pct = (v: number) => `${Math.round(v * 100)}%`
-
-/** Slider with its value; `disabled` greys it out (e.g. scale on automatic). */
-function SizeSlider({ label, hint, value, limits, onChange, disabled }: {
-  label: string; hint?: string; value: number; limits: { min: number; max: number; step: number }; onChange: (v: number) => void; disabled?: boolean
-}) {
-  return (
-    <div className={'size-slider' + (disabled ? ' off' : '')}>
-      <div className="size-slider-head"><span>{label}</span><b>{pct(value)}</b></div>
-      <input type="range" aria-label={label} min={limits.min} max={limits.max} step={limits.step} value={Math.min(limits.max, Math.max(limits.min, value))}
-        disabled={disabled} onChange={(e) => onChange(Number(e.target.value))} />
-      {hint && <small>{hint}</small>}
-    </div>
-  )
-}
 
 /** `design`: the drawing (diagram, bill of materials, states table); `phases`: the operating phases document. */
 export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: () => void; notify: Notify; kind?: 'design' | 'phases' }) {
@@ -111,42 +95,22 @@ export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: ()
                   {(['A4', 'A3', 'A2'] as const).map((f) => <option key={f} value={f}>{f} ({fmtDims(f)})</option>)}
                 </select>
               </Field>
-              {!phasesDoc && <Field label={t('Layout')}>
+              <Field label={t('Diagram size')}>
                 <div className="radios">
-                  {MODES.map((m) => (
-                    <label key={m.id} className={'radio' + (ex.mode === m.id ? ' on' : '')}>
-                      <input type="radio" name="mode" checked={ex.mode === m.id} onChange={() => setEx({ mode: m.id })} />
+                  {SIZES.map((m) => (
+                    <label key={m.id} className={'radio' + (ex.size === m.id ? ' on' : '')}>
+                      <input type="radio" name="size" checked={ex.size === m.id} onChange={() => setEx({ size: m.id })} />
                       <span><b>{t(m.label)}</b><small>{t(m.hint)}</small></span>
                     </label>
                   ))}
                 </div>
-              </Field>}
+              </Field>
               <div className="checks">
                 <label><input type="checkbox" checked={ex.color} onChange={(e) => setEx({ color: e.target.checked })} />{phasesDoc ? t('In color (green and red states; otherwise black and white)') : t('Colored lines (otherwise black and white)')}</label>
                 {!phasesDoc && <><label><input type="checkbox" checked={ex.legend} onChange={(e) => setEx({ legend: e.target.checked })} />{t('Legend')}</label>
                 <label><input type="checkbox" checked={ex.bom} onChange={(e) => setEx({ bom: e.target.checked })} />{t('Bill of materials')}</label>
                 {doc.phases.length > 0 && <label><input type="checkbox" checked={ex.states} onChange={(e) => setEx({ states: e.target.checked })} />{t('Valve states table per phase')}</label>}</>}
               </div>
-            </Section>
-
-            <Section title={t('Sizes')} action={
-              <button className="link-btn" onClick={() => setEx({ scale: 0, textScale: 1, tableScale: 1 })}
-                disabled={ex.scale === 0 && ex.textScale === 1 && ex.tableScale === 1}>{t('Reset')}</button>
-            }>
-              {!phasesDoc && <>
-                <div className="checks">
-                  <label><input type="checkbox" checked={ex.scale === 0}
-                    onChange={(e) => setEx({ scale: e.target.checked ? 0 : Math.min(EXPORT_LIMITS.scale.max, Math.max(EXPORT_LIMITS.scale.min, Math.round(plan.scale / EXPORT_LIMITS.scale.step) * EXPORT_LIMITS.scale.step)) })} />
-                    {t('Diagram size: automatic')}</label>
-                </div>
-                <SizeSlider label={t('Diagram size on the sheet')} value={ex.scale === 0 ? plan.scale : ex.scale} limits={EXPORT_LIMITS.scale}
-                  disabled={ex.scale === 0} onChange={(v) => setEx({ scale: v })}
-                  hint={ex.scale === 0 ? t('Automatic: the layout above decides.') : t('Fixed scale; if the diagram does not fit it is split over several sheets.')} />
-              </>}
-              <SizeSlider label={t('Texts on the diagram')} value={ex.textScale} limits={EXPORT_LIMITS.textScale} onChange={(v) => setEx({ textScale: v })}
-                hint={t('Tags, pipe labels and the names inside the symbols. If they do not fit, they shrink by themselves so nothing overlaps.')} />
-              {!phasesDoc && <SizeSlider label={t('Legend and tables')} value={ex.tableScale} limits={EXPORT_LIMITS.tableScale} onChange={(v) => setEx({ tableScale: v })}
-                hint={t('Legend, bill of materials and valve states.')} />}
             </Section>
 
             <Section title={t('Title block')}>

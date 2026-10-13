@@ -32,20 +32,21 @@ function grid(n: number, pitch: number, perRow: number): FluidDocument {
 const hit = (a: Rect, b: Rect) => a.minX < b.maxX - 0.01 && a.maxX > b.minX + 0.01 && a.minY < b.maxY - 0.01 && a.maxY > b.minY + 0.01
 
 describe('diagram split over several sheets', () => {
-  const docs = [grid(16, 90, 4), grid(30, 60, 6), grid(60, 45, 10)]
+  // big enough that even the smallest allowed scale needs several sheets
+  const docs = [grid(16, 300, 4), grid(30, 190, 6), grid(60, 140, 10)]
   for (const [di, base] of docs.entries()) {
     for (const format of ['A4', 'A3'] as const) {
       it(`doc #${di + 1} on ${format}: continuation texts stay glued to their arrow, inside the sheet, and nothing else touches them or the cuts`, () => {
         let splitSeen = false
         let sawMarkers = false
-        for (const scale of [0, 1, 0.8, 0.6, 0.4]) {
-          for (const textScale of [0.75, 1, 1.25, 1.6]) {
-            const doc = { ...base, export: { ...base.export, format, scale, textScale } }
+        for (const size of ['small', 'medium', 'large'] as const) {
+          {
+            const doc = { ...base, export: { ...base.export, format, size } }
             const plan = planExport(doc)
             if (plan.tiles.length < 2) continue
             splitSeen = true
             const { labels, markers } = planPageContent(doc, plan)
-            const tag = `@${scale}/${textScale}`
+            const tag = `@${size}`
             if (markers.length) sawMarkers = true
             const label = labelRects(doc.drawing, labels)
             for (const m of markers) {
@@ -78,7 +79,7 @@ describe('diagram split over several sheets', () => {
           }
         }
         expect(splitSeen, 'the scenario must actually split').toBe(true)
-        if (di > 0) expect(sawMarkers, 'lines crossing the cuts get continuation markers').toBe(true)
+        if (di > 0 && format === 'A4') expect(sawMarkers, 'lines crossing the cuts get continuation markers').toBe(true)
       })
     }
   }

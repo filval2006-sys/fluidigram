@@ -82,33 +82,20 @@ const DrawingSchema = z.object({
 })
 export type Drawing = z.infer<typeof DrawingSchema>
 
-const ExportModeSchema = z.enum(['auto', 'fit', 'split'])
-export type ExportMode = z.infer<typeof ExportModeSchema>
+const ExportSizeSchema = z.enum(['small', 'medium', 'large'])
+export type ExportSize = z.infer<typeof ExportSizeSchema>
 
 const ExportSettingsSchema = z.object({
   format: SheetFormatSchema.default('A3'),
-  /** auto: 1:1 if it fits, then shrinks down to a readable limit, otherwise splits over several sheets */
-  mode: ExportModeSchema.default('auto'),
+  /** how big the diagram and its texts are on paper; the layout (scale, sheets, text sizes) is decided from it */
+  size: ExportSizeSchema.default('medium'),
   lang: z.enum(['it', 'en']).default('it'),
   color: z.boolean().default(true),
   legend: z.boolean().default(true),
   bom: z.boolean().default(true),
   /** valve states table per phase (if there are phases) */
   states: z.boolean().default(true),
-  /** fixed scale of the drawing on the sheet (0 = automatic, follows `mode`) */
-  scale: z.number().min(0).max(1).default(0),
-  /** multiplier of the texts on the drawing (tags, pipe labels, inner labels) */
-  textScale: z.number().min(0.5).max(2).default(1),
-  /** multiplier of the legend and the tables (bill of materials, valve states) */
-  tableScale: z.number().min(0.5).max(2).default(1),
 })
-
-/** Slider limits: common sense bounds so that texts stay legible on paper and tables keep fitting. */
-export const EXPORT_LIMITS = {
-  scale: { min: 0.15, max: 1, step: 0.05 },
-  textScale: { min: 0.75, max: 1.6, step: 0.05 },
-  tableScale: { min: 0.8, max: 1.4, step: 0.05 },
-} as const
 export type ExportSettings = z.infer<typeof ExportSettingsSchema>
 
 const RevisionSchema = z.object({

@@ -8,6 +8,7 @@ import { applyOverride, autoBomRow } from './bom'
 import { drawingBounds, scaleText } from './export'
 import { layoutFor, type PageLayout, type Rect } from './layout'
 import { planLabels } from './labels'
+import { exportFactors } from './sizing'
 import { renderComponent, renderLine } from './sheet'
 import { INK, lineEl, n, rectEl, textEl } from './svg'
 import { renderRevisionTable, renderTitleBlock } from './titleblock'
@@ -211,7 +212,7 @@ export function renderPhasePages(doc: FluidDocument): string[] {
   const table: Rect = { x: layout.frame.x + layout.frame.w - tw, y: layout.frame.y, w: tw, h: bodyH }
   const area: Rect = { x: layout.frame.x, y: layout.frame.y + TIMELINE_H, w: layout.frame.w - tw, h: bodyH - TIMELINE_H - LEGEND_H }
   const scale = bounds ? Math.min(MAX_SCALE, area.w / bounds.w, area.h / bounds.h) : 1
-  const labels = planLabels(d, scale, doc.export.textScale)
+  const labels = planLabels(d, scale, exportFactors(doc.export).text)
   const accent = color ? NAVY : INK
   const chrome = (index: number, subtitle: string, sc: string) =>
     renderRevisionTable(doc, layout, lang) + renderTitleBlock(doc, layout, lang, { index, total, scaleText: sc, subtitle })

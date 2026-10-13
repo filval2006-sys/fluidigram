@@ -2,7 +2,6 @@ import { produce } from 'immer'
 import { describe, expect, it } from 'vitest'
 import { addComponent, connectPorts } from '../edit'
 import { FLUIDS } from '../fluids'
-import { EXPORT_LIMITS } from '../types'
 import { SAMPLE_DOCUMENT } from '../sample'
 import { componentPorts } from '../scene'
 import { ALL_SYMBOLS } from '../symbols/library'
@@ -11,6 +10,7 @@ import { bomItems, bomRowsPerPage, paginateBom, renderBomPage } from './bom'
 import { planExport, renderAllPages } from './export'
 import { layoutFor } from './layout'
 import { renderLegend, usedIn } from './legend'
+import { exportFactors } from './sizing'
 import { textWidth } from './svg'
 
 const FLUID_IDS = Object.keys(FLUIDS) as FluidId[]
@@ -34,39 +34,27 @@ function bigDoc(n: number): FluidDocument {
 
 const nums = (s: string, attr: string): number[] => [...s.matchAll(new RegExp(`\\b${attr}="(-?[\\d.]+)"`, 'g'))].map((m) => Number(m[1]))
 
-describe('export size sliders', () => {
-  const extremes = [
-    { scale: EXPORT_LIMITS.scale.min, textScale: EXPORT_LIMITS.textScale.max, tableScale: EXPORT_LIMITS.tableScale.max },
-    { scale: 1, textScale: EXPORT_LIMITS.textScale.min, tableScale: EXPORT_LIMITS.tableScale.min },
-    { scale: 0, textScale: EXPORT_LIMITS.textScale.max, tableScale: EXPORT_LIMITS.tableScale.max },
-  ]
+describe('export sizes', () => {
   for (const count of [3, 40, 150]) {
-    for (const [i, sizes] of extremes.entries()) {
-      it(`${count} parts, slider extremes #${i + 1}: nothing leaves the sheet and every table page ends above the title block`, () => {
+    for (const size of ['small', 'medium', 'large'] as const) {
+      it(`${count} parts, size ${size}: nothing leaves the sheet and every table page ends above the title block`, () => {
         const base = bigDoc(count)
-        const doc = { ...base, export: { ...base.export, format: 'A4' as const, ...sizes } }
+        const doc = { ...base, export: { ...base.export, format: 'A4' as const, size } }
         const plan = planExport(doc)
-        if (sizes.scale > 0) expect(plan.scale).toBe(sizes.scale)
         for (const p of renderAllPages(doc, plan)) expect(p).not.toMatch(/NaN|undefined|Infinity/)
         const layout = layoutFor('A4', true)
-        const legend = renderLegend(usedIn(doc.drawing.components, doc.drawing.lines), layout, 'it', true, sizes.tableScale)
+        const table = exportFactors(doc.export).table
+        const legend = renderLegend(usedIn(doc.drawing.components, doc.drawing.lines), layout, 'it', true, table)
         const flat = legend.replace(/<g transform="translate[\s\S]*?<\/g>/g, '')
         const L = layout.legend!
         for (const y of [...nums(flat, 'y'), ...nums(flat, 'y1'), ...nums(flat, 'y2')]) expect(y).toBeLessThanOrEqual(L.y + L.h + 0.01)
-        for (const page of paginateBom(bomItems(doc.drawing, 'it', doc.bom), bomRowsPerPage(layout, sizes.tableScale))) {
-          const table = renderBomPage(page, doc, layout, 'it', sizes.tableScale)
-          for (const y of [...nums(table, 'y'), ...nums(table, 'y1'), ...nums(table, 'y2')]) expect(y).toBeLessThanOrEqual(layout.titleBlock.y)
+        for (const page of paginateBom(bomItems(doc.drawing, 'it', doc.bom), bomRowsPerPage(layout, table))) {
+          const t = renderBomPage(page, doc, layout, 'it', table)
+          for (const y of [...nums(t, 'y'), ...nums(t, 'y1'), ...nums(t, 'y2')]) expect(y).toBeLessThanOrEqual(layout.titleBlock.y)
         }
       })
     }
   }
-
-  it('a fixed scale larger than the fit splits the diagram, a smaller one keeps one sheet', () => {
-    const base = bigDoc(40)
-    const at = (scale: number) => planExport({ ...base, export: { ...base.export, format: 'A4' as const, scale } })
-    expect(at(1).tiles.length).toBeGreaterThan(1)
-    expect(at(EXPORT_LIMITS.scale.min).tiles.length).toBe(1)
-  })
 })
 
 describe('export with any number of parts', () => {
