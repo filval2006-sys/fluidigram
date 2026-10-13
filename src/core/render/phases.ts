@@ -211,7 +211,7 @@ export function renderPhasePages(doc: FluidDocument): string[] {
   const table: Rect = { x: layout.frame.x + layout.frame.w - tw, y: layout.frame.y, w: tw, h: bodyH }
   const area: Rect = { x: layout.frame.x, y: layout.frame.y + TIMELINE_H, w: layout.frame.w - tw, h: bodyH - TIMELINE_H - LEGEND_H }
   const scale = bounds ? Math.min(MAX_SCALE, area.w / bounds.w, area.h / bounds.h) : 1
-  const labels = planLabels(d, scale)
+  const labels = planLabels(d, scale, doc.export.textScale)
   const accent = color ? NAVY : INK
   const chrome = (index: number, subtitle: string, sc: string) =>
     renderRevisionTable(doc, layout, lang) + renderTitleBlock(doc, layout, lang, { index, total, scaleText: sc, subtitle })
@@ -238,7 +238,7 @@ export function renderPhasePages(doc: FluidDocument): string[] {
       const svg = renderLine(d, l, color, labels.lines.get(l.id) ?? null)
       return live.has(l.id) ? svg : `<g opacity="0.3">${svg}</g>`
     }).join('')
-    const comps = d.components.map((c) => renderComponent(c, { label: labels.tags.get(c.id), state: stateOf(c, phase.id), textScale: textFactor(scale) })).join('')
+    const comps = d.components.map((c) => renderComponent(c, { label: labels.tags.get(c.id), state: stateOf(c, phase.id), textScale: textFactor(scale) * doc.export.textScale })).join('')
     const marks = phaseValves(d).map((c) => { const e = worldExtent(c); return badge(e.maxX + 0.6, e.minY - 0.6, stateOf(c, phase.id), lang, color) }).join('')
     const body = d.annotations.filter((a) => a.kind === 'box').map((a) => renderAnnotationBox(a, lang)).join('') + lines + comps +
       d.annotations.filter((a) => a.kind === 'text').map((a) => renderAnnotationText(a, lang)).join('') + marks

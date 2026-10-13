@@ -17,7 +17,7 @@ export const SAMPLE_DOCUMENT: FluidDocument = {
   },
   revisions: [{ rev: 'A', date: '2026-10-01', description: { it: 'Prima emissione', en: 'First issue' }, author: 'F.V.' }],
   phases: [],
-  export: { format: 'A3', mode: 'auto', lang: 'it', color: true, legend: true, bom: true, states: true },
+  export: { format: 'A3', mode: 'auto', lang: 'it', color: true, legend: true, bom: true, states: true, scale: 0, textScale: 1, tableScale: 1 },
   drawing: {
     annotations: [],
     components: [

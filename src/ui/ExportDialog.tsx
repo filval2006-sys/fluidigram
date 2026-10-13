@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, FileImage, FileText, FileType, Loader2, Plus, Trash2, X } from 'lucide-react'
-import { PAGE, describePlan, planExport, renderAllPages, renderPhasePages, type ExportMode, type Lang, type SheetFormat } from '../core'
+import { EXPORT_LIMITS, PAGE, describePlan, planExport, renderAllPages, renderPhasePages, type ExportMode, type Lang, type SheetFormat } from '../core'
 import { svgPagesToPdf, svgToPng } from '../platform/exporters'
 import { saveFiles, type OutFile } from '../platform/files'
 import { N_, t, tp, uiLanguage } from '../i18n'
@@ -15,6 +15,22 @@ const MODES: { id: ExportMode; label: string; hint: string }[] = [
   { id: 'fit', label: N_('One sheet'), hint: N_('Shrinks everything to fit on one sheet.') },
   { id: 'split', label: N_('Several sheets 1:1'), hint: N_('Keeps the 1:1 scale and splits over several sheets with continuation arrows.') },
 ]
+
+const pct = (v: number) => `${Math.round(v * 100)}%`
+
+/** Slider with its value; `disabled` greys it out (e.g. scale on automatic). */
+function SizeSlider({ label, hint, value, limits, onChange, disabled }: {
+  label: string; hint?: string; value: number; limits: { min: number; max: number; step: number }; onChange: (v: number) => void; disabled?: boolean
+}) {
+  return (
+    <div className={'size-slider' + (disabled ? ' off' : '')}>
+      <div className="size-slider-head"><span>{label}</span><b>{pct(value)}</b></div>
+      <input type="range" aria-label={label} min={limits.min} max={limits.max} step={limits.step} value={Math.min(limits.max, Math.max(limits.min, value))}
+        disabled={disabled} onChange={(e) => onChange(Number(e.target.value))} />
+      {hint && <small>{hint}</small>}
+    </div>
+  )
+}
 
 /** `design`: the drawing (diagram, bill of materials, states table); `phases`: the operating phases document. */
 export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: () => void; notify: Notify; kind?: 'design' | 'phases' }) {
@@ -111,6 +127,26 @@ export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: ()
                 <label><input type="checkbox" checked={ex.bom} onChange={(e) => setEx({ bom: e.target.checked })} />{t('Bill of materials')}</label>
                 {doc.phases.length > 0 && <label><input type="checkbox" checked={ex.states} onChange={(e) => setEx({ states: e.target.checked })} />{t('Valve states table per phase')}</label>}</>}
               </div>
+            </Section>
+
+            <Section title={t('Sizes')} action={
+              <button className="link-btn" onClick={() => setEx({ scale: 0, textScale: 1, tableScale: 1 })}
+                disabled={ex.scale === 0 && ex.textScale === 1 && ex.tableScale === 1}>{t('Reset')}</button>
+            }>
+              {!phasesDoc && <>
+                <div className="checks">
+                  <label><input type="checkbox" checked={ex.scale === 0}
+                    onChange={(e) => setEx({ scale: e.target.checked ? 0 : Math.min(EXPORT_LIMITS.scale.max, Math.max(EXPORT_LIMITS.scale.min, Math.round(plan.scale / EXPORT_LIMITS.scale.step) * EXPORT_LIMITS.scale.step)) })} />
+                    {t('Diagram size: automatic')}</label>
+                </div>
+                <SizeSlider label={t('Diagram size on the sheet')} value={ex.scale === 0 ? plan.scale : ex.scale} limits={EXPORT_LIMITS.scale}
+                  disabled={ex.scale === 0} onChange={(v) => setEx({ scale: v })}
+                  hint={ex.scale === 0 ? t('Automatic: the layout above decides.') : t('Fixed scale; if the diagram does not fit it is split over several sheets.')} />
+              </>}
+              <SizeSlider label={t('Texts on the diagram')} value={ex.textScale} limits={EXPORT_LIMITS.textScale} onChange={(v) => setEx({ textScale: v })}
+                hint={t('Tags, pipe labels and the names inside the symbols.')} />
+              {!phasesDoc && <SizeSlider label={t('Legend and tables')} value={ex.tableScale} limits={EXPORT_LIMITS.tableScale} onChange={(v) => setEx({ tableScale: v })}
+                hint={t('Legend, bill of materials and valve states.')} />}
             </Section>
 
             <Section title={t('Title block')}>

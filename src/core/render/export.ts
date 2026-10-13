@@ -117,12 +117,16 @@ export function planExport(doc: FluidDocument, settings: ExportSettings = doc.ex
   const fallback = { x: 0, y: 0, w: 100, h: 60 }
   // texts grow when the drawing is shrunk: the margin grows with them so tags at the edge are not cut
   const fit0 = (() => { const b0 = drawingBounds(d) ?? fallback; return Math.min(area.w / b0.w, area.h / b0.h) })()
-  const b = drawingBounds(d, 8 * (textFactor(Math.min(1, fit0)) - 1)) ?? fallback
+  const b = drawingBounds(d, Math.max(0, 8 * (textFactor(settings.scale > 0 ? settings.scale : Math.min(1, fit0)) * settings.textScale - 1))) ?? fallback
   const fit = Math.min(area.w / b.w, area.h / b.h)
 
   let scale = 1
   let split = false
-  if (settings.mode === 'fit') scale = Math.min(1, floorTo(fit, 0.05))
+  if (settings.scale > 0) {
+    // fixed scale chosen by the user: the drawing is split over several sheets if it does not fit
+    scale = settings.scale
+    split = fit < scale
+  } else if (settings.mode === 'fit') scale = Math.min(1, floorTo(fit, 0.05))
   else if (settings.mode === 'split') split = fit < 1
   else if (fit >= 1) scale = 1
   else if (fit >= MIN_FIT_SCALE[settings.format]) scale = floorTo(fit, 0.05)
@@ -156,9 +160,9 @@ export function planExport(doc: FluidDocument, settings: ExportSettings = doc.ex
   }
   if (!tiles.length) tiles.push({ col: 0, row: 0, region: { x: xCuts[0], y: yCuts[0], w: xCuts[1] - xCuts[0], h: yCuts[1] - yCuts[0] }, number: 1 })
 
-  const bomPages = settings.bom ? paginateBom(bomItems(d, settings.lang, doc.bom), bomRowsPerPage(layout)).length : 0
+  const bomPages = settings.bom ? paginateBom(bomItems(d, settings.lang, doc.bom), bomRowsPerPage(layout, settings.tableScale)).length : 0
   const stRows = settings.states && doc.phases.length ? stateRows(d, doc.phases, settings.lang).length : 0
-  const statesPages = stRows > 0 ? Math.ceil(stRows / bomRowsPerPage(layout)) : 0
+  const statesPages = stRows > 0 ? Math.ceil(stRows / bomRowsPerPage(layout, settings.tableScale)) : 0
   return { settings, layout, scale, bounds: b, xCuts, yCuts, tiles, bomPages, statesPages, totalPages: tiles.length + bomPages + statesPages }
 }
 
@@ -227,18 +231,18 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
 
   if (pageNumber > plan.tiles.length + plan.bomPages) {
     const all = stateRows(doc.drawing, doc.phases, lang)
-    const per = bomRowsPerPage(layout)
+    const per = bomRowsPerPage(layout, settings.tableScale)
     const idx = pageNumber - plan.tiles.length - plan.bomPages - 1
     return pageShell(plan,
-      frame + renderStatesPage(all.slice(idx * per, (idx + 1) * per), doc.phases, layout, lang) +
+      frame + renderStatesPage(all.slice(idx * per, (idx + 1) * per), doc.phases, layout, lang, settings.tableScale) +
       renderRevisionTable(doc, layout, lang) +
       renderTitleBlock(doc, layout, lang, { index: pageNumber, total: plan.totalPages, scaleText: '—', subtitle: t('stateTable', lang) }))
   }
   if (pageNumber > plan.tiles.length) {
-    const pages = paginateBom(bomItems(doc.drawing, lang, doc.bom), bomRowsPerPage(layout))
+    const pages = paginateBom(bomItems(doc.drawing, lang, doc.bom), bomRowsPerPage(layout, settings.tableScale))
     const idx = pageNumber - plan.tiles.length - 1
     return pageShell(plan,
-      frame + renderBomPage(pages[idx] ?? [], doc, layout, lang) +
+      frame + renderBomPage(pages[idx] ?? [], doc, layout, lang, settings.tableScale) +
       renderRevisionTable(doc, layout, lang) +
       renderTitleBlock(doc, layout, lang, { index: pageNumber, total: plan.totalPages, scaleText: '—', subtitle: t('bom', lang) }))
   }
@@ -257,14 +261,14 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
     return r.slice(1).some((p, i) => segmentTouches(r[i], p, region))
   })
   // labels are decided on the whole drawing, so they do not change from one sheet to another
-  const lp = labels ?? planLabels(d, s)
+  const lp = labels ?? planLabels(d, s, settings.textScale)
   const clipId = `clip-${pageNumber}`
   const anns = annsIntersect(d, region)
   let body =
     anns.filter((a) => a.kind === 'box').map((a) => renderAnnotationBox(a, lang)).join('') +
-    lines.map((l) => renderLine(d, l, settings.color, lp.lines.get(l.id) ?? null)).join('') + comps.map((c) => renderComponent(c, { label: lp.tags.get(c.id), textScale: textFactor(s) })).join('') +
+    lines.map((l) => renderLine(d, l, settings.color, lp.lines.get(l.id) ?? null)).join('') + comps.map((c) => renderComponent(c, { label: lp.tags.get(c.id), textScale: textFactor(s) * settings.textScale })).join('') +
     anns.filter((a) => a.kind === 'text').map((a) => renderAnnotationText(a, lang)).join('')
-  if (plan.tiles.length > 1) body += continuationMarkers(plan, tile, d, lang, textFactor(s))
+  if (plan.tiles.length > 1) body += continuationMarkers(plan, tile, d, lang, textFactor(s) * settings.textScale)
   if (!d.components.length && !d.annotations.length) body = textEl(region.x + region.w / 2, region.y + region.h / 2, t('empty', lang), { size: 5, color: '#999' })
 
   const content =
@@ -273,12 +277,12 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
 
   return pageShell(plan,
     content +
-    (settings.legend ? renderLegend(usedIn(comps, lines), layout, lang, settings.color) : '') + frame +
+    (settings.legend ? renderLegend(usedIn(comps, lines), layout, lang, settings.color, settings.tableScale) : '') + frame +
     renderRevisionTable(doc, layout, lang) +
     renderTitleBlock(doc, layout, lang, { index: pageNumber, total: plan.totalPages, scaleText: scaleText(s) }))
 }
 
 export function renderAllPages(doc: FluidDocument, plan: ExportPlan): string[] {
-  const labels = planLabels(doc.drawing, plan.scale)
+  const labels = planLabels(doc.drawing, plan.scale, plan.settings.textScale)
   return Array.from({ length: plan.totalPages }, (_, i) => renderPageSvg(doc, plan, i + 1, labels))
 }

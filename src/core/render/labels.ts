@@ -40,8 +40,8 @@ function rectOf(p: LabelPlace, w: number, h: number): Rect {
  * Chooses where to write tags and line data so they do not touch lines, components, notes or other labels.
  * Component tags first (near the part), then line labels (on the segment, to the side).
  */
-export function planLabels(d: Drawing, scale = 1): LabelPlan {
-  const k0 = textFactor(scale)
+export function planLabels(d: Drawing, scale = 1, textScale = 1): LabelPlan {
+  const k0 = textFactor(scale) * textScale
   const tagSize = TAG_SIZE * k0, lineSize = LINE_LABEL_SIZE * k0
   const tags = new Map<string, LabelPlace>()
   const lines = new Map<string, LabelPlace>()

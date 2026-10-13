@@ -16,8 +16,8 @@ export interface BomRow {
   note: string
 }
 
-const ROW_H = 8.5
-const HEAD_H = 9
+const ROW_H0 = 8.5
+const HEAD_H0 = 9
 /** Distance of the table top from the top of the drawing area (the title sits above it). */
 const TABLE_TOP = 16
 const BOTTOM_GAP = 3
@@ -180,12 +180,14 @@ export function paginateBom(items: BomItem[], perPage: number): BomItem[][] {
   return pages
 }
 
-export function bomRowsPerPage(layout: PageLayout): number {
-  return Math.max(1, Math.floor((layout.drawing.h - TABLE_TOP - HEAD_H - BOTTOM_GAP) / ROW_H))
+/** `k`: size multiplier of the table (export setting). */
+export function bomRowsPerPage(layout: PageLayout, k = 1): number {
+  return Math.max(1, Math.floor((layout.drawing.h - TABLE_TOP - HEAD_H0 * k - BOTTOM_GAP) / (ROW_H0 * k)))
 }
 
 /** A page of the bill of materials (rows already cut for the page). */
-export function renderBomPage(items: BomItem[], doc: FluidDocument, layout: PageLayout, lang: Lang): string {
+export function renderBomPage(items: BomItem[], doc: FluidDocument, layout: PageLayout, lang: Lang, k = 1): string {
+  const ROW_H = ROW_H0 * k, HEAD_H = HEAD_H0 * k
   const area = { ...layout.drawing, w: layout.frame.w }
   // optional columns appear only if some row uses them: the others would be empty boxes
   const all = bomItems(doc.drawing, lang, doc.bom).flatMap((it) => (it.kind === 'row' ? [it.row] : []))
@@ -209,23 +211,23 @@ export function renderBomPage(items: BomItem[], doc: FluidDocument, layout: Page
   const grid = renderGrid({ x: x0, top: area.y + TABLE_TOP, widths, headH: HEAD_H, rowH: ROW_H, rows: items.length ? items.map((it) => ({ span: it.kind === 'group' })) : [{}] })
   s += grid.svg
   const top = area.y + TABLE_TOP
-  cols.forEach((c, j) => { s += textEl(grid.colX[j] + GRID_PAD, top + HEAD_H / 2, fitText(c.label, widths[j] - 2 * GRID_PAD, 2.8, true), { size: 2.8, anchor: 'start', bold: true, color: '#333' }) })
+  cols.forEach((c, j) => { s += textEl(grid.colX[j] + GRID_PAD, top + HEAD_H / 2, fitText(c.label, widths[j] - 2 * GRID_PAD, 2.8 * k, true), { size: 2.8 * k, anchor: 'start', bold: true, color: '#333' }) })
   items.forEach((it, i) => {
     const y = grid.rowY(i) + ROW_H / 2
     if (it.kind === 'group') {
-      s += textEl(x0 + GRID_PAD, y, it.name.toUpperCase(), { size: 3.2, anchor: 'start', bold: true })
-      s += textEl(x0 + tableW - GRID_PAD, y, String(it.count), { size: 3, anchor: 'end', color: '#444' })
+      s += textEl(x0 + GRID_PAD, y, it.name.toUpperCase(), { size: 3.2 * k, anchor: 'start', bold: true })
+      s += textEl(x0 + tableW - GRID_PAD, y, String(it.count), { size: 3 * k, anchor: 'end', color: '#444' })
       return
     }
     cols.forEach((c, j) => {
       const bold = c.key === 'tag'
       // up to two lines per cell: a long hand-written text is not lost
       const maxW = widths[j] - 2 * GRID_PAD
-      const one = wrapToWidth(it.row[c.key], maxW, 3.2, 1, bold)
-      const parts = textWidth(it.row[c.key], 3.2, bold) > maxW ? wrapToWidth(it.row[c.key], maxW, 2.8, 2, bold) : one
-      const size = parts.length > 1 ? 2.8 : 3.2
-      parts.forEach((line, k) => {
-        s += textEl(grid.colX[j] + GRID_PAD, parts.length > 1 ? y + (k - 0.5) * 3.7 : y, line, { size, anchor: 'start', bold })
+      const one = wrapToWidth(it.row[c.key], maxW, 3.2 * k, 1, bold)
+      const parts = textWidth(it.row[c.key], 3.2 * k, bold) > maxW ? wrapToWidth(it.row[c.key], maxW, 2.8 * k, 2, bold) : one
+      const size = (parts.length > 1 ? 2.8 : 3.2) * k
+      parts.forEach((line, li) => {
+        s += textEl(grid.colX[j] + GRID_PAD, parts.length > 1 ? y + (li - 0.5) * 3.7 * k : y, line, { size, anchor: 'start', bold })
       })
     })
   })
@@ -247,7 +249,8 @@ export function stateRows(d: Drawing, phases: Phase[], lang: Lang): StateRow[] {
     .sort((a, b) => a.tag.localeCompare(b.tag, undefined, { numeric: true }))
 }
 
-export function renderStatesPage(rows: StateRow[], phases: Phase[], layout: PageLayout, lang: Lang): string {
+export function renderStatesPage(rows: StateRow[], phases: Phase[], layout: PageLayout, lang: Lang, k = 1): string {
+  const ROW_H = ROW_H0 * k, HEAD_H = HEAD_H0 * k
   const area = { ...layout.drawing, w: layout.frame.w }
   const x0 = area.x + 4
   const tableW = area.w - 8
@@ -265,22 +268,22 @@ export function renderStatesPage(rows: StateRow[], phases: Phase[], layout: Page
   const nFixed = fixed.length
   heads.forEach((h, i) => {
     const maxW = widths[i] - 2 * GRID_PAD
-    const lines = wrapToWidth(h, maxW, 2.7, 2, true)
-    lines.forEach((ln, k) => {
-      const cy = top + HEAD_H / 2 + (k - (lines.length - 1) / 2) * 3.4
+    const lines = wrapToWidth(h, maxW, 2.7 * k, 2, true)
+    lines.forEach((ln, li) => {
+      const cy = top + HEAD_H / 2 + (li - (lines.length - 1) / 2) * 3.4 * k
       s += i < nFixed
-        ? textEl(grid.colX[i] + GRID_PAD, cy, ln, { size: 2.7, anchor: 'start', bold: true, color: '#333' })
-        : textEl(grid.colX[i] + widths[i] / 2, cy, ln, { size: 2.7, bold: true, color: '#333' })
+        ? textEl(grid.colX[i] + GRID_PAD, cy, ln, { size: 2.7 * k, anchor: 'start', bold: true, color: '#333' })
+        : textEl(grid.colX[i] + widths[i] / 2, cy, ln, { size: 2.7 * k, bold: true, color: '#333' })
     })
   })
   rows.forEach((r, i) => {
     const y = grid.rowY(i) + ROW_H / 2
     const vals = showDesc ? [r.tag, r.description, r.type] : [r.tag, r.type]
     vals.forEach((v, j) => {
-      s += textEl(grid.colX[j] + GRID_PAD, y, fitText(v, widths[j] - 2 * GRID_PAD, 3.2, j === 0), { size: 3.2, anchor: 'start', bold: j === 0 })
+      s += textEl(grid.colX[j] + GRID_PAD, y, fitText(v, widths[j] - 2 * GRID_PAD, 3.2 * k, j === 0), { size: 3.2 * k, anchor: 'start', bold: j === 0 })
     })
     r.states.forEach((st, j) => {
-      s += textEl(grid.colX[nFixed + j] + widths[nFixed + j] / 2, y, st === 'closed' ? '●' : st === 'open' ? '○' : '–', { size: 4, color: st ? '#111' : '#999' })
+      s += textEl(grid.colX[nFixed + j] + widths[nFixed + j] / 2, y, st === 'closed' ? '●' : st === 'open' ? '○' : '–', { size: 4 * k, color: st ? '#111' : '#999' })
     })
   })
   return s
