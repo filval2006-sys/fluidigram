@@ -31,7 +31,7 @@ describe('label planning', () => {
   it('enlarges texts when the drawing is shrunk, so they keep their size on paper', () => {
     expect(textFactor(1)).toBe(1)
     expect(textFactor(0.5)).toBe(2)
-    expect(textFactor(0.01)).toBe(3.5)
+    expect(textFactor(0.01)).toBe(2.2)
     const plan = planLabels(d, 0.7)
     const tag = [...plan.tags.values()][0]
     expect(tag.size! * 0.7).toBeCloseTo(TAG_SIZE, 5)

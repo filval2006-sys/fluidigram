@@ -8,11 +8,11 @@ import { endMarkers } from './endpoints'
 import { textWidth } from './svg'
 
 /** Text size of the labels on the drawing at scale 1 (mm). On export it is enlarged so that on paper it stays readable (see textFactor). */
-export const TAG_SIZE = 3.5
-export const LINE_LABEL_SIZE = 2.8
+export const TAG_SIZE = 3
+export const LINE_LABEL_SIZE = 2.4
 
 /** The drawing is shrunk by `scale` on the sheet: texts grow by the inverse so that they keep the same size on paper (up to a limit). */
-export const textFactor = (scale: number): number => Math.min(3.5, Math.max(1, 1 / scale))
+export const textFactor = (scale: number): number => Math.min(2.2, Math.max(1, 1 / scale))
 
 export interface LabelPlace { x: number; y: number; anchor: 'start' | 'middle' | 'end'; /** replaces the default text (used when only the size fits) */ text?: string; /** text size in drawing units; default = TAG_SIZE / LINE_LABEL_SIZE */ size?: number }
 export interface LabelPlan {
@@ -21,6 +21,8 @@ export interface LabelPlan {
   /** position of the fluid/size label; absent if no segment is long enough */
   lines: Map<string, LabelPlace>
 }
+
+const isJunction = (c: { symbol: string }): boolean => c.symbol === 'fitting.junction'
 
 interface Rect { minX: number; minY: number; maxX: number; maxY: number }
 
@@ -67,14 +69,16 @@ export function planLabels(d: Drawing, scale = 1): LabelPlan {
   }
 
   // --- component tags ---
-  comps.forEach(({ c, e }, idx) => {
+  // real components first, small junction dots last (they fit in whatever room is left)
+  const tagOrder = comps.map((x, idx) => ({ ...x, idx })).sort((a, b) => Number(isJunction(a.c)) - Number(isJunction(b.c)))
+  tagOrder.forEach(({ c, e, idx }) => {
     const def = getSymbol(c.symbol)
     if (def.labelInside) return
     const w = textWidth(c.tag, tagSize, true), h = tagSize * 1.2
     const cx = (e.minX + e.maxX) / 2, cy = (e.minY + e.maxY) / 2
     const portSides = new Set<Dir>(componentPorts(c).map((p) => p.dir))
     const cands: { p: LabelPlace; side: Dir }[] = []
-    for (const gap of [1.2 * k0, 3.5 * k0]) {
+    for (const gap of [1.2 * k0, 3.5 * k0, 6.5 * k0, 10 * k0]) {
       const g = gap
       cands.push(
         { side: 'S', p: { x: cx, y: e.maxY + g + h / 2, anchor: 'middle' } },
@@ -95,7 +99,7 @@ export function planLabels(d: Drawing, scale = 1): LabelPlan {
     cands.forEach((cd, i) => {
       const r = rectOf(cd.p, w, h)
       // a side with a port is less suitable: a pipe will arrive (or might arrive) there
-      const score = count(r, idx) * 10 + (portSides.has(cd.side) ? 3 : 0) + i * 0.01
+      const score = count(r, idx) * 10 + (portSides.has(cd.side) ? 3 : 0) + Math.floor(i / 12) * 1.5 + i * 0.01
       if (score < bestScore) { bestScore = score; best = cd }
     })
     best.p.size = tagSize
@@ -132,7 +136,8 @@ export function planLabels(d: Drawing, scale = 1): LabelPlan {
         }
       }
     }
-    if (best) {
+    // a label that would overlap something is left out: better no label than an unreadable one
+    if (best && bestScore < 10) {
       if (label !== variants[0]) best.text = label
       lines.set(l.id, best)
       placed.push(rectOf(best, w, h))
