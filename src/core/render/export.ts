@@ -207,7 +207,7 @@ function continuationMarkers(plan: ExportPlan, tile: PageTile, d: Drawing, lang:
       s += `<polygon points="${tri}" fill="#111"/>`
       const label = `${t('toSheet', lang)} ${target}`
       s += horizontal
-        ? textEl(cp.x - dirSign * 4 * k, cp.y - 2.6 * k, label, { size: 3 * k, anchor: dirSign > 0 ? 'end' : 'start', bold: true })
+        ? textEl(cp.x - dirSign * 4 * k, cp.y + 3 * k, label, { size: 3 * k, anchor: dirSign > 0 ? 'end' : 'start', bold: true })
         : textEl(cp.x + 3 * k, cp.y - dirSign * 4 * k, label, { size: 3 * k, anchor: 'start', bold: true })
     }
   }
