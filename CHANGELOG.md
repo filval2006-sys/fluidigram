@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-13
+
+### Changed
+- **Thicker, size-aware lines.** Pipes were too thin, especially in PDF exports. Lines are now thicker overall and their stroke grows with the pipe size (e.g. Ø2 mm thinner than Ø12 mm), so different pipe sizes can be told apart. Electrical signals stay thin.
+
 ## [0.5.1] - 2026-10-08
 
 ### Changed

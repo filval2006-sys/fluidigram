@@ -1,4 +1,4 @@
-import { FLUIDS } from '../fluids'
+import { FLUIDS, lineWidth } from '../fluids'
 import { componentPorts, lineRoute, placementOf, worldExtent } from '../scene'
 import { getSymbol, resolveSymbol } from '../symbols/library'
 import type { Component, Drawing, Line, ValveState } from '../types'
@@ -77,7 +77,7 @@ export function renderLine(sheet: Drawing, line: Line, color: boolean, label?: L
   if (pts.length < 2) return ''
   const dash = f.dash ? ` stroke-dasharray="${f.dash}"` : ''
   const d = pts.map((p, i) => `${i ? 'L' : 'M'}${n(p.x)},${n(p.y)}`).join(' ')
-  let s = `<path data-line="${line.id}" d="${d}" fill="none" stroke="${color ? f.color : INK}" stroke-width="${f.width}"${dash} stroke-linejoin="round"/>`
+  let s = `<path data-line="${line.id}" d="${d}" fill="none" stroke="${color ? f.color : INK}" stroke-width="${lineWidth(line.fluid, line.size)}"${dash} stroke-linejoin="round"/>`
 
   let pos = label
   if (pos === undefined) {

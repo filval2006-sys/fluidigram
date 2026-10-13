@@ -3,7 +3,7 @@ import { Maximize, Minus, Plus } from 'lucide-react'
 import {
   FLUIDS, addAnnotation, addComponent, annotationBounds, autoRoute, renderAnnotation, branchFromLine, runChecks, traceFlow, componentPorts, connectPorts, deleteItems,
   freePorts, drawingBounds, lineRoute, mirrorComponents, moveSegment, nearestOnRoute, obstaclesOf, pickPortToward,
-  mountInstrument, phaseValves, cycleValveState, planLabels, reconnectLine, renderComponent, renderLine, resolvePort, rotateComponents, routeLine, snap, worldExtent,
+  mountInstrument, lineWidth, phaseValves, cycleValveState, planLabels, reconnectLine, renderComponent, renderLine, resolvePort, rotateComponents, routeLine, snap, worldExtent,
   type Component, type Dir, type Point, type PortRef,
 } from '../core'
 import { useActiveTab, useShownPhase, useStore, type View } from '../state/store'
@@ -577,7 +577,7 @@ export function Canvas() {
           })}
           {(drag?.t === 'connect' || drag?.t === 'reconnect') && drag.hover && <circle cx={drag.hover.p.x} cy={drag.hover.p.y} r={2.2} className="port-target" />}
           {drag?.t === 'connect' && drag.lineHover && <circle cx={drag.lineHover.point.x} cy={drag.lineHover.point.y} r={2.4} className="branch-target" />}
-          {preview && <path d={preview} fill="none" stroke={fluid.color} strokeWidth={fluid.width + 0.15} strokeDasharray="2 1.2" pointerEvents="none" />}
+          {preview && <path d={preview} fill="none" stroke={fluid.color} strokeWidth={lineWidth(draw.fluid, draw.size) + 0.15} strokeDasharray="2 1.2" pointerEvents="none" />}
           {drag?.t === 'marquee' && (
             <rect className="marquee" x={Math.min(drag.start.x, drag.cur.x)} y={Math.min(drag.start.y, drag.cur.y)}
               width={Math.abs(drag.cur.x - drag.start.x)} height={Math.abs(drag.cur.y - drag.start.y)} />

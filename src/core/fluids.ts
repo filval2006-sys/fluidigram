@@ -12,10 +12,36 @@ export interface FluidDef {
 }
 
 export const FLUIDS: Record<FluidId, FluidDef> = {
-  oxidizer: { id: 'oxidizer', name: { it: 'Ossidante (N₂O / LOX)', en: 'Oxidizer (N₂O / LOX)' }, code: 'OX', color: '#1f6fd1', dash: null, width: 0.5 },
-  fuel: { id: 'fuel', name: { it: 'Combustibile', en: 'Fuel' }, code: 'FU', color: '#d9480f', dash: '4 1.2 0.8 1.2', width: 0.5 },
-  pressurant: { id: 'pressurant', name: { it: 'Pressurizzante (N₂ / He)', en: 'Pressurant (N₂ / He)' }, code: 'PR', color: '#2b8a3e', dash: '2.2 1.2', width: 0.5 },
-  vent: { id: 'vent', name: { it: 'Sfiato / scarico', en: 'Vent / drain' }, code: 'VT', color: '#6c757d', dash: '6 1.5', width: 0.5 },
-  pneumatic: { id: 'pneumatic', name: { it: 'Aria di comando', en: 'Control air' }, code: 'PN', color: '#0b7285', dash: '1.2 1.2', width: 0.35 },
-  signal: { id: 'signal', name: { it: 'Segnale elettrico', en: 'Electrical signal' }, code: 'EL', color: '#7048e8', dash: '0.6 1.4', width: 0.3 },
+  oxidizer: { id: 'oxidizer', name: { it: 'Ossidante (N₂O / LOX)', en: 'Oxidizer (N₂O / LOX)' }, code: 'OX', color: '#1f6fd1', dash: null, width: 0.8 },
+  fuel: { id: 'fuel', name: { it: 'Combustibile', en: 'Fuel' }, code: 'FU', color: '#d9480f', dash: '4 1.2 0.8 1.2', width: 0.8 },
+  pressurant: { id: 'pressurant', name: { it: 'Pressurizzante (N₂ / He)', en: 'Pressurant (N₂ / He)' }, code: 'PR', color: '#2b8a3e', dash: '2.2 1.2', width: 0.8 },
+  vent: { id: 'vent', name: { it: 'Sfiato / scarico', en: 'Vent / drain' }, code: 'VT', color: '#6c757d', dash: '6 1.5', width: 0.8 },
+  pneumatic: { id: 'pneumatic', name: { it: 'Aria di comando', en: 'Control air' }, code: 'PN', color: '#0b7285', dash: '1.2 1.2', width: 0.55 },
+  signal: { id: 'signal', name: { it: 'Segnale elettrico', en: 'Electrical signal' }, code: 'EL', color: '#7048e8', dash: '0.6 1.4', width: 0.45 },
+}
+
+/** Outer diameter in mm from a size string ("Ø6 mm", `1/4" OD`, "AN-4", "DN10"); null if not recognised. */
+export function pipeDiameterMm(size?: string): number | null {
+  if (!size) return null
+  const s = size.trim()
+  let m = /^AN-?(\d+)/i.exec(s)
+  if (m) return (Number(m[1]) / 16) * 25.4
+  m = /^DN\s*(\d+)/i.exec(s)
+  if (m) return Number(m[1])
+  m = /^Ø?\s*(\d+(?:[.,]\d+)?)\s*mm/i.exec(s)
+  if (m) return Number(m[1].replace(',', '.'))
+  m = /^(?:(\d+)-)?(\d+)\/(\d+)\s*["″”]/.exec(s) ?? /^(?:(\d+)-)?(\d+)\/(\d+)/.exec(s)
+  if (m) return ((Number(m[1] ?? 0) + Number(m[2]) / Number(m[3]))) * 25.4
+  m = /^(\d+(?:\.\d+)?)\s*["″”]/.exec(s)
+  if (m) return Number(m[1]) * 25.4
+  return null
+}
+
+/** Stroke width (mm on paper) of a line: grows with the pipe diameter so sizes can be told apart; signals stay thin. */
+export function lineWidth(fluid: FluidId, size?: string): number {
+  const base = FLUIDS[fluid].width
+  const od = pipeDiameterMm(size)
+  if (od === null || fluid === 'signal') return base
+  const scale = fluid === 'pneumatic' ? 0.6 : 1
+  return Math.round(Math.min(2.4, Math.max(base, 0.45 + 0.085 * od) * scale) * 100) / 100
 }
