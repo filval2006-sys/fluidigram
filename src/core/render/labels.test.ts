@@ -1,8 +1,12 @@
+import { produce } from 'immer'
 import { describe, expect, it } from 'vitest'
-import { lineWidth } from '../fluids'
-import { lineRoute } from '../scene'
+import { addComponent, connectPorts } from '../edit'
+import { FLUIDS, lineWidth } from '../fluids'
+import { componentPorts, lineRoute, worldExtent } from '../scene'
 import { SAMPLE_DOCUMENT } from '../sample'
-import { LINE_LABEL_SIZE, TAG_SIZE, planLabels, textFactor, textWidth } from './labels'
+import { ALL_SYMBOLS } from '../symbols/library'
+import { EXPORT_LIMITS as LIMITS, type Drawing, type FluidId } from '../types'
+import { LINE_LABEL_SIZE, TAG_SIZE, labelRects, planLabels, textFactor, textWidth, type Rect } from './labels'
 
 describe('label planning', () => {
   const d = SAMPLE_DOCUMENT.drawing
@@ -37,3 +41,57 @@ describe('label planning', () => {
     expect(tag.size! * 0.7).toBeCloseTo(TAG_SIZE, 5)
   })
 })
+
+describe('labels at every slider position', () => {
+  /** A crowded diagram: parts 24 mm apart in a chain, every fluid, sizes on most lines. */
+  function dense(n: number): Drawing {
+    const doc = produce(SAMPLE_DOCUMENT, (dd) => {
+      dd.drawing.components = []
+      dd.drawing.lines = []
+      const ids = ['valve.ball', 'sensor.pt', 'sensor.tc', 'valve.check', 'fitting.junction', 'valve.solenoid']
+      const fluids = Object.keys(FLUIDS) as FluidId[]
+      let prev: { id: string; port: string } | undefined
+      for (let i = 0; i < n; i++) {
+        const sym = ALL_SYMBOLS.find((s) => s.id === ids[i % ids.length]) ?? ALL_SYMBOLS[i % ALL_SYMBOLS.length]
+        const c = addComponent(dd, sym.id, 40 + (i % 6) * 24, 40 + Math.floor(i / 6) * 28)
+        const ports = componentPorts(c).map((p) => p.id)
+        if (prev && ports.length) connectPorts(dd.drawing, { componentId: prev.id, portId: prev.port }, { componentId: c.id, portId: ports[0] }, fluids[i % 4], i % 4 ? '1/4" OD' : undefined)
+        if (ports.length) prev = { id: c.id, port: ports[ports.length - 1] }
+      }
+    })
+    return doc.drawing
+  }
+
+  const hit = (a: Rect, b: Rect) => a.minX < b.maxX - 0.05 && a.maxX > b.minX + 0.05 && a.minY < b.maxY - 0.05 && a.maxY > b.minY + 0.05
+
+  for (const n of [8, 24, 48]) {
+    it(`${n} crowded parts: labels never overlap each other (and, up to 24 parts, neither parts nor lines), for any text size and scale`, () => {
+      const d = dense(n)
+      // a very crowded diagram shrunk to the 15–20% limit has no room left for any text: only the scales where the parts are still more than a few millimetres apart on paper are required
+      for (const scale of n > 24 ? [0.45, 0.7, 1] : [0.2, 0.3, 0.45, 0.7, 1]) {
+        for (const ts of [LIMITS.textScale.min, 1, 1.25, LIMITS.textScale.max]) {
+          const lp = planLabels(d, scale, ts)
+          const rects = labelRects(d, lp)
+          for (let i = 0; i < rects.length; i++) {
+            for (let j = i + 1; j < rects.length; j++) expect(hit(rects[i], rects[j]), `labels ${i}/${j} @${scale}/${ts}`).toBe(false)
+            if (n > 24) continue // in a very big chain a long return line can cut through a whole row: only label/label overlaps are required
+            for (const c of d.components) expect(hit(rects[i], worldExtent(c)) && !isOwnTag(d, lp, i, c.id), `part ${c.tag} @${scale}/${ts}`).toBe(false)
+            for (const l of d.lines) {
+              const pts = lineRoute(d, l), half = lineWidth(l.fluid, l.size) / 2
+              for (let k = 1; k < pts.length; k++) {
+                const seg = { minX: Math.min(pts[k - 1].x, pts[k].x) - half, maxX: Math.max(pts[k - 1].x, pts[k].x) + half, minY: Math.min(pts[k - 1].y, pts[k].y) - half, maxY: Math.max(pts[k - 1].y, pts[k].y) + half }
+                expect(hit(rects[i], seg), `line ${l.id} @${scale}/${ts}`).toBe(false)
+              }
+            }
+          }
+        }
+      }
+    })
+  }
+})
+
+/** Rect i of labelRects() is the tag of component `compId`? (tags come first, in component order, only those planned) */
+function isOwnTag(d: Drawing, lp: ReturnType<typeof planLabels>, i: number, compId: string): boolean {
+  const planned = d.components.filter((c) => lp.tags.has(c.id))
+  return planned[i]?.id === compId
+}

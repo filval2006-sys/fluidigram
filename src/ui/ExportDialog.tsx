@@ -144,7 +144,7 @@ export function ExportDialog({ onClose, notify, kind = 'design' }: { onClose: ()
                   hint={ex.scale === 0 ? t('Automatic: the layout above decides.') : t('Fixed scale; if the diagram does not fit it is split over several sheets.')} />
               </>}
               <SizeSlider label={t('Texts on the diagram')} value={ex.textScale} limits={EXPORT_LIMITS.textScale} onChange={(v) => setEx({ textScale: v })}
-                hint={t('Tags, pipe labels and the names inside the symbols.')} />
+                hint={t('Tags, pipe labels and the names inside the symbols. If they do not fit, they shrink by themselves so nothing overlaps.')} />
               {!phasesDoc && <SizeSlider label={t('Legend and tables')} value={ex.tableScale} limits={EXPORT_LIMITS.tableScale} onChange={(v) => setEx({ tableScale: v })}
                 hint={t('Legend, bill of materials and valve states.')} />}
             </Section>

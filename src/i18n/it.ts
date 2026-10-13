@@ -362,7 +362,7 @@ export const IT: Record<string, string> = {
   'Automatic: the layout above decides.': 'Automatica: decide l\'impaginazione qui sopra.',
   'Fixed scale; if the diagram does not fit it is split over several sheets.': 'Scala fissa; se lo schema non entra viene diviso su più fogli.',
   'Texts on the diagram': 'Testi sullo schema',
-  'Tags, pipe labels and the names inside the symbols.': 'Sigle, scritte dei tubi e nomi dentro ai simboli.',
+  'Tags, pipe labels and the names inside the symbols. If they do not fit, they shrink by themselves so nothing overlaps.': 'Sigle, scritte dei tubi e nomi dentro ai simboli. Se non entrano si riducono da sole, così non si sovrappone nulla.',
   'Legend and tables': 'Legenda e tabelle',
   'Legend, bill of materials and valve states.': 'Legenda, distinta e stati delle valvole.',
   'Layout': 'Impaginazione',

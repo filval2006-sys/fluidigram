@@ -7,9 +7,9 @@ import { layoutFor, type PageLayout, type Rect } from './layout'
 import { renderLegend, usedIn } from './legend'
 import { annotationBounds, renderAnnotationBox, renderAnnotationText } from './annotations'
 import { endMarkers } from './endpoints'
-import { planLabels, textFactor, type LabelPlan } from './labels'
+import { labelRects, planLabels, textFactor, type LabelPlan } from './labels'
 import { renderComponent, renderLine } from './sheet'
-import { n, rectEl, textEl } from './svg'
+import { n, rectEl, textEl, textWidth } from './svg'
 import { renderRevisionTable, renderTitleBlock } from './titleblock'
 
 /**
@@ -188,9 +188,19 @@ function tileNumberAt(plan: ExportPlan, p: Point): number | undefined {
 }
 
 /** Continuation arrows where a line leaves the sheet ("→ Sheet 2"). */
-function continuationMarkers(plan: ExportPlan, tile: PageTile, d: Drawing, lang: Lang, k: number): string {
+function continuationMarkers(plan: ExportPlan, tile: PageTile, d: Drawing, lang: Lang, k: number, lp: LabelPlan): string {
   const r = tile.region
   let s = ''
+  // the texts "→ Sheet N" go where nothing else is: not over tags, pipe labels, parts or lines
+  const taken: { minX: number; minY: number; maxX: number; maxY: number }[] = [
+    ...labelRects(d, lp),
+    ...d.components.flatMap((c) => [worldExtent(c), ...endMarkers(c).map((m) => m.box)]),
+    ...routesOf(d).flatMap((rt) => rt.points.slice(1).map((p, i) => {
+      const q = rt.points[i]
+      return { minX: Math.min(p.x, q.x) - 0.8, maxX: Math.max(p.x, q.x) + 0.8, minY: Math.min(p.y, q.y) - 0.8, maxY: Math.max(p.y, q.y) + 0.8 }
+    })),
+  ]
+  const clashes = (b: { minX: number; minY: number; maxX: number; maxY: number }) => taken.filter((o) => b.minX < o.maxX && b.maxX > o.minX && b.minY < o.maxY && b.maxY > o.minY).length
   for (const route of routesOf(d)) {
     for (let i = 1; i < route.points.length; i++) {
       const a = route.points[i - 1], b = route.points[i]
@@ -210,9 +220,24 @@ function continuationMarkers(plan: ExportPlan, tile: PageTile, d: Drawing, lang:
         : `${n(cp.x)},${n(cp.y)} ${n(cp.x - tk)},${n(cp.y - dirSign * 2 * tk)} ${n(cp.x + tk)},${n(cp.y - dirSign * 2 * tk)}`
       s += `<polygon points="${tri}" fill="#111"/>`
       const label = `${t('toSheet', lang)} ${target}`
-      s += horizontal
-        ? textEl(cp.x - dirSign * 4 * k, cp.y + 3 * k, label, { size: 3 * k, anchor: dirSign > 0 ? 'end' : 'start', bold: true })
-        : textEl(cp.x + 3 * k, cp.y - dirSign * 4 * k, label, { size: 3 * k, anchor: 'start', bold: true })
+      const size = 3 * k, w = textWidth(label, size, true), h = size * 1.2
+      const cands: { x: number; y: number; anchor: 'start' | 'end' }[] = []
+      for (const dist of [4, 8, 14, 22, 32, 44]) {
+        for (const side of [1, -1]) {
+          cands.push(horizontal
+            ? { x: cp.x - dirSign * dist * k, y: cp.y + side * 3 * k, anchor: dirSign > 0 ? 'end' : 'start' }
+            : { x: cp.x + side * 3 * k, y: cp.y - dirSign * dist * k, anchor: side > 0 ? 'start' : 'end' })
+        }
+      }
+      const box = (c: (typeof cands)[number]) => {
+        const minX = c.anchor === 'start' ? c.x : c.x - w
+        return { minX, maxX: minX + w, minY: c.y - h / 2, maxY: c.y + h / 2 }
+      }
+      // the first free place, else the one that touches the least (short distances win ties)
+      let pick = cands[0], least = Infinity
+      for (const c of cands) { const n_ = clashes(box(c)); if (n_ < least) { least = n_; pick = c } }
+      taken.push(box(pick))
+      s += textEl(pick.x, pick.y, label, { size, anchor: pick.anchor, bold: true })
     }
   }
   return s
@@ -266,9 +291,9 @@ export function renderPageSvg(doc: FluidDocument, plan: ExportPlan, pageNumber: 
   const anns = annsIntersect(d, region)
   let body =
     anns.filter((a) => a.kind === 'box').map((a) => renderAnnotationBox(a, lang)).join('') +
-    lines.map((l) => renderLine(d, l, settings.color, lp.lines.get(l.id) ?? null)).join('') + comps.map((c) => renderComponent(c, { label: lp.tags.get(c.id), textScale: textFactor(s) * settings.textScale })).join('') +
+    lines.map((l) => renderLine(d, l, settings.color, lp.lines.get(l.id) ?? null)).join('') + comps.map((c) => renderComponent(c, { label: lp.tags.get(c.id), textScale: lp.factor })).join('') +
     anns.filter((a) => a.kind === 'text').map((a) => renderAnnotationText(a, lang)).join('')
-  if (plan.tiles.length > 1) body += continuationMarkers(plan, tile, d, lang, textFactor(s) * settings.textScale)
+  if (plan.tiles.length > 1) body += continuationMarkers(plan, tile, d, lang, lp.factor, lp)
   if (!d.components.length && !d.annotations.length) body = textEl(region.x + region.w / 2, region.y + region.h / 2, t('empty', lang), { size: 5, color: '#999' })
 
   const content =

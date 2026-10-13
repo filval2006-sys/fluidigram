@@ -20,11 +20,13 @@ export interface LabelPlan {
   tags: Map<string, LabelPlace>
   /** position of the fluid/size label; absent if no segment is long enough */
   lines: Map<string, LabelPlace>
+  /** text enlargement actually used (it can be smaller than requested when the labels would not fit) */
+  factor: number
 }
 
 const isJunction = (c: { symbol: string }): boolean => c.symbol === 'fitting.junction'
 
-interface Rect { minX: number; minY: number; maxX: number; maxY: number }
+export interface Rect { minX: number; minY: number; maxX: number; maxY: number }
 
 export { textWidth }
 
@@ -41,7 +43,22 @@ function rectOf(p: LabelPlace, w: number, h: number): Rect {
  * Component tags first (near the part), then line labels (on the segment, to the side).
  */
 export function planLabels(d: Drawing, scale = 1, textScale = 1): LabelPlan {
-  const k0 = textFactor(scale) * textScale
+  const wanted = textFactor(scale) * textScale
+  // if the texts are too big for the room around the parts, they shrink (all together) until every tag has a free place close to its part
+  const floor = wanted * MIN_SHRINK
+  let k = wanted
+  for (;;) {
+    const r = layoutLabels(d, k)
+    if (r.clean || k <= floor) return { tags: r.tags, lines: r.lines, factor: k }
+    k *= 0.93
+  }
+}
+
+/** Lowest share of the requested size the planner shrinks the texts to. */
+const MIN_SHRINK = 0.4
+
+function layoutLabels(d: Drawing, k0: number): LabelPlan & { clean: boolean } {
+  let clean = true
   const tagSize = TAG_SIZE * k0, lineSize = LINE_LABEL_SIZE * k0
   const tags = new Map<string, LabelPlace>()
   const lines = new Map<string, LabelPlace>()
@@ -102,6 +119,8 @@ export function planLabels(d: Drawing, scale = 1, textScale = 1): LabelPlan {
       const score = count(r, idx) * 10 + (portSides.has(cd.side) ? 3 : 0) + Math.floor(i / 12) * 1.5 + i * 0.01
       if (score < bestScore) { bestScore = score; best = cd }
     })
+    // overlapping something, or too far from its part to be unambiguous: the texts are too big for this room
+    if (bestScore >= 10 || Math.floor(cands.indexOf(best) / 12) >= 2) clean = false
     best.p.size = tagSize
     tags.set(c.id, best.p)
     placed.push(rectOf(best.p, w, h))
@@ -143,7 +162,21 @@ export function planLabels(d: Drawing, scale = 1, textScale = 1): LabelPlan {
       placed.push(rectOf(best, w, h))
     }
   }
-  return { tags, lines }
+  return { tags, lines, factor: k0, clean }
+}
+
+/** Rectangles taken up by the planned tags and line labels (for placing further texts around them). */
+export function labelRects(d: Drawing, lp: LabelPlan): Rect[] {
+  const rects: Rect[] = []
+  for (const c of d.components) {
+    const p = lp.tags.get(c.id)
+    if (p) { const size = p.size ?? TAG_SIZE; rects.push(rectOf(p, textWidth(c.tag, size, true), size * 1.2)) }
+  }
+  for (const l of d.lines) {
+    const p = lp.lines.get(l.id)
+    if (p) { const size = p.size ?? LINE_LABEL_SIZE; rects.push(rectOf(p, textWidth(p.text ?? lineLabelText(l.fluid, l.size), size), size * 1.2)) }
+  }
+  return rects
 }
 
 /** Distance of a line label from the line axis: clears the stroke (which grows with the pipe size) plus a small gap. */
