@@ -27,7 +27,7 @@
     "icon": "node scripts/make-icon.mjs && tauri icon scripts/icon.png"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/api": "^2.12.3",
     "@tauri-apps/plugin-dialog": "^2.8.1",
     "@tauri-apps/plugin-fs": "^2.6.0",
     "@tauri-apps/plugin-opener": "^2.7.0",
