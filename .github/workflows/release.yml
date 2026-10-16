@@ -112,7 +112,7 @@ jobs:
       # in manual runs (without a tag) the installers can be downloaded from here
       - name: Save the installers as artifacts
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: fluidigram-${{ runner.os }}
           if-no-files-found: error
